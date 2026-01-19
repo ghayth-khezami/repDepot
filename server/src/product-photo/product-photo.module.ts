@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { ProductPhotoService } from './product-photo.service';
-import { ProductPhotoController } from './product-photo.controller';
+import { Module } from "@nestjs/common";
+import { ProductPhotoService } from "./product-photo.service";
+import { ProductPhotoController } from "./product-photo.controller";
 
 @Module({
   controllers: [ProductPhotoController],

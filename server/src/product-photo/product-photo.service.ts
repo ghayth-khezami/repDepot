@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class ProductPhotoService {
@@ -42,7 +42,7 @@ export class ProductPhotoService {
       where: { id },
     });
 
-    return { message: 'Photo deleted successfully' };
+    return { message: "Photo deleted successfully" };
   }
 
   async removeByProduct(productId: string) {

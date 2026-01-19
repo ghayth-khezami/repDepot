@@ -1,22 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateCommandDto } from './dto/create-command.dto';
-import { UpdateCommandDto } from './dto/update-command.dto';
-import { CommandQueryDto } from './dto/command-query.dto';
-import { PaginatedResponse } from '../common/dto/pagination.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateCommandDto } from "./dto/create-command.dto";
+import { UpdateCommandDto } from "./dto/update-command.dto";
+import { CommandQueryDto } from "./dto/command-query.dto";
+import { PaginatedResponse } from "../common/dto/pagination.dto";
 
 @Injectable()
 export class CommandService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCommandDto: CreateCommandDto) {
-    const { productIds, clientId, coClientId, ...commandData } = createCommandDto;
+    const { productIds, clientId, coClientId, ...commandData } =
+      createCommandDto;
 
     // Create the command first
     const command = await this.prisma.command.create({
       data: {
         ...commandData,
-        dateLivraison: createCommandDto.dateLivraison ? new Date(createCommandDto.dateLivraison) : null,
+        dateLivraison: createCommandDto.dateLivraison
+          ? new Date(createCommandDto.dateLivraison)
+          : null,
       },
     });
 
@@ -30,8 +33,8 @@ export class CommandService {
             clientId,
             coClientId: coClientId || null,
           },
-        })
-      )
+        }),
+      ),
     );
 
     // Return command with details
@@ -57,7 +60,10 @@ export class CommandService {
     const where: any = {};
 
     if (search) {
-      where.adresseLivraison = { contains: search, mode: 'insensitive' as const };
+      where.adresseLivraison = {
+        contains: search,
+        mode: "insensitive" as const,
+      };
     }
 
     if (status) {
@@ -96,7 +102,7 @@ export class CommandService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       this.prisma.command.count({ where }),
     ]);
@@ -142,8 +148,13 @@ export class CommandService {
     }
 
     // If status is being updated to DELIVERED or GOT_PROFIT, set products' isDispo to false
-    if (updateCommandDto.status === 'DELIVERED' || updateCommandDto.status === 'GOT_PROFIT') {
-      const productIds = command.commandDetails.map((detail) => detail.productId);
+    if (
+      updateCommandDto.status === "DELIVERED" ||
+      updateCommandDto.status === "GOT_PROFIT"
+    ) {
+      const productIds = command.commandDetails.map(
+        (detail) => detail.productId,
+      );
       if (productIds.length > 0) {
         await this.prisma.product.updateMany({
           where: {
@@ -178,7 +189,7 @@ export class CommandService {
       where: { id },
     });
 
-    return { message: 'Command deleted successfully' };
+    return { message: "Command deleted successfully" };
   }
 
   async getAllForExport() {

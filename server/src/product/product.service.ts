@@ -1,17 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { ProductQueryDto } from './dto/product-query.dto';
-import { PaginatedResponse } from '../common/dto/pagination.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateProductDto } from "./dto/create-product.dto";
+import { UpdateProductDto } from "./dto/update-product.dto";
+import { ProductQueryDto } from "./dto/product-query.dto";
+import { PaginatedResponse } from "../common/dto/pagination.dto";
 
 @Injectable()
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
   async create(createProductDto: CreateProductDto) {
-    const { isDepot, PrixVente, PrixAchat, depotPercentage, surcharge = 0 } = createProductDto;
-    
+    const {
+      isDepot,
+      PrixVente,
+      PrixAchat,
+      depotPercentage,
+      surcharge = 0,
+    } = createProductDto;
+
     // Calculate gain based on mode
     let gain = 0;
     if (isDepot) {
@@ -65,8 +71,8 @@ export class ProductService {
 
     if (search) {
       where.OR = [
-        { productName: { contains: search, mode: 'insensitive' as const } },
-        { description: { contains: search, mode: 'insensitive' as const } },
+        { productName: { contains: search, mode: "insensitive" as const } },
+        { description: { contains: search, mode: "insensitive" as const } },
       ];
     }
 
@@ -128,7 +134,7 @@ export class ProductService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       this.prisma.product.count({ where }),
     ]);
@@ -136,7 +142,9 @@ export class ProductService {
     // Add sold status to each product
     const productsWithSoldStatus = data.map((product) => {
       const hasSoldCommand = product.commandDetails.some(
-        (detail) => detail.command.status === 'DELIVERED' || detail.command.status === 'GOT_PROFIT'
+        (detail) =>
+          detail.command.status === "DELIVERED" ||
+          detail.command.status === "GOT_PROFIT",
       );
       return {
         ...product,
@@ -187,14 +195,29 @@ export class ProductService {
 
   async update(id: string, updateProductDto: UpdateProductDto) {
     const existingProduct = await this.findOne(id);
-    
+
     // Get current values or use updated values
-    const isDepot = updateProductDto.isDepot !== undefined ? updateProductDto.isDepot : existingProduct.isDepot;
-    const PrixVente = updateProductDto.PrixVente !== undefined ? updateProductDto.PrixVente : existingProduct.PrixVente;
-    const PrixAchat = updateProductDto.PrixAchat !== undefined ? updateProductDto.PrixAchat : existingProduct.PrixAchat;
-    const depotPercentage = updateProductDto.depotPercentage !== undefined ? updateProductDto.depotPercentage : existingProduct.depotPercentage;
-    const surcharge = updateProductDto.surcharge !== undefined ? updateProductDto.surcharge : (existingProduct.surcharge || 0);
-    
+    const isDepot =
+      updateProductDto.isDepot !== undefined
+        ? updateProductDto.isDepot
+        : existingProduct.isDepot;
+    const PrixVente =
+      updateProductDto.PrixVente !== undefined
+        ? updateProductDto.PrixVente
+        : existingProduct.PrixVente;
+    const PrixAchat =
+      updateProductDto.PrixAchat !== undefined
+        ? updateProductDto.PrixAchat
+        : existingProduct.PrixAchat;
+    const depotPercentage =
+      updateProductDto.depotPercentage !== undefined
+        ? updateProductDto.depotPercentage
+        : existingProduct.depotPercentage;
+    const surcharge =
+      updateProductDto.surcharge !== undefined
+        ? updateProductDto.surcharge
+        : existingProduct.surcharge || 0;
+
     // Calculate gain based on mode
     let gain = 0;
     if (isDepot) {
@@ -238,6 +261,6 @@ export class ProductService {
       where: { id },
     });
 
-    return { message: 'Product deleted successfully' };
+    return { message: "Product deleted successfully" };
   }
 }

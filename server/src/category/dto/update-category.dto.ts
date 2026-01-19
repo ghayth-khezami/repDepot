@@ -1,14 +1,17 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, MinLength } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsString, IsOptional, MinLength } from "class-validator";
 
 export class UpdateCategoryDto {
-  @ApiPropertyOptional({ description: 'Category name', example: 'Electronics' })
+  @ApiPropertyOptional({ description: "Category name", example: "Electronics" })
   @IsOptional()
   @IsString()
   @MinLength(1)
   categoryName?: string;
 
-  @ApiPropertyOptional({ description: 'Category description', example: 'Electronic products' })
+  @ApiPropertyOptional({
+    description: "Category description",
+    example: "Electronic products",
+  })
   @IsOptional()
   @IsString()
   description?: string;

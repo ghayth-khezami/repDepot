@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { CategoryQueryDto } from './dto/category-query.dto';
-import { PaginatedResponse } from '../common/dto/pagination.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateCategoryDto } from "./dto/create-category.dto";
+import { UpdateCategoryDto } from "./dto/update-category.dto";
+import { CategoryQueryDto } from "./dto/category-query.dto";
+import { PaginatedResponse } from "../common/dto/pagination.dto";
 
 @Injectable()
 export class CategoryService {
@@ -23,8 +23,10 @@ export class CategoryService {
     const where = search
       ? {
           OR: [
-            { categoryName: { contains: search, mode: 'insensitive' as const } },
-            { description: { contains: search, mode: 'insensitive' as const } },
+            {
+              categoryName: { contains: search, mode: "insensitive" as const },
+            },
+            { description: { contains: search, mode: "insensitive" as const } },
           ],
         }
       : {};
@@ -34,7 +36,7 @@ export class CategoryService {
         where,
         skip,
         take: actualLimit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       this.prisma.category.count({ where }),
     ]);
@@ -78,6 +80,6 @@ export class CategoryService {
       where: { id },
     });
 
-    return { message: 'Category deleted successfully' };
+    return { message: "Category deleted successfully" };
   }
 }

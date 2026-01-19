@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateClientDto } from './dto/create-client.dto';
-import { ClientQueryDto } from './dto/client-query.dto';
-import { PaginatedResponse } from '../common/dto/pagination.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateClientDto } from "./dto/create-client.dto";
+import { ClientQueryDto } from "./dto/client-query.dto";
+import { PaginatedResponse } from "../common/dto/pagination.dto";
 
 @Injectable()
 export class ClientService {
@@ -22,10 +22,10 @@ export class ClientService {
     const where = search
       ? {
           OR: [
-            { firstName: { contains: search, mode: 'insensitive' as const } },
-            { lastName: { contains: search, mode: 'insensitive' as const } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { phoneNumber: { contains: search, mode: 'insensitive' as const } },
+            { firstName: { contains: search, mode: "insensitive" as const } },
+            { lastName: { contains: search, mode: "insensitive" as const } },
+            { email: { contains: search, mode: "insensitive" as const } },
+            { phoneNumber: { contains: search, mode: "insensitive" as const } },
           ],
         }
       : {};
@@ -35,7 +35,7 @@ export class ClientService {
         where,
         skip,
         take: actualLimit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       this.prisma.client.count({ where }),
     ]);
@@ -70,6 +70,6 @@ export class ClientService {
       where: { id },
     });
 
-    return { message: 'Client deleted successfully' };
+    return { message: "Client deleted successfully" };
   }
 }

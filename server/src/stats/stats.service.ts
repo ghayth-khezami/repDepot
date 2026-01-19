@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 export interface StatsQueryDto {
   startDate?: string;
   endDate?: string;
   categoryId?: string;
-  period?: 'month' | 'year' | 'all';
+  period?: "month" | "year" | "all";
 }
 
 @Injectable()
@@ -17,16 +17,24 @@ export class StatsService {
     const dateFilter = this.buildDateFilter(query);
 
     // 1. Total Products
-    const totalProducts = await this.prisma.product.count({ where: where.product });
+    const totalProducts = await this.prisma.product.count({
+      where: where.product,
+    });
 
     // 2. Total Commands
-    const totalCommands = await this.prisma.command.count({ where: where.command });
+    const totalCommands = await this.prisma.command.count({
+      where: where.command,
+    });
 
     // 3. Total Clients
-    const totalClients = await this.prisma.client.count({ where: where.client });
+    const totalClients = await this.prisma.client.count({
+      where: where.client,
+    });
 
     // 4. Total Co-Clients
-    const totalCoClients = await this.prisma.coClient.count({ where: where.coClient });
+    const totalCoClients = await this.prisma.coClient.count({
+      where: where.coClient,
+    });
 
     // 5. Total Revenue (sum of PrixVente from commands)
     const revenueResult = await this.prisma.command.aggregate({
@@ -53,7 +61,7 @@ export class StatsService {
     const deliveredCommands = await this.prisma.command.count({
       where: {
         ...where.command,
-        status: 'DELIVERED',
+        status: "DELIVERED",
       },
     });
 
@@ -61,7 +69,7 @@ export class StatsService {
     const profitCommands = await this.prisma.command.count({
       where: {
         ...where.command,
-        status: 'GOT_PROFIT',
+        status: "GOT_PROFIT",
       },
     });
 
@@ -85,7 +93,7 @@ export class StatsService {
   async getProductsByCategory(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
     const products = await this.prisma.product.groupBy({
-      by: ['categoryId'],
+      by: ["categoryId"],
       where: where.product,
       _count: {
         id: true,
@@ -100,7 +108,7 @@ export class StatsService {
       const category = categories.find((c) => c.id === item.categoryId);
       return {
         categoryId: item.categoryId,
-        categoryName: category?.categoryName || 'Unknown',
+        categoryName: category?.categoryName || "Unknown",
         count: item._count.id,
       };
     });
@@ -109,7 +117,7 @@ export class StatsService {
   async getCommandsByStatus(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
     const commands = await this.prisma.command.groupBy({
-      by: ['status'],
+      by: ["status"],
       where: where.command,
       _count: {
         id: true,
@@ -136,7 +144,7 @@ export class StatsService {
     commands.forEach((cmd) => {
       const date = new Date(cmd.createdAt);
       const month = date.getMonth() + 1;
-      const monthKey = `${date.getFullYear()}-${month < 10 ? '0' : ''}${month}`;
+      const monthKey = `${date.getFullYear()}-${month < 10 ? "0" : ""}${month}`;
       monthlyData[monthKey] = (monthlyData[monthKey] || 0) + cmd.PrixVente;
     });
 
@@ -159,11 +167,12 @@ export class StatsService {
       },
     });
 
-    const monthlyData: { [key: string]: { revenue: number; cost: number } } = {};
+    const monthlyData: { [key: string]: { revenue: number; cost: number } } =
+      {};
     commands.forEach((cmd) => {
       const date = new Date(cmd.createdAt);
       const month = date.getMonth() + 1;
-      const monthKey = `${date.getFullYear()}-${month < 10 ? '0' : ''}${month}`;
+      const monthKey = `${date.getFullYear()}-${month < 10 ? "0" : ""}${month}`;
       if (!monthlyData[monthKey]) {
         monthlyData[monthKey] = { revenue: 0, cost: 0 };
       }
@@ -194,7 +203,7 @@ export class StatsService {
             photos: {
               take: 1,
               orderBy: {
-                createdAt: 'asc',
+                createdAt: "asc",
               },
             },
           },
@@ -202,7 +211,9 @@ export class StatsService {
       },
     });
 
-    const productData: { [key: string]: { product: any; count: number; totalValue: number } } = {};
+    const productData: {
+      [key: string]: { product: any; count: number; totalValue: number };
+    } = {};
     commandDetails.forEach((detail) => {
       const productId = detail.productId;
       if (!productData[productId]) {
@@ -223,7 +234,7 @@ export class StatsService {
         rank: index + 1,
         productId: item.product.id,
         productName: item.product.productName,
-        categoryName: item.product.category?.categoryName || 'N/A',
+        categoryName: item.product.category?.categoryName || "N/A",
         count: item.count,
         totalValue: item.totalValue,
         PrixVente: item.product.PrixVente,
@@ -233,7 +244,7 @@ export class StatsService {
 
   async getTotalSurcharge(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
-    
+
     // Get all products with their surcharge
     const products = await this.prisma.product.findMany({
       where: where.product,
@@ -282,7 +293,7 @@ export class StatsService {
 
   async getRevenueBreakdown(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
-    
+
     // Get all commands with their details
     const commands = await this.prisma.command.findMany({
       where: where.command,
@@ -301,10 +312,12 @@ export class StatsService {
 
     commands.forEach((cmd) => {
       totalRevenue += cmd.PrixVente;
-      
+
       // Check if command has depot products
-      const hasDepotProducts = cmd.commandDetails.some((detail) => detail.product.isDepot);
-      
+      const hasDepotProducts = cmd.commandDetails.some(
+        (detail) => detail.product.isDepot,
+      );
+
       if (hasDepotProducts) {
         depotRevenue += cmd.PrixVente;
       } else {
@@ -322,11 +335,11 @@ export class StatsService {
   async getMonthlySoldProducts(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
     const dateFilter = this.buildDateFilter(query);
-    
+
     // Get current year
     const now = new Date();
     const currentYear = now.getFullYear();
-    
+
     // Get all commands for current year
     const commands = await this.prisma.command.findMany({
       where: {
@@ -345,7 +358,7 @@ export class StatsService {
     // Initialize 12 months with 0
     const monthlyData: { [key: string]: number } = {};
     for (let month = 1; month <= 12; month++) {
-      const monthKey = `${currentYear}-${month < 10 ? '0' : ''}${month}`;
+      const monthKey = `${currentYear}-${month < 10 ? "0" : ""}${month}`;
       monthlyData[monthKey] = 0;
     }
 
@@ -353,7 +366,7 @@ export class StatsService {
     commands.forEach((cmd) => {
       const date = new Date(cmd.createdAt);
       const month = date.getMonth() + 1;
-      const monthKey = `${date.getFullYear()}-${month < 10 ? '0' : ''}${month}`;
+      const monthKey = `${date.getFullYear()}-${month < 10 ? "0" : ""}${month}`;
       if (monthlyData[monthKey] !== undefined) {
         monthlyData[monthKey] += cmd.productsNumber;
       }
@@ -369,7 +382,7 @@ export class StatsService {
 
   async getDepotVsBuyingProducts(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
-    
+
     const depotCount = await this.prisma.product.count({
       where: {
         ...where.product,
@@ -393,7 +406,7 @@ export class StatsService {
 
   async getCommandLocations(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
-    
+
     const commands = await this.prisma.command.findMany({
       where: where.command,
       select: {
@@ -422,7 +435,9 @@ export class StatsService {
 
     // Return commands with addresses (for geocoding on frontend)
     return commands
-      .filter((cmd) => cmd.adresseLivraison && cmd.adresseLivraison.trim() !== '')
+      .filter(
+        (cmd) => cmd.adresseLivraison && cmd.adresseLivraison.trim() !== "",
+      )
       .map((cmd) => ({
         id: cmd.id,
         address: cmd.adresseLivraison,
@@ -431,8 +446,8 @@ export class StatsService {
         client: cmd.commandDetails[0]?.client
           ? `${cmd.commandDetails[0].client.firstName} ${cmd.commandDetails[0].client.lastName}`
           : cmd.commandDetails[0]?.coClient
-          ? `${cmd.commandDetails[0].coClient.firstName} ${cmd.commandDetails[0].coClient.lastName}`
-          : 'N/A',
+            ? `${cmd.commandDetails[0].coClient.firstName} ${cmd.commandDetails[0].coClient.lastName}`
+            : "N/A",
       }));
   }
 
@@ -449,7 +464,7 @@ export class StatsService {
     }
 
     const now = new Date();
-    if (query.period === 'month') {
+    if (query.period === "month") {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       return {
         gte: startOfMonth,
@@ -457,7 +472,7 @@ export class StatsService {
       };
     }
 
-    if (query.period === 'year') {
+    if (query.period === "year") {
       const startOfYear = new Date(now.getFullYear(), 0, 1);
       return {
         gte: startOfYear,

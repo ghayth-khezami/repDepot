@@ -1,23 +1,23 @@
-import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
-import * as dotenv from 'dotenv';
-import { resolve } from 'path';
+import { PrismaClient } from "@prisma/client";
+import * as bcrypt from "bcryptjs";
+import * as dotenv from "dotenv";
+import { resolve } from "path";
 
 // Load environment variables
-dotenv.config({ path: resolve(__dirname, '../../.env') });
+dotenv.config({ path: resolve(__dirname, "../../.env") });
 
 const prisma = new PrismaClient();
 
 const users = [
   {
-    email: 'admin@bebe-depot.com',
-    password: 'Admin@2024',
-    username: 'admin',
+    email: "admin@bebe-depot.com",
+    password: "Admin@2024",
+    username: "admin",
   },
   {
-    email: 'user@bebe-depot.com',
-    password: 'User@2024',
-    username: 'user',
+    email: "user@bebe-depot.com",
+    password: "User@2024",
+    username: "user",
   },
 ];
 
@@ -45,9 +45,9 @@ async function bulkInsertUsers() {
       console.log(`User ${user.email} created successfully`);
     }
 
-    console.log('Bulk insert completed!');
+    console.log("Bulk insert completed!");
   } catch (error) {
-    console.error('Error during bulk insert:', error);
+    console.error("Error during bulk insert:", error);
   } finally {
     await prisma.$disconnect();
   }

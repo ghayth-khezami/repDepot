@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserQueryDto } from './dto/user-query.dto';
-import { PaginatedResponse } from '../common/dto/pagination.dto';
-import * as bcrypt from 'bcryptjs';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
+import { UserQueryDto } from "./dto/user-query.dto";
+import { PaginatedResponse } from "../common/dto/pagination.dto";
+import * as bcrypt from "bcryptjs";
 
 @Injectable()
 export class UserService {
@@ -24,8 +24,8 @@ export class UserService {
     const where = search
       ? {
           OR: [
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { username: { contains: search, mode: 'insensitive' as const } },
+            { email: { contains: search, mode: "insensitive" as const } },
+            { username: { contains: search, mode: "insensitive" as const } },
           ],
         }
       : {};
@@ -78,7 +78,7 @@ export class UserService {
 
   async create(createUserDto: CreateUserDto) {
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    
+
     return this.prisma.user.create({
       data: {
         ...createUserDto,
@@ -122,6 +122,6 @@ export class UserService {
       where: { id },
     });
 
-    return { message: 'User deleted successfully' };
+    return { message: "User deleted successfully" };
   }
 }
