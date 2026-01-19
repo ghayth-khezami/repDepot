@@ -1,22 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCoClientDto } from './dto/create-co-client.dto';
-import { CoClientQueryDto } from './dto/co-client-query.dto';
+import { CreateClientDto } from './dto/create-client.dto';
+import { ClientQueryDto } from './dto/client-query.dto';
 import { PaginatedResponse } from '../common/dto/pagination.dto';
 
 @Injectable()
-export class CoClientService {
+export class ClientService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCoClientDto: CreateCoClientDto) {
-    return this.prisma.coClient.create({
-      data: createCoClientDto,
+  async create(createClientDto: CreateClientDto) {
+    return this.prisma.client.create({
+      data: createClientDto,
     });
   }
 
-  async findAll(query: CoClientQueryDto): Promise<PaginatedResponse<any>> {
+  async findAll(query: ClientQueryDto): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 10, search } = query;
-    const skip = (page - 1) * limit;
+    const actualLimit = Math.min(limit || 10, 10); // Enforce max 10
+    const skip = (page - 1) * actualLimit;
 
     const where = search
       ? {
@@ -25,51 +26,50 @@ export class CoClientService {
             { lastName: { contains: search, mode: 'insensitive' as const } },
             { email: { contains: search, mode: 'insensitive' as const } },
             { phoneNumber: { contains: search, mode: 'insensitive' as const } },
-            { RIB: { contains: search, mode: 'insensitive' as const } },
           ],
         }
       : {};
 
     const [data, total] = await Promise.all([
-      this.prisma.coClient.findMany({
+      this.prisma.client.findMany({
         where,
         skip,
-        take: limit,
+        take: actualLimit,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.coClient.count({ where }),
+      this.prisma.client.count({ where }),
     ]);
 
     return {
       data,
       meta: {
         page,
-        limit,
+        limit: actualLimit,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / actualLimit),
       },
     };
   }
 
   async findOne(id: string) {
-    const coClient = await this.prisma.coClient.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { id },
     });
 
-    if (!coClient) {
-      throw new NotFoundException(`CoClient with ID ${id} not found`);
+    if (!client) {
+      throw new NotFoundException(`Client with ID ${id} not found`);
     }
 
-    return coClient;
+    return client;
   }
 
   async remove(id: string) {
     await this.findOne(id);
 
-    await this.prisma.coClient.delete({
+    await this.prisma.client.delete({
       where: { id },
     });
 
-    return { message: 'CoClient deleted successfully' };
+    return { message: 'Client deleted successfully' };
   }
 }

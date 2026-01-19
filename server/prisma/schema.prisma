@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  username  String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Client {
+  id          String   @id @default(uuid())
+  firstName   String
+  lastName    String
+  address     String
+  email       String   @unique
+  phoneNumber String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  commandDetails CommandDetail[]
+
+  @@map("clients")
+}
+
+model CoClient {
+  id          String   @id @default(uuid())
+  firstName   String
+  lastName    String
+  address     String
+  email       String   @unique
+  phoneNumber String
+  RIB         String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+  commandDetails CommandDetail[]
+
+  @@map("co_clients")
+}
+
+model Category {
+  id           String   @id @default(uuid())
+  categoryName String   @unique
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  products     Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  productName   String
+  description   String?
+  PrixVente     Float
+  PrixAchat     Float?
+  stockQuantity Int      @default(0)
+  isDepot      Boolean  @default(false)
+  depotPercentage Float?
+  surcharge     Float?   @default(0)
+  gain          Float?   @default(0)
+  isDispo       Boolean  @default(true)
+  coclientId    String?
+  categoryId    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  coClient      CoClient?    @relation(fields: [coclientId], references: [id], onDelete: SetNull)
+  photos        ProductPhoto[]
+  commandDetails CommandDetail[]
+
+  @@map("products")
+}
+
+model ProductPhoto {
+  id        String   @id @default(uuid())
+  photoDoc  String
+  idProduct String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [idProduct], references: [id], onDelete: Cascade)
+
+  @@map("product_photos")
+}
+
+model Command {
+  id              String   @id @default(uuid())
+  productsNumber  Int
+  PrixVente       Float
+  PrixAchat       Float
+  status          CommandStatus @default(NOT_DELIVERED)
+  dateLivraison   DateTime?
+  adresseLivraison String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  commandDetails  CommandDetail[]
+
+  @@map("commands")
+}
+
+model CommandDetail {
+  id         String   @id @default(uuid())
+  commandId  String
+  productId  String
+  clientId   String?
+  coClientId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  command    Command  @relation(fields: [commandId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  coClient   CoClient? @relation(fields: [coClientId], references: [id], onDelete: SetNull)
+
+  @@map("command_details")
+}
+
+enum CommandStatus {
+  NOT_DELIVERED
+  DELIVERED
+  GOT_PROFIT
+}
