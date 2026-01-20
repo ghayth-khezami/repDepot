@@ -6,12 +6,24 @@ import { resolve } from "path";
 // Load environment variables
 dotenv.config({ path: resolve(__dirname, "../../.env") });
 
+// Allow DATABASE_URL to be passed as environment variable or command line argument
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  console.error("❌ Error: DATABASE_URL environment variable is required!");
+  console.error("   Please add DATABASE_URL to your .env file:");
+  console.error("   DATABASE_URL=postgresql://user:password@host:port/database");
+  console.error("   Or set it as an environment variable:");
+  console.error("   $env:DATABASE_URL='your-connection-string'");
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 async function createUser() {
   const email = process.argv[2] || "admin@bebe-depot.com";
   const password = process.argv[3] || "Admin@2024";
-  const username = process.argv[4] || "admin";
+  const username = process.argv[4] || undefined;
 
   try {
     const existingUser = await prisma.user.findUnique({
