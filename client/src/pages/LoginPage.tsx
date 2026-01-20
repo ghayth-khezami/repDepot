@@ -16,10 +16,10 @@ const LoginPage = () => {
   const [showPostLoginLoading, setShowPostLoginLoading] = useState(false)
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !showPostLoginLoading) {
       navigate('/', { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, showPostLoginLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,9 +37,9 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lavender-100 via-peach-50 to-secondary-100">
+    <div className="min-h-screen flex items-center justify-center login-gradient-animated">
       <PostLoginLoadingOverlay isOpen={showPostLoginLoading} />
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-lavender-200">
+      <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-md border border-lavender-200 animate-card-enter">
         <div className="flex flex-col items-center justify-center gap-4 mb-8">
           <img 
             src={depotLogo} 

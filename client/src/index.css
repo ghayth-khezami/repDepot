@@ -65,3 +65,21 @@ body {
   animation: card-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   opacity: 0;
 }
+
+@keyframes bg-gradient-move {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.login-gradient-animated {
+  background: linear-gradient(135deg, #f5f3ff, #ffe4e6, #fef3c7);
+  background-size: 200% 200%;
+  animation: bg-gradient-move 10s ease infinite;
+}

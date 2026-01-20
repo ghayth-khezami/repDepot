@@ -150,7 +150,7 @@ const ProductsPage = () => {
     if (product.id) {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3000/product-photos/product/${product.id}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/product-photos/product/${product.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -243,7 +243,7 @@ const ProductsPage = () => {
             formData.append('file', file);
             formData.append('productId', productId);
 
-            const response = await fetch('http://localhost:3000/product-photos/upload', {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/product-photos/upload`, {
               method: 'POST',
               headers: {
                 Authorization: `Bearer ${token}`,
