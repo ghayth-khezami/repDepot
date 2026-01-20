@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLoginMutation } from '../store/api/authApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import depotLogo from '../depot.jpg';
+import { PostLoginLoadingOverlay } from '../components/PostLoginLoadingOverlay'
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +13,7 @@ const LoginPage = () => {
   const { login: setAuth, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const [showPostLoginLoading, setShowPostLoginLoading] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -25,7 +27,10 @@ const LoginPage = () => {
       const result = await login({ email, password }).unwrap();
       setAuth(result.access_token, result.user);
       showToast('Connexion réussie!', 'success');
-      navigate('/', { replace: true });
+      setShowPostLoginLoading(true)
+      setTimeout(() => {
+        navigate('/', { replace: true })
+      }, 5000)
     } catch (error: any) {
       showToast(error?.data?.message || 'Email ou mot de passe incorrect', 'error');
     }
@@ -33,6 +38,7 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lavender-100 via-peach-50 to-secondary-100">
+      <PostLoginLoadingOverlay isOpen={showPostLoginLoading} />
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-lavender-200">
         <div className="flex flex-col items-center justify-center gap-4 mb-8">
           <img 

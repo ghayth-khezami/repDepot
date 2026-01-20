@@ -54,9 +54,13 @@ export interface Product {
   productName: string;
   description?: string;
   PrixVente: number;
-  PrixAchat: number;
+  PrixAchat?: number;
   stockQuantity: number;
   isDepot: boolean;
+  depotPercentage?: number;
+  surcharge?: number;
+  gain?: number;
+  isDispo?: boolean;
   coclientId?: string;
   categoryId: string;
   category?: {

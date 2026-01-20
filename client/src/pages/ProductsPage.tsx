@@ -37,15 +37,15 @@ const ProductsPage = () => {
   const {
     data,
     isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
   } = useGetProductsInfiniteQuery({
     page,
     search,
     categoryId: categoryFilter || undefined,
     isDepot: isDepotFilter,
   });
+
+  const hasNextPage = (data?.meta?.page ?? page) < (data?.meta?.totalPages ?? 1)
+  const isFetchingNextPage = false
   // Infinite scroll for categories
   const [categoriesPage, setCategoriesPage] = useState(1);
   const { data: categoriesData, isLoading: categoriesLoading } = useGetCategoriesQuery({ limit: 10, page: categoriesPage });
@@ -391,12 +391,11 @@ const ProductsPage = () => {
       observerRef.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && hasNextPage) {
           setPage((prev) => prev + 1);
-          fetchNextPage();
         }
       });
       if (node) observerRef.current.observe(node);
     },
-    [isLoading, isFetchingNextPage, hasNextPage, fetchNextPage]
+    [isLoading, isFetchingNextPage, hasNextPage]
   );
 
   // Reset page when filters change
