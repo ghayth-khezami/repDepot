@@ -267,6 +267,14 @@ export class ClientController {
     return this.clientService.findOne(id);
   }
 
+  @Get(":id/commands")
+  @ApiOperation({ summary: "Get a client's command history" })
+  @ApiParam({ name: "id", description: "Client ID" })
+  @ApiResponse({ status: 200, description: "Client command history" })
+  getCommandHistory(@Param("id") id: string) {
+    return this.clientService.getCommandHistory(id);
+  }
+
   @Delete(":id")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a client" })

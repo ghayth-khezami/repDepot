@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGetClientsQuery, useCreateClientMutation, useDeleteClientMutation } from '../store/api/clientApi';
+import { useGetClientsQuery, useCreateClientMutation, useDeleteClientMutation, useGetClientCommandHistoryQuery } from '../store/api/clientApi';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import AddressMapSelector from '../components/AddressMapSelector';
@@ -22,6 +22,10 @@ const ClientsPage = () => {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewClient, setViewClient] = useState<Client | null>(null);
   const { showToast } = useToast();
+  const { data: clientHistory, isLoading: clientHistoryLoading } = useGetClientCommandHistoryQuery(
+    viewClient?.id || '',
+    { skip: !viewClient?.id }
+  );
 
   const handleAdd = () => {
     setIsEditMode(false);
@@ -55,7 +59,8 @@ const ClientsPage = () => {
 
   const handleExportCsv = () => {
     const token = localStorage.getItem('token');
-    fetch(`http://localhost:3000/clients/export/csv`, {
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    fetch(`${baseUrl}/clients/export/csv`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.blob())
@@ -72,7 +77,8 @@ const ClientsPage = () => {
 
   const handleExportPdf = () => {
     const token = localStorage.getItem('token');
-    fetch(`http://localhost:3000/clients/export/pdf`, {
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    fetch(`${baseUrl}/clients/export/pdf`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.blob())
@@ -266,7 +272,7 @@ const ClientsPage = () => {
           setViewClient(null);
         }}
         title="Détails du client"
-        size="md"
+        size="xl"
       >
         {viewClient && (
           <div className="space-y-4">
@@ -289,6 +295,43 @@ const ClientsPage = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
               <p className="px-4 py-2 bg-gray-50 rounded-lg">{viewClient.address || '-'}</p>
+            </div>
+
+            <div className="pt-2">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">Historique des commandes</label>
+              {clientHistoryLoading ? (
+                <div className="text-sm text-gray-500">Chargement...</div>
+              ) : !clientHistory || clientHistory.length === 0 ? (
+                <div className="text-sm text-gray-500">Aucune commande trouvée.</div>
+              ) : (
+                <div className="space-y-3">
+                  {clientHistory.map((cmd) => (
+                    <div key={cmd.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-sm font-semibold text-gray-900">
+                          Commande #{cmd.id.slice(0, 8)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(cmd.createdAt).toLocaleDateString('fr-FR')}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600">
+                        <span className="font-medium">Adresse:</span> {cmd.adresseLivraison || '-'}
+                      </div>
+                      <div className="mt-2 text-sm">
+                        <div className="font-medium text-gray-800 mb-1">Produits:</div>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {cmd.products.map((p) => (
+                            <li key={p.id} className="text-sm text-gray-700">
+                              {p.productName} — {p.PrixVente} TND
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex justify-end pt-4">
               <button

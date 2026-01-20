@@ -294,35 +294,45 @@ export class StatsService {
   async getRevenueBreakdown(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
 
-    // Get all commands with their details
-    const commands = await this.prisma.command.findMany({
-      where: where.command,
-      include: {
-        commandDetails: {
-          include: {
-            product: true,
-          },
-        },
-      },
-    });
-
     let totalRevenue = 0;
     let buyingRevenue = 0;
     let depotRevenue = 0;
 
-    commands.forEach((cmd) => {
-      totalRevenue += cmd.PrixVente;
+    // Buying revenue: sum of profit (PrixVente - PrixAchat) for non-depot products
+    const buyingProducts = await this.prisma.product.findMany({
+      where: {
+        ...where.product,
+        isDepot: false,
+      },
+      select: {
+        PrixVente: true,
+        PrixAchat: true,
+      },
+    });
 
-      // Check if command has depot products
-      const hasDepotProducts = cmd.commandDetails.some(
-        (detail) => detail.product.isDepot,
-      );
+    buyingProducts.forEach((product) => {
+      const prixVente = product.PrixVente || 0;
+      const prixAchat = product.PrixAchat || 0;
+      const profit = prixVente - prixAchat;
+      buyingRevenue += profit;
+      totalRevenue += profit;
+    });
 
-      if (hasDepotProducts) {
-        depotRevenue += cmd.PrixVente;
-      } else {
-        buyingRevenue += cmd.PrixVente;
-      }
+    // Depot revenue: sum of gain for depot products
+    const depotProducts = await this.prisma.product.findMany({
+      where: {
+        ...where.product,
+        isDepot: true,
+      },
+      select: {
+        gain: true,
+      },
+    });
+
+    depotProducts.forEach((product) => {
+      const gain = product.gain || 0;
+      depotRevenue += gain;
+      totalRevenue += gain;
     });
 
     return {

@@ -55,6 +55,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(newUser);
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser));
+
+    // Show welcome overlay after an explicit login
+    setShowWelcomeOverlay(true);
+    sessionStorage.setItem('welcome_overlay_shown', 'true');
+    window.setTimeout(() => setShowWelcomeOverlay(false), 5000);
   };
 
   const logout = () => {

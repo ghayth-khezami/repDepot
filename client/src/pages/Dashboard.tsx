@@ -237,11 +237,14 @@ const Dashboard = () => {
                     <div className="w-full h-48 bg-gradient-to-br from-gray-200 to-gray-300 overflow-hidden relative">
                       {product.photo ? (
                         <img
-                          src={`http://localhost:3000${product.photo.startsWith('/') ? product.photo : '/' + product.photo}`}
+                          src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${
+                            product.photo.startsWith('/') ? product.photo : '/' + product.photo
+                          }`}
                           alt={product.productName}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
+                            (e.target as HTMLImageElement).src =
+                              'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
                           }}
                         />
                       ) : (
@@ -427,13 +430,13 @@ const Dashboard = () => {
                   return (
                     <Marker key={location.id} position={[lat + (Math.random() - 0.5) * 0.5, lng + (Math.random() - 0.5) * 0.5]}>
                       <Popup>
-                        <div className="p-2">
+                        <div className="p-2 space-y-1">
                           <p className="font-semibold text-sm">{location.client}</p>
-                          <p className="text-xs text-gray-600">{location.address}</p>
-                          <p className="text-xs text-purple-600 font-medium mt-1">{location.revenue.toFixed(2)} TND</p>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500">
                             {new Date(location.date).toLocaleDateString('fr-FR')}
                           </p>
+                          <p className="text-xs text-purple-600 font-medium">{location.revenue.toFixed(2)} TND</p>
+                          <p className="text-xs text-gray-600">{location.address}</p>
                         </div>
                       </Popup>
                     </Marker>

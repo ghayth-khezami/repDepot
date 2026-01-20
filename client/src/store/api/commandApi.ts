@@ -30,6 +30,7 @@ export interface UpdateCommandDto {
   productsNumber?: number;
   PrixVente?: number;
   PrixAchat?: number;
+  coClientId?: string;
   status?: 'NOT_DELIVERED' | 'DELIVERED' | 'GOT_PROFIT';
   dateLivraison?: string;
   adresseLivraison?: string;

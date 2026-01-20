@@ -277,7 +277,8 @@ const ProductsPage = () => {
 
   const handleExportCsv = () => {
     const token = localStorage.getItem('token');
-    fetch(`http://localhost:3000/products/export/csv`, {
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    fetch(`${baseUrl}/products/export/csv`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.blob())
@@ -294,7 +295,8 @@ const ProductsPage = () => {
 
   const handleExportPdf = () => {
     const token = localStorage.getItem('token');
-    fetch(`http://localhost:3000/products/export/pdf`, {
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    fetch(`${baseUrl}/products/export/pdf`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.blob())
@@ -319,9 +321,10 @@ const ProductsPage = () => {
       accessor: (row) => {
         const firstPhoto = (row as any).photos?.[0]?.photoDoc;
         if (firstPhoto) {
-          const photoUrl = firstPhoto.startsWith('http') || firstPhoto.startsWith('/uploads')
-            ? `http://localhost:3000${firstPhoto.startsWith('/') ? '' : '/'}${firstPhoto}`
-            : firstPhoto;
+          const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          const photoUrl = firstPhoto.startsWith('http')
+            ? firstPhoto
+            : `${baseUrl}${firstPhoto.startsWith('/') ? '' : '/'}${firstPhoto}`;
           return (
             <img
               src={photoUrl}
@@ -585,9 +588,10 @@ const ProductsPage = () => {
                 <p className="text-sm font-medium text-gray-700 mb-2">Photos existantes:</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {existingPhotos.map((photo) => {
-                    const photoUrl = photo.photoDoc.startsWith('http') || photo.photoDoc.startsWith('/uploads')
-                      ? `http://localhost:3000${photo.photoDoc.startsWith('/') ? '' : '/'}${photo.photoDoc}`
-                      : photo.photoDoc;
+                    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                    const photoUrl = photo.photoDoc.startsWith('http')
+                      ? photo.photoDoc
+                      : `${baseUrl}${photo.photoDoc.startsWith('/') ? '' : '/'}${photo.photoDoc}`;
                     return (
                       <div key={photo.id} className="relative">
                         <img

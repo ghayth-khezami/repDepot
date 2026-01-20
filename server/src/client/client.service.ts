@@ -63,6 +63,47 @@ export class ClientService {
     return client;
   }
 
+  async getCommandHistory(clientId: string) {
+    // ensure client exists
+    await this.findOne(clientId);
+
+    const commands = await this.prisma.command.findMany({
+      where: {
+        commandDetails: {
+          some: { clientId },
+        },
+      },
+      include: {
+        commandDetails: {
+          where: { clientId },
+          include: {
+            product: {
+              select: {
+                id: true,
+                productName: true,
+                PrixVente: true,
+                PrixAchat: true,
+                isDepot: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return commands.map((cmd) => ({
+      id: cmd.id,
+      createdAt: cmd.createdAt,
+      dateLivraison: cmd.dateLivraison,
+      status: cmd.status,
+      adresseLivraison: cmd.adresseLivraison,
+      PrixVente: cmd.PrixVente,
+      PrixAchat: cmd.PrixAchat,
+      products: cmd.commandDetails.map((d) => d.product),
+    }));
+  }
+
   async remove(id: string) {
     await this.findOne(id);
 

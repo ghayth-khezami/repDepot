@@ -31,7 +31,6 @@ const CommandsPage = () => {
   const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [selectedClient, setSelectedClient] = useState<string>('');
-  const [selectedCoClient, setSelectedCoClient] = useState<string>('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryDate, setDeliveryDate] = useState<Date | null>(null);
   const [statusDate, setStatusDate] = useState<Date | null>(null);
@@ -98,7 +97,6 @@ const CommandsPage = () => {
     setSelectedCommand(null);
     setSelectedProducts([]);
     setSelectedClient('');
-    setSelectedCoClient('');
     setDeliveryAddress('');
     setDeliveryDate(null);
     setIsModalOpen(true);
@@ -145,19 +143,24 @@ const CommandsPage = () => {
 
     const formData = new FormData(e.currentTarget);
 
-    const totalPrixVente = selectedProducts.reduce((sum, productId) => {
-      const product = allProducts.find((p) => p.id === productId);
-      return sum + (product?.PrixVente || 0);
+    const selectedProductsData = selectedProducts
+      .map((productId) => allProducts.find((p) => p.id === productId))
+      .filter((p) => !!p) as any[];
+
+    const totalPrixVente = selectedProductsData.reduce(
+      (sum, product) => sum + (product.PrixVente || 0),
+      0,
+    );
+
+    const totalPrixAchat = selectedProductsData.reduce((sum, product) => {
+      if (product.isDepot) return sum;
+      return sum + (product.PrixAchat || 0);
     }, 0);
 
-    const totalPrixAchat = selectedProducts.reduce((sum, productId) => {
-      const product = allProducts.find((p) => p.id === productId);
-      // If product is depot, PrixAchat is not applicable (should be 0 or undefined)
-      if (product?.isDepot) {
-        return sum + 0;
-      }
-      return sum + (product?.PrixAchat || 0);
-    }, 0);
+    // Infer coClientId from selected products (first product with coClientId wins)
+    const inferredCoClientId =
+      selectedProductsData.find((product) => product.coclientId)?.coclientId ||
+      undefined;
 
     const data: CreateCommandDto = {
       productsNumber: selectedProducts.length,
@@ -165,7 +168,7 @@ const CommandsPage = () => {
       PrixAchat: totalPrixAchat,
       productIds: selectedProducts,
       clientId: selectedClient,
-      coClientId: selectedCoClient || undefined,
+      coClientId: inferredCoClientId,
       adresseLivraison: deliveryAddress,
       dateLivraison: deliveryDate ? deliveryDate.toISOString() : undefined,
       status: 'NOT_DELIVERED',
@@ -179,8 +182,9 @@ const CommandsPage = () => {
           PrixAchat: totalPrixAchat,
           adresseLivraison: deliveryAddress,
           dateLivraison: deliveryDate ? deliveryDate.toISOString() : undefined,
+          coClientId: inferredCoClientId,
         };
-        await updateCommand({ id: selectedCommand.id, data });
+        await updateCommand({ id: selectedCommand.id, data: updateData });
         showToast('Commande modifiée avec succès', 'success');
       } else {
         await createCommand(data);
@@ -216,7 +220,8 @@ const CommandsPage = () => {
 
   const handleExportCsv = () => {
     const token = localStorage.getItem('token');
-    fetch(`http://localhost:3000/commands/export/csv`, {
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    fetch(`${baseUrl}/commands/export/csv`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.blob())
@@ -233,7 +238,8 @@ const CommandsPage = () => {
 
   const handleExportPdf = () => {
     const token = localStorage.getItem('token');
-    fetch(`http://localhost:3000/commands/export/pdf`, {
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    fetch(`${baseUrl}/commands/export/pdf`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.blob())
@@ -408,24 +414,6 @@ const CommandsPage = () => {
                 hasMore={clientsData?.meta ? clientsPage < clientsData.meta.totalPages : false}
                 isLoading={clientsLoading}
                 placeholder="Sélectionner un client..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Co-Client (Optionnel)</label>
-              <InfiniteSelect
-                items={allCoClients}
-                getOptionLabel={(coClient) => `${coClient.firstName} ${coClient.lastName}`}
-                getOptionValue={(coClient) => coClient.id}
-                value={selectedCoClient}
-                onChange={(value) => setSelectedCoClient(value as string)}
-                onLoadMore={() => {
-                  if (coClientsData?.meta && coClientsPage < coClientsData.meta.totalPages) {
-                    setCoClientsPage((prev) => prev + 1);
-                  }
-                }}
-                hasMore={coClientsData?.meta ? coClientsPage < coClientsData.meta.totalPages : false}
-                isLoading={coClientsLoading}
-                placeholder="Sélectionner un co-client (optionnel)..."
               />
             </div>
           </div>

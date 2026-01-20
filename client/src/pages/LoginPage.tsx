@@ -4,7 +4,6 @@ import { useLoginMutation } from '../store/api/authApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import depotLogo from '../depot.jpg';
-import { PostLoginLoadingOverlay } from '../components/PostLoginLoadingOverlay'
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -13,13 +12,12 @@ const LoginPage = () => {
   const { login: setAuth, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const [showPostLoginLoading, setShowPostLoginLoading] = useState(false)
 
   useEffect(() => {
-    if (isAuthenticated && !showPostLoginLoading) {
+    if (isAuthenticated) {
       navigate('/', { replace: true });
     }
-  }, [isAuthenticated, navigate, showPostLoginLoading]);
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,10 +25,7 @@ const LoginPage = () => {
       const result = await login({ email, password }).unwrap();
       setAuth(result.access_token, result.user);
       showToast('Connexion réussie!', 'success');
-      setShowPostLoginLoading(true)
-      setTimeout(() => {
-        navigate('/', { replace: true })
-      }, 5000)
+      // Navigation will now be handled by PublicRoute + Layout overlay
     } catch (error: any) {
       showToast(error?.data?.message || 'Email ou mot de passe incorrect', 'error');
     }
@@ -38,7 +33,6 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center login-gradient-animated">
-      <PostLoginLoadingOverlay isOpen={showPostLoginLoading} />
       <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-md border border-lavender-200 animate-card-enter">
         <div className="flex flex-col items-center justify-center gap-4 mb-8">
           <img 

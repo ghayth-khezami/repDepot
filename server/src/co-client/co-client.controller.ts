@@ -278,6 +278,14 @@ export class CoClientController {
     return this.coClientService.findOne(id);
   }
 
+  @Get(":id/products")
+  @ApiOperation({ summary: "Get a co-client's product history" })
+  @ApiParam({ name: "id", description: "CoClient ID" })
+  @ApiResponse({ status: 200, description: "CoClient product history" })
+  getProductHistory(@Param("id") id: string) {
+    return this.coClientService.getProductHistory(id);
+  }
+
   @Delete(":id")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a co-client" })

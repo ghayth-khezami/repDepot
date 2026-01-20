@@ -64,6 +64,44 @@ export class CoClientService {
     return coClient;
   }
 
+  async getProductHistory(coClientId: string) {
+    await this.findOne(coClientId);
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        coclientId: coClientId,
+      },
+      include: {
+        category: {
+          select: { id: true, categoryName: true },
+        },
+        photos: {
+          take: 1,
+          orderBy: { createdAt: "asc" },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return products.map((p) => ({
+      id: p.id,
+      productName: p.productName,
+      description: p.description,
+      PrixVente: p.PrixVente,
+      PrixAchat: p.PrixAchat,
+      stockQuantity: p.stockQuantity,
+      isDepot: p.isDepot,
+      depotPercentage: p.depotPercentage,
+      surcharge: p.surcharge,
+      gain: p.gain,
+      isDispo: p.isDispo,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      category: p.category,
+      photo: p.photos?.[0]?.photoDoc || null,
+    }));
+  }
+
   async remove(id: string) {
     await this.findOne(id);
 
