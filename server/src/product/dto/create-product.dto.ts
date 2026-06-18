@@ -20,6 +20,30 @@ export class CreateProductDto {
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({
+    description: "Instagram reel/post URL",
+    example: "https://www.instagram.com/reel/abc123/",
+  })
+  @IsOptional()
+  @IsString()
+  instagramLink?: string;
+
+  @ApiPropertyOptional({
+    description: "Facebook post/reel URL",
+    example: "https://www.facebook.com/share/r/abc123/",
+  })
+  @IsOptional()
+  @IsString()
+  facebookLink?: string;
+
+  @ApiPropertyOptional({
+    description: "TikTok video URL",
+    example: "https://www.tiktok.com/@user/video/123456789",
+  })
+  @IsOptional()
+  @IsString()
+  tiktokLink?: string;
+
   @ApiProperty({ description: "Selling price", example: 999.99 })
   @IsNumber()
   @Min(0)
@@ -65,4 +89,19 @@ export class CreateProductDto {
   @ApiProperty({ description: "Category ID", example: "uuid" })
   @IsString()
   categoryId: string;
+
+  @ApiPropertyOptional({ description: "Sub-category ID", example: "uuid" })
+  @IsOptional()
+  @IsString()
+  subCategoryId?: string;
+
+  @ApiPropertyOptional({ description: "Catalog mark / brand ID", example: "uuid" })
+  @IsOptional()
+  @IsString()
+  markId?: string;
+
+  @ApiPropertyOptional({ description: "Store barcode (auto-generated if omitted)" })
+  @IsOptional()
+  @IsString()
+  barcode?: string;
 }

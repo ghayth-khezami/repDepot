@@ -6,6 +6,7 @@ import AddressMapSelector from '../components/AddressMapSelector';
 import { Client, CreateClientDto } from '../types';
 import { Edit, Trash2, Eye } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 
 const ClientsPage = () => {
   const [page, setPage] = useState(1);
@@ -22,6 +23,7 @@ const ClientsPage = () => {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewClient, setViewClient] = useState<Client | null>(null);
   const { showToast } = useToast();
+  const { confirm, dialog } = useConfirmDialog();
   const { data: clientHistory, isLoading: clientHistoryLoading } = useGetClientCommandHistoryQuery(
     viewClient?.id || '',
     { skip: !viewClient?.id }
@@ -46,15 +48,16 @@ const ClientsPage = () => {
     setViewModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) {
-      try {
-        await deleteClient(id);
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Supprimer le client',
+      message: 'Êtes-vous sûr de vouloir supprimer ce client ?',
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
+        await deleteClient(id).unwrap();
         showToast('Client supprimé avec succès', 'success');
-      } catch (error) {
-        showToast('Erreur lors de la suppression', 'error');
-      }
-    }
+      },
+    });
   };
 
   const handleExportCsv = () => {
@@ -131,8 +134,8 @@ const ClientsPage = () => {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Gestion des Clients</h1>
-        <p className="text-gray-600 mt-2">Gérez tous les clients</p>
+        <h1 className="text-3xl font-bold">Gestion des Clients</h1>
+        <p className="bo-muted mt-2">Gérez tous les clients</p>
       </div>
 
       <ReusableTable
@@ -347,6 +350,7 @@ const ClientsPage = () => {
           </div>
         )}
       </Modal>
+      {dialog}
     </div>
   );
 };

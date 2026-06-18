@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { CommandStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateCommandDto } from "./dto/create-command.dto";
+import { CheckoutCommandDto } from "./dto/checkout-command.dto";
 import { UpdateCommandDto } from "./dto/update-command.dto";
 import { CommandQueryDto } from "./dto/command-query.dto";
 import { PaginatedResponse } from "../common/dto/pagination.dto";
@@ -9,33 +11,137 @@ import { PaginatedResponse } from "../common/dto/pagination.dto";
 export class CommandService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCommandDto: CreateCommandDto) {
-    const { productIds, clientId, coClientId, ...commandData } =
-      createCommandDto;
+  private async resolvePricing(productIds: string[]) {
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, isDispo: true, PrixVente: true, PrixAchat: true, isDepot: true },
+    });
 
-    // Create the command first
+    if (products.length !== productIds.length) {
+      throw new BadRequestException("One or more products were not found.");
+    }
+
+    const unavailable = products.filter((p) => p.isDispo === false).map((p) => p.id);
+    if (unavailable.length > 0) {
+      throw new BadRequestException("One or more products are already ordered.");
+    }
+
+    const PrixVente = products.reduce((sum, p) => sum + p.PrixVente, 0);
+    const PrixAchat = products.reduce((sum, p) => {
+      if (p.isDepot) return sum;
+      return sum + (p.PrixAchat || 0);
+    }, 0);
+
+    return { products, PrixVente, PrixAchat, productsNumber: productIds.length };
+  }
+
+  async createFromCheckout(dto: CheckoutCommandDto) {
+    const { productIds, clientId, guestClient, coClientId, adresseLivraison, dateLivraison } =
+      dto;
+    const pricing = await this.resolvePricing(productIds);
+
+    return this.persistCommand({
+      productIds,
+      clientId,
+      guestClient,
+      coClientId,
+      adresseLivraison,
+      dateLivraison,
+      PrixVente: pricing.PrixVente,
+      PrixAchat: pricing.PrixAchat,
+      productsNumber: pricing.productsNumber,
+      status: CommandStatus.NOT_DELIVERED,
+    });
+  }
+
+  async create(createCommandDto: CreateCommandDto) {
+    const { productIds, clientId, guestClient, coClientId, adresseLivraison, dateLivraison } =
+      createCommandDto;
+    const pricing = await this.resolvePricing(productIds);
+
+    return this.persistCommand({
+      productIds,
+      clientId,
+      guestClient,
+      coClientId,
+      adresseLivraison,
+      dateLivraison,
+      PrixVente: pricing.PrixVente,
+      PrixAchat: pricing.PrixAchat,
+      productsNumber: pricing.productsNumber,
+      status: createCommandDto.status ?? CommandStatus.NOT_DELIVERED,
+    });
+  }
+
+  private async persistCommand(input: {
+    productIds: string[];
+    clientId?: string;
+    guestClient?: CheckoutCommandDto["guestClient"];
+    coClientId?: string;
+    adresseLivraison: string;
+    dateLivraison?: string;
+    PrixVente: number;
+    PrixAchat: number;
+    productsNumber: number;
+    status: CommandStatus;
+  }) {
+    const { productIds, clientId, guestClient, coClientId, adresseLivraison, dateLivraison } =
+      input;
+    let resolvedClientId = clientId;
+
+    if (!resolvedClientId && guestClient) {
+      const normalizedEmail =
+        guestClient.email?.trim().toLowerCase() ||
+        `guest.${guestClient.phoneNumber}@bebedepot.local`;
+      const existingClient = await this.prisma.client.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (existingClient) {
+        resolvedClientId = existingClient.id;
+      } else {
+        const createdClient = await this.prisma.client.create({
+          data: {
+            ...guestClient,
+            email: normalizedEmail,
+          },
+        });
+        resolvedClientId = createdClient.id;
+      }
+    }
+
+    if (!resolvedClientId) {
+      throw new BadRequestException("clientId or guestClient is required.");
+    }
+
     const command = await this.prisma.command.create({
       data: {
-        ...commandData,
-        dateLivraison: createCommandDto.dateLivraison
-          ? new Date(createCommandDto.dateLivraison)
-          : null,
+        PrixVente: input.PrixVente,
+        PrixAchat: input.PrixAchat,
+        productsNumber: input.productsNumber,
+        status: input.status,
+        adresseLivraison,
+        dateLivraison: dateLivraison ? new Date(dateLivraison) : null,
       },
     });
 
     // Create command details for each product
-    const commandDetails = await Promise.all(
+    await Promise.all(
       productIds.map((productId) =>
         this.prisma.commandDetail.create({
           data: {
             commandId: command.id,
             productId,
-            clientId,
+            clientId: resolvedClientId || null,
             coClientId: coClientId || null,
           },
         }),
       ),
     );
+
+    await this.prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: { isDispo: false },
+    });
 
     // Return command with details
     return this.prisma.command.findUnique({
@@ -43,9 +149,30 @@ export class CommandService {
       include: {
         commandDetails: {
           include: {
-            product: true,
-            client: true,
-            coClient: true,
+            product: {
+              include: {
+                photos: {
+                  take: 1,
+                  orderBy: { createdAt: "asc" },
+                },
+              },
+            },
+            client: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phoneNumber: true,
+              },
+            },
+            coClient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phoneNumber: true,
+              },
+            },
           },
         },
       },
@@ -83,6 +210,10 @@ export class CommandService {
                   id: true,
                   productName: true,
                   PrixVente: true,
+                  photos: {
+                    take: 1,
+                    orderBy: { createdAt: "asc" },
+                  },
                 },
               },
               client: {
@@ -90,6 +221,7 @@ export class CommandService {
                   id: true,
                   firstName: true,
                   lastName: true,
+                  phoneNumber: true,
                 },
               },
               coClient: {
@@ -97,6 +229,7 @@ export class CommandService {
                   id: true,
                   firstName: true,
                   lastName: true,
+                  phoneNumber: true,
                 },
               },
             },
@@ -124,9 +257,30 @@ export class CommandService {
       include: {
         commandDetails: {
           include: {
-            product: true,
-            client: true,
-            coClient: true,
+            product: {
+              include: {
+                photos: {
+                  take: 1,
+                  orderBy: { createdAt: "asc" },
+                },
+              },
+            },
+            client: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phoneNumber: true,
+              },
+            },
+            coClient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phoneNumber: true,
+              },
+            },
           },
         },
       },
@@ -141,24 +295,67 @@ export class CommandService {
 
   async update(id: string, updateCommandDto: UpdateCommandDto) {
     const command = await this.findOne(id);
+    const isLikelyWebOrder = command.commandDetails.length > 0
+      && command.commandDetails.some((d) => !!d.client)
+      && command.commandDetails.every((d) => !d.coClient);
+    if (isLikelyWebOrder) {
+      const forbiddenKeys = ["productsNumber", "PrixVente", "PrixAchat", "adresseLivraison", "productIds", "clientId"];
+      const hasForbidden = forbiddenKeys.some((k) => (updateCommandDto as any)[k] !== undefined);
+      if (hasForbidden) {
+        throw new BadRequestException("Web orders can only update status/date.");
+      }
+    }
 
-    const data: any = { ...updateCommandDto };
+    const { productIds, clientId, ...rest } = updateCommandDto;
+    const data: any = { ...rest };
     if (updateCommandDto.dateLivraison) {
       data.dateLivraison = new Date(updateCommandDto.dateLivraison);
     }
 
-    // If status is being updated to DELIVERED or GOT_PROFIT, set products' isDispo to false
-    if (
-      updateCommandDto.status === "DELIVERED" ||
-      updateCommandDto.status === "GOT_PROFIT"
-    ) {
-      const productIds = command.commandDetails.map(
-        (detail) => detail.productId,
-      );
-      if (productIds.length > 0) {
+    if (productIds && productIds.length > 0 && !isLikelyWebOrder) {
+      const oldProductIds = command.commandDetails.map((d) => d.productId);
+      const resolvedClientId =
+        clientId || command.commandDetails.find((d) => d.clientId)?.clientId;
+      if (!resolvedClientId) {
+        throw new BadRequestException("clientId is required when updating products.");
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        if (oldProductIds.length > 0) {
+          await tx.product.updateMany({
+            where: { id: { in: oldProductIds } },
+            data: { isDispo: true },
+          });
+        }
+        await tx.commandDetail.deleteMany({ where: { commandId: id } });
+        await Promise.all(
+          productIds.map((productId) =>
+            tx.commandDetail.create({
+              data: {
+                commandId: id,
+                productId,
+                clientId: resolvedClientId,
+                coClientId: updateCommandDto.coClientId || null,
+              },
+            }),
+          ),
+        );
+        await tx.product.updateMany({
+          where: { id: { in: productIds } },
+          data: { isDispo: false },
+        });
+      });
+    }
+
+    // If status is updated to DELIVERED, keep products unavailable
+    if (updateCommandDto.status === "DELIVERED") {
+      const productIdsToLock = productIds?.length
+        ? productIds
+        : command.commandDetails.map((detail) => detail.productId);
+      if (productIdsToLock.length > 0) {
         await this.prisma.product.updateMany({
           where: {
-            id: { in: productIds },
+            id: { in: productIdsToLock },
           },
           data: {
             isDispo: false,
@@ -173,7 +370,11 @@ export class CommandService {
       include: {
         commandDetails: {
           include: {
-            product: true,
+            product: {
+              include: {
+                photos: { take: 1, orderBy: { createdAt: "asc" } },
+              },
+            },
             client: true,
             coClient: true,
           },

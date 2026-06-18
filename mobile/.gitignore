@@ -1,0 +1,12 @@
+# Vite PWA admin mobile — extends root .gitignore
+
+dist/
+dist-ssr/
+dev-dist/
+*.local
+
+# PWA dev service worker cache
+.vite/
+
+# Keep example env committable
+!.env.example

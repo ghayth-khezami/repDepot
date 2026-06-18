@@ -1,0 +1,40 @@
+import type { NextConfig } from "next";
+
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+function remotePatterns() {
+  try {
+    const host = new URL(apiUrl).hostname;
+    return [
+      { protocol: "http" as const, hostname: host, pathname: "/uploads/**" },
+      { protocol: "https" as const, hostname: host, pathname: "/uploads/**" },
+    ];
+  } catch {
+    return [{ protocol: "http" as const, hostname: "localhost", pathname: "/uploads/**" }];
+  }
+}
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: remotePatterns(),
+    formats: ["image/avif", "image/webp"],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;

@@ -23,6 +23,9 @@ import { ClientService } from "./client.service";
 import { CreateClientDto } from "./dto/create-client.dto";
 import { ClientQueryDto } from "./dto/client-query.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
+import { UserRole } from "@prisma/client";
 import * as Papa from "papaparse";
 import * as jsPDF from "jspdf";
 import { join } from "path";
@@ -30,7 +33,8 @@ import * as fs from "fs";
 
 @ApiTags("clients")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller("clients")
 export class ClientController {
   constructor(private readonly clientService: ClientService) {}

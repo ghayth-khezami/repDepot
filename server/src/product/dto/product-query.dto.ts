@@ -14,6 +14,16 @@ export class ProductQueryDto extends PaginationDto {
   @IsString()
   categoryId?: string;
 
+  @ApiPropertyOptional({ description: "Filter by sub-category ID" })
+  @IsOptional()
+  @IsString()
+  subCategoryId?: string;
+
+  @ApiPropertyOptional({ description: "Filter by catalog mark ID" })
+  @IsOptional()
+  @IsString()
+  markId?: string;
+
   @ApiPropertyOptional({ description: "Filter by coClient ID" })
   @IsOptional()
   @IsString()
@@ -36,4 +46,17 @@ export class ProductQueryDto extends PaginationDto {
   @Type(() => Number)
   @IsNumber()
   maxPrice?: number;
+
+  @ApiPropertyOptional({ description: "Filter by availability (in stock)" })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isDispo?: boolean;
+
+  @ApiPropertyOptional({
+    description: "Sort: newest | price_asc | price_desc | name_asc",
+  })
+  @IsOptional()
+  @IsString()
+  sort?: string;
 }

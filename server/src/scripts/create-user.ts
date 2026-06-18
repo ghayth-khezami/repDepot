@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import * as dotenv from "dotenv";
 import { resolve } from "path";
+import { UserRole } from "@prisma/client";
 
 // Load environment variables
 dotenv.config({ path: resolve(__dirname, "../../.env") });
@@ -24,6 +25,13 @@ async function createUser() {
   const email = process.argv[2] || "admin@bebe-depot.com";
   const password = process.argv[3] || "Admin@2024";
   const username = process.argv[4] || undefined;
+  const roleArg = (process.argv[5] || "").toUpperCase();
+  const role: UserRole =
+    roleArg === "ADMIN"
+      ? UserRole.ADMIN
+      : roleArg === "DEPOSER"
+        ? UserRole.DEPOSER
+        : UserRole.CLIENT;
 
   try {
     const existingUser = await prisma.user.findUnique({
@@ -41,11 +49,15 @@ async function createUser() {
         email,
         password: hashedPassword,
         username,
+        isVerified: true,
+        role,
       },
       select: {
         id: true,
         email: true,
         username: true,
+        role: true,
+        isVerified: true,
         createdAt: true,
       },
     });
@@ -53,6 +65,8 @@ async function createUser() {
     console.log("✅ User created successfully!");
     console.log("📧 Email:", user.email);
     console.log("👤 Username:", user.username);
+    console.log("🛡️ Role:", user.role);
+    console.log("✅ Verified:", user.isVerified);
     console.log("🔑 Password:", password);
     console.log("🆔 ID:", user.id);
   } catch (error) {

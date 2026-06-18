@@ -1,6 +1,19 @@
 <!doctype html>
 <html lang="fr">
   <head>
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem('depot-backoffice-theme-v');
+          if (v !== '2') {
+            localStorage.setItem('depot-backoffice-theme', 'light');
+            localStorage.setItem('depot-backoffice-theme-v', '2');
+          }
+          var t = localStorage.getItem('depot-backoffice-theme');
+          document.documentElement.classList.toggle('dark', t === 'dark');
+        } catch (e) {}
+      })();
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

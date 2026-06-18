@@ -1,23 +1,27 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  useGetProductsInfiniteQuery,
-  useCreateProductMutation,
+  useGetProductsQuery,
   useUpdateProductMutation,
   useDeleteProductMutation,
-  CreateProductDto,
 } from '../store/api/productApi';
 import { useGetCategoriesQuery } from '../store/api/categoryApi';
+import { useGetSubCategoriesQuery } from '../store/api/subCategoryApi';
+import { useGetMarksInfiniteQuery } from '../store/api/markApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
 import InfiniteSelect from '../components/InfiniteSelect';
-import { useAddProductPhotosMutation, useGetProductPhotosQuery } from '../store/api/productPhotoApi';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 import { Product, UpdateProductDto } from '../types';
-import { Edit, Trash2, X, Upload, Eye, Package } from 'lucide-react';
+import { Edit, Trash2, X, Upload, Eye, Package, Monitor, Smartphone, Heart, ShoppingCart } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useSearchParams } from 'react-router-dom';
 
 const ProductsPage = () => {
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isDepotFilter, setIsDepotFilter] = useState<boolean | undefined>(undefined);
@@ -30,30 +34,90 @@ const ProductsPage = () => {
   const [surcharge, setSurcharge] = useState<number>(0);
   const [isDepot, setIsDepot] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string>('');
+  const [selectedMarkId, setSelectedMarkId] = useState<string>('');
   const [selectedCoClientId, setSelectedCoClientId] = useState<string>('');
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
+  const [previewMode, setPreviewMode] = useState<'web' | 'mobile'>('web');
+  const [prefillName, setPrefillName] = useState<string | null>(null);
 
-  const {
-    data,
-    isLoading,
-  } = useGetProductsInfiniteQuery({
+  const { data, isLoading, refetch } = useGetProductsQuery({
     page,
-    search,
+    limit,
+    search: search || undefined,
     categoryId: categoryFilter || undefined,
     isDepot: isDepotFilter,
   });
+  // Category filter dropdown (always loaded, single page)
+  const { data: filterCategoriesData } = useGetCategoriesQuery({ limit: 100, page: 1 });
 
-  const hasNextPage = (data?.meta?.page ?? page) < (data?.meta?.totalPages ?? 1)
-  const isFetchingNextPage = false
-  // Infinite scroll for categories
+  // Infinite scroll for categories (modal only)
   const [categoriesPage, setCategoriesPage] = useState(1);
-  const { data: categoriesData, isLoading: categoriesLoading } = useGetCategoriesQuery({ limit: 10, page: categoriesPage });
+  const { data: categoriesData, isLoading: categoriesLoading } = useGetCategoriesQuery(
+    { limit: 10, page: categoriesPage },
+    { skip: !isModalOpen },
+  );
   const [allCategories, setAllCategories] = useState<any[]>([]);
+
+  const [marksPage, setMarksPage] = useState(1);
+  const { data: marksData, isLoading: marksLoading } = useGetMarksInfiniteQuery(
+    { limit: 10, page: marksPage },
+    { skip: !isModalOpen },
+  );
+  const [allMarks, setAllMarks] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    setMarksPage(1);
+    setAllMarks([]);
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    if (marksData?.data) {
+      setAllMarks((prev) => {
+        const ids = new Set(prev.map((m) => m.id));
+        const next = marksData.data.filter((m) => !ids.has(m.id));
+        return marksPage === 1 ? marksData.data.map((m) => ({ id: m.id, name: m.name })) : [...prev, ...next.map((m) => ({ id: m.id, name: m.name }))];
+      });
+    }
+  }, [marksData, marksPage]);
+
+  const [subsPage, setSubsPage] = useState(1);
+  const { data: subsData, isLoading: subsLoading } = useGetSubCategoriesQuery(
+    { limit: 10, page: subsPage, categoryId: selectedCategoryId || undefined },
+    { skip: !selectedCategoryId || !isModalOpen },
+  );
+  const [allSubCategories, setAllSubCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!selectedCategoryId) {
+      setAllSubCategories([]);
+      setSelectedSubCategoryId('');
+      return;
+    }
+    setSubsPage(1);
+    setAllSubCategories([]);
+    setSelectedSubCategoryId('');
+  }, [selectedCategoryId]);
+
+  useEffect(() => {
+    if (subsData?.data && selectedCategoryId) {
+      setAllSubCategories((prev) => {
+        const ids = new Set(prev.map((s) => s.id));
+        const next = subsData.data.filter((s) => !ids.has(s.id));
+        return subsPage === 1 ? subsData.data : [...prev, ...next];
+      });
+    }
+  }, [subsData, selectedCategoryId, subsPage]);
 
   // Infinite scroll for co-clients
   const [coClientsPage, setCoClientsPage] = useState(1);
-  const { data: coClientsData, isLoading: coClientsLoading } = useGetCoClientsQuery({ limit: 10, page: coClientsPage });
+  // Load co-clients only when product modal is open (avoid background fetch loops)
+  const { data: coClientsData, isLoading: coClientsLoading } = useGetCoClientsQuery(
+    { limit: 10, page: coClientsPage },
+    { skip: !isModalOpen },
+  );
   const [allCoClients, setAllCoClients] = useState<any[]>([]);
 
   // Accumulate categories
@@ -99,23 +163,26 @@ const ProductsPage = () => {
   useEffect(() => {
     if (isModalOpen && selectedProduct) {
       setSelectedCategoryId(selectedProduct.categoryId || '');
+      setSelectedSubCategoryId(selectedProduct.subCategoryId || '');
+      setSelectedMarkId(selectedProduct.markId || '');
       setSelectedCoClientId(selectedProduct.coclientId || '');
       setIsDepot(selectedProduct.isDepot);
       setDepotPercentage(selectedProduct.depotPercentage || 0);
       setSurcharge((selectedProduct as any).surcharge || 0);
     } else if (isModalOpen && !selectedProduct) {
       setSelectedCategoryId('');
+      setSelectedSubCategoryId('');
+      setSelectedMarkId('');
       setSelectedCoClientId('');
       setIsDepot(false);
       setDepotPercentage(0);
       setSurcharge(0);
     }
   }, [isModalOpen, selectedProduct]);
-  const [createProduct] = useCreateProductMutation();
   const [updateProduct] = useUpdateProductMutation();
   const [deleteProduct] = useDeleteProductMutation();
-  const [addPhotos] = useAddProductPhotosMutation();
   const { showToast } = useToast();
+  const { confirm, dialog } = useConfirmDialog();
 
   const handleAdd = () => {
     setIsEditMode(false);
@@ -127,11 +194,57 @@ const ProductsPage = () => {
     setIsDepot(false);
     setSelectedCategoryId('');
     setSelectedCoClientId('');
+    setPrefillName(null);
     setIsModalOpen(true);
   };
 
+  useEffect(() => {
+    const fromRequest = searchParams.get('fromRequest');
+    if (!fromRequest) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const run = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}/deposit-requests/${fromRequest}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Cannot load request');
+        const req = await res.json();
+        setIsEditMode(false);
+        setSelectedProduct(null);
+        setExistingPhotos([]);
+        setDepotPercentage(0);
+        setSurcharge(0);
+        setIsDepot(true); // depot flow by default
+        setSelectedCategoryId('');
+        setSelectedCoClientId('');
+        setPrefillName(String(req.fullName || ''));
+        // Prefill photos: download blobs -> File[]
+        const photoUrls: string[] = Array.isArray(req.photos) ? req.photos : [];
+        const files: File[] = [];
+        for (let i = 0; i < photoUrls.length; i++) {
+          const p = photoUrls[i];
+          const url = p.startsWith('http') ? p : `${apiBaseUrl}${p.startsWith('/') ? '' : '/'}${p}`;
+          const b = await fetch(url);
+          if (!b.ok) continue;
+          const blob = await b.blob();
+          const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+          files.push(new File([blob], `request-${fromRequest}-${i + 1}.${ext}`, { type: blob.type }));
+        }
+        setPhotos(files);
+        setIsModalOpen(true);
+      } catch {
+        // ignore
+      }
+    };
+    void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, apiBaseUrl]);
+
   const handleView = (product: Product) => {
     setViewProduct(product);
+    setPreviewMode('web');
     setViewModalOpen(true);
   };
 
@@ -150,7 +263,7 @@ const ProductsPage = () => {
     if (product.id) {
       try {
         const token = localStorage.getItem('token');
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/product-photos/product/${product.id}`, {
+            const response = await fetch(`${apiBaseUrl}/product-photos/product/${product.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -163,24 +276,42 @@ const ProductsPage = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
-      try {
-        await deleteProduct(id);
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Supprimer le produit',
+      message: 'Êtes-vous sûr de vouloir supprimer ce produit ?',
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
+        await deleteProduct(id).unwrap();
         showToast('Produit supprimé avec succès', 'success');
-      } catch (error) {
-        showToast('Erreur lors de la suppression', 'error');
-      }
+      },
+    });
+  };
+
+  const handleToggleAvailability = async (row: Product) => {
+    try {
+      const nextIsDispo = !(row.isDispo !== false);
+      await updateProduct({
+        id: row.id,
+        data: {
+          isDispo: nextIsDispo,
+          stockQuantity: nextIsDispo ? Math.max(row.stockQuantity, 1) : 0,
+        },
+      });
+      showToast(nextIsDispo ? 'Produit marque disponible' : 'Produit marque en rupture', 'success');
+      await refetch();
+    } catch {
+      showToast('Erreur lors du changement de statut', 'error');
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const fileArray = Array.from(files);
-      // Store File objects directly, not base64
-      setPhotos((prev) => [...prev, ...fileArray]);
-    }
+    if (!files?.length) return;
+    const { compressImagesForUpload } = await import('../lib/compressImage');
+    const compressed = await compressImagesForUpload(Array.from(files));
+    setPhotos((prev) => [...prev, ...compressed]);
+    e.target.value = '';
   };
 
   const removePhoto = (index: number) => {
@@ -205,11 +336,16 @@ const ProductsPage = () => {
     const baseData: any = {
       productName: formData.get('productName') as string,
       description: (formData.get('description') as string) || undefined,
+      instagramLink: (formData.get('instagramLink') as string) || undefined,
+      facebookLink: (formData.get('facebookLink') as string) || undefined,
+      tiktokLink: (formData.get('tiktokLink') as string) || undefined,
       PrixVente: Number(formData.get('PrixVente')),
       stockQuantity: Number(formData.get('stockQuantity')),
       isDepot: isDepot,
       surcharge: surcharge || 0,
       categoryId: selectedCategoryId,
+      subCategoryId: selectedSubCategoryId || undefined,
+      markId: selectedMarkId || undefined,
       coclientId: selectedCoClientId || undefined,
     };
 
@@ -222,43 +358,64 @@ const ProductsPage = () => {
     try {
       let productId: string;
       if (isEditMode && selectedProduct) {
-        const updateData: UpdateProductDto = baseData;
-        await updateProduct({ id: selectedProduct.id, data: updateData });
+        await updateProduct({ id: selectedProduct.id, data: baseData as UpdateProductDto });
         productId = selectedProduct.id;
         showToast('Produit modifié avec succès', 'success');
       } else {
-        const createData: CreateProductDto = baseData as CreateProductDto;
-        const result = await createProduct(createData).unwrap();
+        const token = localStorage.getItem('token');
+        const createFormData = new FormData();
+        createFormData.append('productName', String(baseData.productName));
+        if (baseData.description) createFormData.append('description', String(baseData.description));
+        if (baseData.instagramLink) createFormData.append('instagramLink', String(baseData.instagramLink));
+        if (baseData.facebookLink) createFormData.append('facebookLink', String(baseData.facebookLink));
+        if (baseData.tiktokLink) createFormData.append('tiktokLink', String(baseData.tiktokLink));
+        createFormData.append('PrixVente', String(baseData.PrixVente));
+        if (baseData.PrixAchat !== undefined) createFormData.append('PrixAchat', String(baseData.PrixAchat));
+        createFormData.append('stockQuantity', String(baseData.stockQuantity));
+        createFormData.append('isDepot', String(baseData.isDepot));
+        if (baseData.depotPercentage !== undefined) createFormData.append('depotPercentage', String(baseData.depotPercentage));
+        createFormData.append('surcharge', String(baseData.surcharge || 0));
+        if (baseData.coclientId) createFormData.append('coclientId', String(baseData.coclientId));
+        createFormData.append('categoryId', String(baseData.categoryId));
+        if (baseData.subCategoryId) createFormData.append('subCategoryId', String(baseData.subCategoryId));
+        if (baseData.markId) createFormData.append('markId', String(baseData.markId));
+        photos
+          .filter((photo): photo is File => photo instanceof File)
+          .forEach((file) => createFormData.append('photos', file));
+        const createResponse = await fetch(`${apiBaseUrl}/products/with-photos`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: createFormData,
+        });
+        if (!createResponse.ok) {
+          throw new Error('Erreur lors de la création avec photos');
+        }
+        const result = await createResponse.json();
         productId = result.id;
         showToast('Produit créé avec succès', 'success');
       }
 
       // Upload photos as files to server/uploads
-      if (photos.length > 0 && productId) {
+      if (isEditMode && photos.length > 0 && productId) {
         const token = localStorage.getItem('token');
-        const uploadPromises = photos
-          .filter((photo): photo is File => photo instanceof File)
-          .map(async (file) => {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('productId', productId);
+        const files = photos.filter((photo): photo is File => photo instanceof File);
+        const uploadFormData = new FormData();
+        files.forEach((file) => uploadFormData.append('files', file));
+        uploadFormData.append('productId', productId);
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/product-photos/upload`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                // Don't set Content-Type, browser will set it with boundary for FormData
-              },
-              body: formData,
-            });
+        const response = await fetch(`${apiBaseUrl}/product-photos/upload-multiple`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: uploadFormData,
+        });
 
-            if (!response.ok) {
-              throw new Error(`Failed to upload photo: ${file.name}`);
-            }
-            return response.json();
-          });
-
-        await Promise.all(uploadPromises);
+        if (!response.ok) {
+          throw new Error('Failed to upload product photos');
+        }
         showToast('Photos téléchargées avec succès', 'success');
       }
 
@@ -269,6 +426,8 @@ const ProductsPage = () => {
       setSurcharge(0);
       setDepotPercentage(0);
       setIsDepot(false);
+      setPage(1);
+      await refetch();
     } catch (error) {
       console.error('Error:', error);
       showToast('Erreur lors de l\'opération', 'error');
@@ -277,7 +436,7 @@ const ProductsPage = () => {
 
   const handleExportCsv = () => {
     const token = localStorage.getItem('token');
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const baseUrl = apiBaseUrl;
     fetch(`${baseUrl}/products/export/csv`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -295,7 +454,7 @@ const ProductsPage = () => {
 
   const handleExportPdf = () => {
     const token = localStorage.getItem('token');
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const baseUrl = apiBaseUrl;
     fetch(`${baseUrl}/products/export/pdf`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -311,9 +470,7 @@ const ProductsPage = () => {
       .catch(() => showToast('Erreur lors de l\'export PDF', 'error'));
   };
 
-  // Get products from infinite query - data accumulates as pages load
   const products = data?.data || [];
-  const totalProducts = data?.meta?.total || 0;
 
   const columns: Column<Product & { isSold?: boolean; photos?: any[] }>[] = [
     {
@@ -321,23 +478,25 @@ const ProductsPage = () => {
       accessor: (row) => {
         const firstPhoto = (row as any).photos?.[0]?.photoDoc;
         if (firstPhoto) {
-          const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          const baseUrl = apiBaseUrl;
           const photoUrl = firstPhoto.startsWith('http')
             ? firstPhoto
             : `${baseUrl}${firstPhoto.startsWith('/') ? '' : '/'}${firstPhoto}`;
           return (
-            <img
-              src={photoUrl}
-              alt={row.productName}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
+            <div className="h-12 w-12 overflow-hidden rounded-lg bg-gray-100 border border-gray-200">
+              <img
+                src={photoUrl}
+                alt={row.productName}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
           );
         }
         return (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+          <div className="h-12 w-12 bg-gray-200 flex items-center justify-center rounded-lg">
             <Package className="w-12 h-12 text-gray-400" />
           </div>
         );
@@ -385,40 +544,42 @@ const ProductsPage = () => {
     },
   ];
 
-  // Infinite scroll detection
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const lastElementRef = useCallback(
-    (node: HTMLTableRowElement | null) => {
-      if (isLoading || isFetchingNextPage) return;
-      if (observerRef.current) observerRef.current.disconnect();
-      observerRef.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasNextPage) {
-          setPage((prev) => prev + 1);
-        }
-      });
-      if (node) observerRef.current.observe(node);
-    },
-    [isLoading, isFetchingNextPage, hasNextPage]
-  );
-
-  // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, isDepotFilter]);
+  }, [search, categoryFilter, isDepotFilter, limit]);
 
-  const formPrixVente = isModalOpen ? (document.querySelector('input[name="PrixVente"]') as HTMLInputElement)?.value : '0';
-  const formPrixAchat = isModalOpen ? (document.querySelector('input[name="PrixAchat"]') as HTMLInputElement)?.value : '0';
+  const formPrixVente = useMemo(() => {
+    if (!isModalOpen) return '0';
+    return (document.querySelector('input[name="PrixVente"]') as HTMLInputElement)?.value || '0';
+  }, [isModalOpen]);
+  const formPrixAchat = useMemo(() => {
+    if (!isModalOpen) return '0';
+    return (document.querySelector('input[name="PrixAchat"]') as HTMLInputElement)?.value || '0';
+  }, [isModalOpen]);
   const earnings = calculateEarnings(
     Number(formPrixVente) || 0,
     Number(formPrixAchat) || 0,
     depotPercentage
   );
+  const previewPhoto =
+    viewProduct?.photos?.[0]?.photoDoc
+      ? viewProduct.photos[0].photoDoc.startsWith('http')
+        ? viewProduct.photos[0].photoDoc
+        : `${apiBaseUrl}${viewProduct.photos[0].photoDoc.startsWith('/') ? '' : '/'}${viewProduct.photos[0].photoDoc}`
+      : '';
+  const previewMarque =
+    viewProduct?.marqueDoc
+      ? viewProduct.marqueDoc.startsWith('http')
+        ? viewProduct.marqueDoc
+        : `${apiBaseUrl}${viewProduct.marqueDoc.startsWith('/') ? '' : '/'}${viewProduct.marqueDoc}`
+      : '';
+  const previewOutOfStock = viewProduct ? viewProduct.isDispo === false || viewProduct.stockQuantity <= 0 : false;
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Produits</h1>
-        <p className="text-gray-600 mt-2">Gérez tous les produits</p>
+        <h1 className="text-2xl font-bold sm:text-3xl">Gestion des Produits</h1>
+        <p className="bo-muted mt-2">Gérez tous les produits</p>
       </div>
 
       <ReusableTable
@@ -435,7 +596,7 @@ const ProductsPage = () => {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
             >
               <option value="">Toutes les catégories</option>
-              {categoriesData?.data.map((cat) => (
+              {(filterCategoriesData?.data ?? []).map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.categoryName}
                 </option>
@@ -452,15 +613,41 @@ const ProductsPage = () => {
             </select>
           </>
         }
-        pagination={undefined}
+        pagination={
+          data?.meta
+            ? {
+                page: data.meta.page,
+                limit: data.meta.limit,
+                total: data.meta.total,
+                totalPages: data.meta.totalPages,
+                onPageChange: setPage,
+                onLimitChange: (next) => {
+                  setLimit(next);
+                  setPage(1);
+                },
+              }
+            : undefined
+        }
         actions={(row) => (
           <>
             <button
+              onClick={() => handleToggleAvailability(row)}
+              className={`px-2 py-1 text-xs rounded-lg transition-colors ${
+                row.isDispo !== false
+                  ? 'text-orange-600 hover:bg-orange-50'
+                  : 'text-emerald-600 hover:bg-emerald-50'
+              }`}
+              title={row.isDispo !== false ? 'Marquer en rupture' : 'Marquer disponible'}
+            >
+              {row.isDispo !== false ? 'Rupture' : 'Disponible'}
+            </button>
+            <button
               onClick={() => handleView(row)}
-              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="Voir les détails"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-green-600 transition-colors hover:bg-green-50"
+              title="Voir l'aperçu"
             >
               <Eye className="w-4 h-4" />
+              <span className="text-xs font-medium">Voir</span>
             </button>
             <button
               onClick={() => handleEdit(row)}
@@ -500,7 +687,7 @@ const ProductsPage = () => {
             <input
               type="text"
               name="productName"
-              defaultValue={selectedProduct?.productName}
+              defaultValue={selectedProduct?.productName || prefillName || ''}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
@@ -513,6 +700,38 @@ const ProductsPage = () => {
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Instagram (optionnel)</label>
+              <input
+                type="url"
+                name="instagramLink"
+                defaultValue={(selectedProduct as any)?.instagramLink || ''}
+                placeholder="https://instagram.com/reel/..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Facebook (optionnel)</label>
+              <input
+                type="url"
+                name="facebookLink"
+                defaultValue={(selectedProduct as any)?.facebookLink || ''}
+                placeholder="https://facebook.com/..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">TikTok (optionnel)</label>
+              <input
+                type="url"
+                name="tiktokLink"
+                defaultValue={(selectedProduct as any)?.tiktokLink || ''}
+                placeholder="https://tiktok.com/..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -545,9 +764,47 @@ const ProductsPage = () => {
               />
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sous-catégorie</label>
+            <InfiniteSelect
+              items={allSubCategories}
+              getOptionLabel={(s) => s.title}
+              getOptionValue={(s) => s.id}
+              value={selectedSubCategoryId}
+              onChange={(value) => setSelectedSubCategoryId(value as string)}
+              onLoadMore={() => {
+                if (subsData?.meta && subsPage < subsData.meta.totalPages) {
+                  setSubsPage((prev) => prev + 1);
+                }
+              }}
+              hasMore={Boolean(selectedCategoryId && subsData?.meta && subsPage < subsData.meta.totalPages)}
+              isLoading={subsLoading}
+              placeholder={selectedCategoryId ? 'Sous-catégorie (optionnel)...' : 'Choisissez d\'abord une catégorie'}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Marque (catalogue)</label>
+            <InfiniteSelect
+              items={allMarks}
+              getOptionLabel={(m) => m.name}
+              getOptionValue={(m) => m.id}
+              value={selectedMarkId}
+              onChange={(value) => setSelectedMarkId(value as string)}
+              onLoadMore={() => {
+                if (marksData?.meta && marksPage < marksData.meta.totalPages) {
+                  setMarksPage((prev) => prev + 1);
+                }
+              }}
+              hasMore={marksData?.meta ? marksPage < marksData.meta.totalPages : false}
+              isLoading={marksLoading}
+              placeholder="Marque (optionnel)..."
+            />
+          </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Co-Client</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Déposant</label>
             <InfiniteSelect
               items={allCoClients}
               getOptionLabel={(coClient) => `${coClient.firstName} ${coClient.lastName}`}
@@ -588,7 +845,7 @@ const ProductsPage = () => {
                 <p className="text-sm font-medium text-gray-700 mb-2">Photos existantes:</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {existingPhotos.map((photo) => {
-                    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                    const baseUrl = apiBaseUrl;
                     const photoUrl = photo.photoDoc.startsWith('http')
                       ? photo.photoDoc
                       : `${baseUrl}${photo.photoDoc.startsWith('/') ? '' : '/'}${photo.photoDoc}`;
@@ -803,77 +1060,144 @@ const ProductsPage = () => {
           setViewModalOpen(false);
           setViewProduct(null);
         }}
-        title="Détails du produit"
+        title="Aperçu du produit"
         size="xl"
       >
         {viewProduct && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
-                <p className="px-4 py-2 bg-gray-50 rounded-lg">{viewProduct.productName}</p>
+                <div className="text-lg font-bold text-gray-900">{viewProduct.productName}</div>
+                <div className="text-sm text-gray-500">
+                  {viewProduct.category?.categoryName || 'Sans catégorie'} • {viewProduct.PrixVente.toFixed(2)} TND
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <p className="px-4 py-2 bg-gray-50 rounded-lg">{viewProduct.category?.categoryName || '-'}</p>
+              <div className="inline-flex rounded-xl bg-gray-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode('web')}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    previewMode === 'web' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  <Monitor className="h-4 w-4" />
+                  Web
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode('mobile')}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    previewMode === 'mobile' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  <Smartphone className="h-4 w-4" />
+                  Mobile
+                </button>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <p className="px-4 py-2 bg-gray-50 rounded-lg min-h-[60px]">{viewProduct.description || '-'}</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prix de vente (TND)</label>
-                <p className="px-4 py-2 bg-gray-50 rounded-lg">{viewProduct.PrixVente}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prix d'achat (TND)</label>
-                <p className="px-4 py-2 bg-gray-50 rounded-lg">{viewProduct.PrixAchat}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
-                <p className="px-4 py-2 bg-gray-50 rounded-lg">{viewProduct.stockQuantity}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Statut Dépôt</label>
-                <p className="px-4 py-2 bg-gray-50 rounded-lg">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${viewProduct.isDepot ? 'bg-primary-100 text-primary-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {viewProduct.isDepot ? 'En dépôt' : 'Non en dépôt'}
-                  </span>
-                </p>
-              </div>
-              {viewProduct.isDepot && viewProduct.depotPercentage && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pourcentage dépôt (%)</label>
-                  <p className="px-4 py-2 bg-gray-50 rounded-lg">{viewProduct.depotPercentage}</p>
+
+            <div className="rounded-3xl bg-gradient-to-br from-violet-100 via-fuchsia-50 to-violet-200 p-4">
+              {previewMode === 'web' ? (
+                <div className="mx-auto max-w-[430px] rounded-[34px] border border-white/70 bg-white p-3 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.45)]">
+                  <div className="relative h-[320px] overflow-hidden rounded-[28px] bg-[radial-gradient(ellipse_at_50%_35%,rgb(237,233,254)_0%,rgb(196,181,253)_42%,rgb(109,40,217)_94%)]">
+                    {previewPhoto ? (
+                      <img src={previewPhoto} alt={viewProduct.productName} className="h-full w-full object-cover object-center" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm font-semibold text-white/80">Pas d'image</div>
+                    )}
+                    <div className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-[#7c3aed]/35 text-white shadow backdrop-blur-md">
+                      <Heart className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <div className="-mt-10 rounded-[28px] bg-white px-5 pb-4 pt-3">
+                    <div className="min-h-[3rem] text-[18px] font-black leading-tight text-slate-900">{viewProduct.productName}</div>
+                    <div className="mt-2 flex items-end justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">Prix</div>
+                        <div className="whitespace-nowrap text-[2rem] font-black leading-none text-slate-900">
+                          {viewProduct.PrixVente.toFixed(2)} <span className="text-sm font-bold text-slate-500">TND</span>
+                        </div>
+                      </div>
+                      <div className="flex w-[160px] shrink-0 flex-col items-end gap-2">
+                        <div className="flex h-12 w-full items-center justify-end">
+                          {previewMarque ? (
+                            <img src={previewMarque} alt="" className="h-12 w-auto max-w-[6rem] object-contain" />
+                          ) : null}
+                        </div>
+                        <div className={`inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-2xl px-3 py-2 text-sm font-bold text-white shadow-md ${
+                          previewOutOfStock ? 'bg-slate-400' : 'bg-[#7b2cff]'
+                        }`}>
+                          <ShoppingCart className="h-4 w-4" />
+                          {previewOutOfStock ? 'Indisponible' : 'Ajouter au panier'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mx-auto flex h-[448px] w-[280px] flex-col overflow-hidden rounded-[38px] border border-white/70 bg-white shadow-[0_24px_60px_-36px_rgba(0,0,0,0.55)]">
+                  <div className="relative h-[314px] overflow-hidden rounded-t-[38px] bg-[radial-gradient(ellipse_at_50%_35%,rgb(237,233,254)_0%,rgb(196,181,253)_42%,rgb(109,40,217)_94%)]">
+                    {previewPhoto ? (
+                      <img src={previewPhoto} alt={viewProduct.productName} className="h-full w-full object-cover object-center" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm font-semibold text-white/80">Pas d'image</div>
+                    )}
+                    <div className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/35 bg-[#7c3aed]/35 text-white shadow backdrop-blur-md">
+                      <Heart className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="-mt-10 flex min-h-0 flex-1 flex-col rounded-t-[28px] bg-white px-4 pb-3 pt-2.5">
+                    <div className="min-h-[2.875rem] text-[13px] font-black leading-snug text-slate-900">{viewProduct.productName}</div>
+                    <div className="mt-2 flex items-end justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Prix</div>
+                        <div className="whitespace-nowrap text-lg font-black text-slate-900">
+                          {viewProduct.PrixVente.toFixed(2)} <span className="text-xs font-bold text-slate-500">TND</span>
+                        </div>
+                      </div>
+                      <div className="flex w-[138px] shrink-0 flex-col items-end gap-1.5">
+                        <div className="flex h-10 w-full items-center justify-end">
+                          {previewMarque ? (
+                            <img src={previewMarque} alt="" className="h-10 w-auto max-w-[5.25rem] object-contain" />
+                          ) : null}
+                        </div>
+                        <div className={`inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-2xl px-2 py-2 text-[8.5px] font-black text-white shadow-md ${
+                          previewOutOfStock ? 'bg-slate-400' : 'bg-[#7b2cff]'
+                        }`}>
+                          <ShoppingCart className="h-4 w-4" />
+                          {previewOutOfStock ? 'Indisponible' : 'Ajouter au panier'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-            {viewProduct.coClient && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Co-Client</label>
-                <p className="px-4 py-2 bg-gray-50 rounded-lg">
-                  {viewProduct.coClient.firstName} {viewProduct.coClient.lastName}
-                </p>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl bg-gray-50 px-4 py-3">
+                <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Stock</div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">{viewProduct.stockQuantity}</div>
               </div>
-            )}
-            <div className="flex justify-end pt-4">
-              <button
-                onClick={() => {
-                  setViewModalOpen(false);
-                  setViewProduct(null);
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Fermer
-              </button>
+              <div className="rounded-xl bg-gray-50 px-4 py-3">
+                <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Statut</div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">{previewOutOfStock ? 'Rupture' : 'Disponible'}</div>
+              </div>
+              <div className="rounded-xl bg-gray-50 px-4 py-3">
+                <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Dépôt</div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">{viewProduct.isDepot ? 'Oui' : 'Non'}</div>
+              </div>
+              <div className="rounded-xl bg-gray-50 px-4 py-3">
+                <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Co-client</div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">
+                  {viewProduct.coClient ? `${viewProduct.coClient.firstName} ${viewProduct.coClient.lastName}` : '-'}
+                </div>
+              </div>
             </div>
           </div>
         )}
       </Modal>
+      {dialog}
     </div>
   );
 };

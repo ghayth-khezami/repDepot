@@ -1,9 +1,9 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { getApiBaseUrl } from '../../lib/apiBase';
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+  baseUrl: getApiBaseUrl(),
   prepareHeaders: (headers) => {
-    headers.set('Content-Type', 'application/json');
     const token = localStorage.getItem('token');
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
@@ -15,6 +15,6 @@ const baseQuery = fetchBaseQuery({
 export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['User', 'Client', 'CoClient', 'Category', 'Product', 'Command'],
+  tagTypes: ['User', 'Client', 'CoClient', 'Category', 'SubCategory', 'Product', 'Command', 'DepositRequest', 'StoreHours', 'ClientFeedback', 'Mark', 'Newsletter', 'FeaturedProduct'],
   endpoints: () => ({}),
 });

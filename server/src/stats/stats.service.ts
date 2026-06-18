@@ -65,15 +65,7 @@ export class StatsService {
       },
     });
 
-    // 9. Profit Commands Count
-    const profitCommands = await this.prisma.command.count({
-      where: {
-        ...where.command,
-        status: "GOT_PROFIT",
-      },
-    });
-
-    // 10. Average Order Value
+    // 9. Average Order Value
     const avgOrderValue = totalCommands > 0 ? totalRevenue / totalCommands : 0;
 
     return {
@@ -85,7 +77,6 @@ export class StatsService {
       totalPurchaseCost,
       totalProfit,
       deliveredCommands,
-      profitCommands,
       avgOrderValue,
     };
   }
@@ -194,7 +185,7 @@ export class StatsService {
     const where = this.buildWhereClause(query);
     const commandDetails = await this.prisma.commandDetail.findMany({
       where: {
-        command: where.command,
+        command: { ...where.command, status: "DELIVERED" },
       },
       include: {
         product: {

@@ -6,6 +6,8 @@ import {
   IsOptional,
   Min,
   IsDateString,
+  IsArray,
+  ArrayMinSize,
 } from "class-validator";
 import { CommandStatus } from "@prisma/client";
 
@@ -42,4 +44,21 @@ export class UpdateCommandDto {
   @IsOptional()
   @IsString()
   adresseLivraison?: string;
+
+  @ApiPropertyOptional({ description: "Client ID for command details" })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @ApiPropertyOptional({ description: "Co-client / déposant ID for command details" })
+  @IsOptional()
+  @IsString()
+  coClientId?: string;
+
+  @ApiPropertyOptional({ description: "Product IDs — replaces line items (backoffice)" })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  productIds?: string[];
 }

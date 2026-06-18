@@ -1,17 +1,96 @@
-# dependencies
+# =============================================================================
+# BÉBÉ-DÉPÔT monorepo — shared ignore rules
+# Package-specific rules live in client/, web/, server/, mobile/.gitignore
+# =============================================================================
+
+# --- OS & editor noise ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# --- Dependencies (any package manager) ---
 node_modules/
 **/node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
 
-# env
+# --- Environment & secrets (templates are whitelisted below) ---
 .env
-.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+!.env.example
+!.env.*.example
 
-# build outputs
+# --- Build & test artifacts ---
 dist/
+**/dist/
 build/
+**/build/
+out/
+**/out/
 coverage/
+**/coverage/
+*.tsbuildinfo
+.turbo/
+.cache/
+.parcel-cache/
+.eslintcache
+*.tgz
 
-# React Native
+# --- Deployment bundles & local dumps (never commit) ---
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.sql.gz
+*.dump
+
+# --- Local dev fixtures & bulky media (not source) ---
+/mock/
+/mock/**
+
+# --- Runtime user uploads (API serves from disk; use S3 in prod) ---
+/server/uploads/*
+!/server/uploads/.gitkeep
+
+# --- Hosting / CI local state ---
+.vercel/
+.netlify/
+
+# --- Logs ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Optional mobile native shells (if added later) ---
+.expo/
 android/app/build/
 ios/Pods/
-.expo/
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision

@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { UserRole } from "@prisma/client";
+import * as bcrypt from "bcryptjs";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateCoClientDto } from "./dto/create-co-client.dto";
 import { CoClientQueryDto } from "./dto/co-client-query.dto";
@@ -9,14 +11,43 @@ export class CoClientService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCoClientDto: CreateCoClientDto) {
-    return this.prisma.coClient.create({
-      data: createCoClientDto,
+    const { password, ...data } = createCoClientDto;
+    const email = data.email.trim().toLowerCase();
+
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new BadRequestException("Un compte existe déjà avec cet email.");
+    }
+
+  return this.prisma.$transaction(async (tx) => {
+      let userId: string | undefined;
+      if (password) {
+        const passwordHash = await bcrypt.hash(password, 10);
+        const user = await tx.user.create({
+          data: {
+            email,
+            password: passwordHash,
+            role: UserRole.DEPOSER,
+            isVerified: true,
+            username: `${data.firstName} ${data.lastName}`.trim(),
+          },
+        });
+        userId = user.id;
+      }
+
+      return tx.coClient.create({
+        data: {
+          ...data,
+          email,
+          userId,
+        },
+      });
     });
   }
 
   async findAll(query: CoClientQueryDto): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 10, search } = query;
-    const actualLimit = Math.min(limit || 10, 10); // Enforce max 10
+    const actualLimit = Math.min(limit || 10, 50);
     const skip = (page - 1) * actualLimit;
 
     const where = search
@@ -37,6 +68,7 @@ export class CoClientService {
         skip,
         take: actualLimit,
         orderBy: { createdAt: "desc" },
+        include: { user: { select: { id: true, role: true } } },
       }),
       this.prisma.coClient.count({ where }),
     ]);
@@ -55,6 +87,13 @@ export class CoClientService {
   async findOne(id: string) {
     const coClient = await this.prisma.coClient.findUnique({
       where: { id },
+      include: {
+        user: { select: { id: true, email: true, role: true } },
+        depositRequests: {
+          orderBy: { createdAt: "desc" },
+          include: { items: true },
+        },
+      },
     });
 
     if (!coClient) {
@@ -100,6 +139,14 @@ export class CoClientService {
       category: p.category,
       photo: p.photos?.[0]?.photoDoc || null,
     }));
+  }
+
+  async getDepositHistory(coClientId: string) {
+    return this.prisma.depositRequest.findMany({
+      where: { coClientId },
+      orderBy: { createdAt: "desc" },
+      include: { items: true },
+    });
   }
 
   async remove(id: string) {

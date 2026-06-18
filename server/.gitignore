@@ -1,17 +1,19 @@
-# dependencies
-node_modules/
-**/node_modules/
+# NestJS API — extends root .gitignore
 
-# env
-.env
-.env.*
-
-# build outputs
+# Compiled output
 dist/
-build/
-coverage/
 
-# React Native
-android/app/build/
-ios/Pods/
-.expo/
+# Prisma local DB scratch files (migrations stay tracked)
+*.db
+*.db-journal
+
+# User-uploaded catalog & deposit photos (runtime only)
+uploads/*
+!uploads/.gitkeep
+
+# Local scripts output / one-off exports
+exports/
+tmp/
+
+# Keep example env committable
+!.env.example

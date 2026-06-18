@@ -3,10 +3,14 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { StatsService } from "./stats.service";
 import { StatsQueryDto } from "./dto/stats-query.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
+import { UserRole } from "@prisma/client";
 
 @ApiTags("stats")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller("stats")
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}

@@ -23,6 +23,9 @@ import { CoClientService } from "./co-client.service";
 import { CreateCoClientDto } from "./dto/create-co-client.dto";
 import { CoClientQueryDto } from "./dto/co-client-query.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
+import { UserRole } from "@prisma/client";
 import * as Papa from "papaparse";
 import * as jsPDF from "jspdf";
 import { join } from "path";
@@ -30,7 +33,8 @@ import * as fs from "fs";
 
 @ApiTags("co-clients")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller("co-clients")
 export class CoClientController {
   constructor(private readonly coClientService: CoClientService) {}
@@ -276,6 +280,12 @@ export class CoClientController {
   @ApiResponse({ status: 404, description: "CoClient not found" })
   findOne(@Param("id") id: string) {
     return this.coClientService.findOne(id);
+  }
+
+  @Get(":id/deposit-history")
+  @ApiOperation({ summary: "Get deposant deposit request history" })
+  getDepositHistory(@Param("id") id: string) {
+    return this.coClientService.getDepositHistory(id);
   }
 
   @Get(":id/products")

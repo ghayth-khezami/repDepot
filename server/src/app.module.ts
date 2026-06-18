@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
 import { UserModule } from "./user/user.module";
 import { AuthModule } from "./auth/auth.module";
@@ -10,13 +12,45 @@ import { ProductModule } from "./product/product.module";
 import { ProductPhotoModule } from "./product-photo/product-photo.module";
 import { CommandModule } from "./command/command.module";
 import { StatsModule } from "./stats/stats.module";
+import { LikesModule } from "./likes/likes.module";
+import { DepositRequestModule } from "./deposit-request/deposit-request.module";
+import { StoreHoursModule } from "./store-hours/store-hours.module";
+import { SubCategoryModule } from "./sub-category/sub-category.module";
+import { ClientFeedbackModule } from "./client-feedback/client-feedback.module";
+import { MarkModule } from "./mark/mark.module";
+import { NewsletterModule } from "./newsletter/newsletter.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ".env",
+      // In production (e.g. Elastic Beanstalk), rely on environment variables.
+      // This also prevents failures if `.env` is not shipped.
+      ignoreEnvFile: process.env.NODE_ENV === "production",
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: "default",
+        ttl: 60_000,
+        limit: 120,
+      },
+      {
+        name: "auth",
+        ttl: 60_000,
+        limit: 20,
+      },
+      {
+        name: "checkout",
+        ttl: 60_000,
+        limit: 15,
+      },
+      {
+        name: "deposit",
+        ttl: 60_000,
+        limit: 10,
+      },
+    ]),
     PrismaModule,
     UserModule,
     AuthModule,
@@ -27,6 +61,19 @@ import { StatsModule } from "./stats/stats.module";
     ProductPhotoModule,
     CommandModule,
     StatsModule,
+    LikesModule,
+    DepositRequestModule,
+    StoreHoursModule,
+    SubCategoryModule,
+    ClientFeedbackModule,
+    MarkModule,
+    NewsletterModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

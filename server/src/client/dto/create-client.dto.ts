@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsString, MinLength } from "class-validator";
+import { IsEmail, IsString, Matches, MinLength } from "class-validator";
 
 export class CreateClientDto {
   @ApiProperty({ description: "First name", example: "John" })
@@ -26,6 +26,6 @@ export class CreateClientDto {
 
   @ApiProperty({ description: "Phone number", example: "+1234567890" })
   @IsString()
-  @MinLength(1)
+  @Matches(/^\d{8}$/, { message: "phoneNumber must be exactly 8 digits" })
   phoneNumber: string;
 }

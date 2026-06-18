@@ -4,6 +4,9 @@ import { Product, PaginatedResponse, UpdateProductDto, QueryParams } from '../..
 export interface CreateProductDto {
   productName: string;
   description?: string;
+  instagramLink?: string;
+  facebookLink?: string;
+  tiktokLink?: string;
   PrixVente: number;
   PrixAchat?: number;
   stockQuantity: number;
@@ -17,17 +20,23 @@ export interface CreateProductDto {
 export const productApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProducts: builder.query<PaginatedResponse<Product>, QueryParams>({
-      query: (params) => ({
-        url: '/products',
-        params,
-      }),
+      query: (params) => {
+        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 50);
+        return {
+        url: '/products/admin/list',
+        params: { ...params, limit: safeLimit },
+      };
+      },
       providesTags: ['Product'],
     }),
     getProductsInfinite: builder.query<PaginatedResponse<Product>, QueryParams>({
-      query: (params) => ({
-        url: '/products',
-        params: { ...params, limit: 10 },
-      }),
+      query: (params) => {
+        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 50);
+        return {
+        url: '/products/admin/list',
+        params: { ...params, limit: safeLimit },
+      };
+      },
       providesTags: ['Product'],
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
         const { page, ...rest } = queryArgs;
@@ -47,7 +56,7 @@ export const productApi = baseApi.injectEndpoints({
       },
     }),
     getProduct: builder.query<Product, string>({
-      query: (id) => `/products/${id}`,
+      query: (id) => `/products/${id}/full`,
       providesTags: (result, error, id) => [{ type: 'Product', id }],
     }),
     createProduct: builder.mutation<Product, CreateProductDto>({

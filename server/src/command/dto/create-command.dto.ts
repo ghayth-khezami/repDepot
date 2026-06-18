@@ -8,8 +8,36 @@ import {
   IsDateString,
   IsArray,
   ArrayMinSize,
+  IsEmail,
+  ValidateNested,
+  Matches,
 } from "class-validator";
 import { CommandStatus } from "@prisma/client";
+import { Type } from "class-transformer";
+
+class GuestClientDto {
+  @ApiProperty({ description: "Guest first name", example: "John" })
+  @IsString()
+  firstName: string;
+
+  @ApiProperty({ description: "Guest last name", example: "Doe" })
+  @IsString()
+  lastName: string;
+
+  @ApiProperty({ description: "Guest address", example: "123 Main St, City" })
+  @IsString()
+  address: string;
+
+  @ApiPropertyOptional({ description: "Guest email (optional — derived from phone if omitted)" })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({ description: "Guest phone", example: "+21600000000" })
+  @IsString()
+  @Matches(/^\d{8}$/, { message: "phoneNumber must be exactly 8 digits" })
+  phoneNumber: string;
+}
 
 export class CreateCommandDto {
   @ApiProperty({ description: "Number of products", example: 5 })
@@ -36,9 +64,16 @@ export class CreateCommandDto {
   @IsString({ each: true })
   productIds: string[];
 
-  @ApiProperty({ description: "Client ID", example: "uuid" })
+  @ApiPropertyOptional({ description: "Client ID", example: "uuid" })
+  @IsOptional()
   @IsString()
-  clientId: string;
+  clientId?: string;
+
+  @ApiPropertyOptional({ type: GuestClientDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GuestClientDto)
+  guestClient?: GuestClientDto;
 
   @ApiPropertyOptional({ description: "Co-Client ID", example: "uuid" })
   @IsOptional()
@@ -68,4 +103,5 @@ export class CreateCommandDto {
   })
   @IsString()
   adresseLivraison: string;
+
 }

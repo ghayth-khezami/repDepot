@@ -15,4 +15,17 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({
+    description: "Lucide icon name for category",
+    example: "Baby",
+  })
+  @IsOptional()
+  @IsString()
+  icon?: string;
+
+  @ApiPropertyOptional({ description: "Cover image path for storefront cards" })
+  @IsOptional()
+  @IsString()
+  coverDoc?: string;
 }

@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsString, MinLength } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsEmail, IsOptional, IsString, MinLength } from "class-validator";
 
 export class CreateCoClientDto {
   @ApiProperty({ description: "First name", example: "Jane" })
@@ -18,13 +18,13 @@ export class CreateCoClientDto {
   address: string;
 
   @ApiProperty({
-    description: "Email address",
+    description: "Email address (login)",
     example: "jane.smith@example.com",
   })
   @IsEmail()
   email: string;
 
-  @ApiProperty({ description: "Phone number", example: "+1234567891" })
+  @ApiProperty({ description: "Phone number", example: "12345678" })
   @IsString()
   @MinLength(1)
   phoneNumber: string;
@@ -36,4 +36,13 @@ export class CreateCoClientDto {
   @IsString()
   @MinLength(1)
   RIB: string;
+
+  @ApiPropertyOptional({
+    description: "Login password (creates DEPOSER account)",
+    minLength: 6,
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  password?: string;
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   useGetRevenueBreakdownQuery,
   useGetMonthlySoldProductsQuery,
@@ -115,20 +115,56 @@ const Dashboard = () => {
     ? Math.max(...monthlySoldData.map((item) => item.count), 1)
     : 1;
 
-  // Geocode addresses (simplified - in production, use a geocoding service)
-  const getCoordinates = (address: string) => {
-    // Tunisia center coordinates as fallback
-    // In production, use a geocoding API
-    return [34.0, 9.0]; // Approximate Tunisia center
+  const geoCacheRef = useRef<Record<string, [number, number]>>({});
+  const [mapTick, setMapTick] = useState(0);
+
+  useEffect(() => {
+    if (!locationsData?.length) return;
+    let cancelled = false;
+
+    const geocode = async () => {
+      for (const loc of locationsData) {
+        if (cancelled) break;
+        const addr = loc.address?.trim();
+        if (!addr || geoCacheRef.current[addr]) continue;
+
+        try {
+          const q = encodeURIComponent(`${addr}, Tunisia`);
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`,
+            { headers: { 'Accept-Language': 'fr' } },
+          );
+          const json = await res.json();
+          if (cancelled || !json?.[0]) continue;
+          const lat = parseFloat(json[0].lat);
+          const lon = parseFloat(json[0].lon);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+          geoCacheRef.current[addr] = [lat, lon];
+          setMapTick((t) => t + 1);
+        } catch {
+          /* ignore geocode errors */
+        }
+        await new Promise((r) => setTimeout(r, 1100));
+      }
+    };
+
+    void geocode();
+    return () => {
+      cancelled = true;
+    };
+  }, [locationsData]);
+
+  const getCoordinates = (address: string): [number, number] => {
+    void mapTick;
+    return geoCacheRef.current[address] || [34.0, 9.0];
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen rounded-2xl bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 p-4 sm:p-6 lg:p-8 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="mx-auto max-w-7xl">
         <div className="mb-8 animate-fade-in">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Tableau de Bord</h1>
-          <p className="text-gray-600">Vue d'ensemble de votre activité</p>
+          <h1 className="mb-2 text-3xl font-bold sm:text-4xl">Tableau de Bord</h1>
+          <p className="bo-muted">Vue d'ensemble de votre activité</p>
         </div>
 
         {/* Revenue Cards */}
@@ -204,8 +240,8 @@ const Dashboard = () => {
 
         {/* Top 5 Products Section */}
         {topProductsData && topProductsData.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 transform hover:shadow-xl transition-all duration-300 animate-fade-in">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="bo-panel mb-8 transform p-6 transition-all duration-300 animate-fade-in hover:shadow-xl">
+            <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
               <Award className="w-6 h-6 text-yellow-600" />
               Top 5 Produits les Plus Vendus
             </h2>
@@ -285,8 +321,8 @@ const Dashboard = () => {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Bar Chart - Monthly Sold Products */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="bo-panel p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in">
+            <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
               <TrendingUp className="w-6 h-6 text-purple-600" />
               Produits Vendus par Mois
             </h2>
@@ -301,8 +337,8 @@ const Dashboard = () => {
                   return (
                     <div key={item.month} className="animate-slide-right" style={{ animationDelay: `${index * 0.05}s` }}>
                       <div className="flex items-center gap-4 mb-2">
-                        <span className="text-sm font-medium text-gray-700 w-12">{formatMonth(item.month)}</span>
-                        <div className="flex-1 bg-gray-200 rounded-full h-8 overflow-hidden">
+                        <span className="w-12 text-sm font-medium text-gray-700 dark:text-gray-300">{formatMonth(item.month)}</span>
+                        <div className="h-8 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                           <div
                             className="bg-gradient-to-r from-purple-500 to-indigo-600 h-full rounded-full flex items-center justify-end pr-3 transition-all duration-1000 ease-out"
                             style={{ width: `${percentage}%` }}
@@ -318,13 +354,13 @@ const Dashboard = () => {
                 })}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">Aucune donnée disponible</p>
+              <p className="bo-muted py-8 text-center">Aucune donnée disponible</p>
             )}
           </div>
 
           {/* Pie Chart - Depot vs Buying */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="bo-panel p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
               <Package className="w-6 h-6 text-pink-600" />
               Produits Dépôt vs Achat
             </h2>
@@ -398,14 +434,14 @@ const Dashboard = () => {
                 </div>
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">Aucune donnée disponible</p>
+              <p className="bo-muted py-8 text-center">Aucune donnée disponible</p>
             )}
           </div>
         </div>
 
         {/* Map */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+        <div className="bo-panel p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in mb-8">
+          <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
             <MapPin className="w-6 h-6 text-green-600" />
             Localisation des Commandes en Tunisie
           </h2>
@@ -425,10 +461,10 @@ const Dashboard = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {locationsData.map((location, index) => {
+                {locationsData.map((location) => {
                   const [lat, lng] = getCoordinates(location.address);
                   return (
-                    <Marker key={location.id} position={[lat + (Math.random() - 0.5) * 0.5, lng + (Math.random() - 0.5) * 0.5]}>
+                    <Marker key={location.id} position={[lat, lng]}>
                       <Popup>
                         <div className="p-2 space-y-1">
                           <p className="font-semibold text-sm">{location.client}</p>

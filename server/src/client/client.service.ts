@@ -84,6 +84,10 @@ export class ClientService {
                 PrixVente: true,
                 PrixAchat: true,
                 isDepot: true,
+                photos: {
+                  take: 1,
+                  orderBy: { createdAt: "asc" },
+                },
               },
             },
           },

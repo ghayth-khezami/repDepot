@@ -1,0 +1,208 @@
+import {
+  ApiPaginated,
+  AuthUser,
+  Category,
+  ClientProfile,
+  CheckoutCommandPayload,
+  Product,
+  SubCategory,
+  ClientFeedback,
+  Mark,
+} from "@/types";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+type HttpMethod = "GET" | "POST" | "DELETE";
+
+async function request<T>(
+  path: string,
+  method: HttpMethod = "GET",
+  body?: unknown,
+  token?: string | null,
+): Promise<T> {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error(
+      `API inaccessible (${API_URL}). Démarrez le serveur Nest sur le port 3000.`,
+    );
+  }
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(txt || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export const api = {
+  getCategories: async () => {
+    const all: Category[] = [];
+    let page = 1;
+    let totalPages = 1;
+    while (page <= totalPages) {
+      const res = await request<ApiPaginated<Category>>(`/categories?limit=10&page=${page}`);
+      all.push(...res.data);
+      totalPages = res.meta.totalPages;
+      page += 1;
+    }
+    return all;
+  },
+  getSubCategories: (opts?: { page?: number; limit?: number; categoryId?: string }) => {
+    const params = new URLSearchParams({
+      page: String(opts?.page ?? 1),
+      limit: String(Math.min(Math.max(Number(opts?.limit ?? 10), 1), 10)),
+    });
+    if (opts?.categoryId) params.set("categoryId", opts.categoryId);
+    return request<ApiPaginated<SubCategory>>(`/sub-categories?${params.toString()}`);
+  },
+  getCategory: (id: string) =>
+    request<
+      Category & {
+        subCategories?: Array<SubCategory & { _count?: { products: number } }>;
+      }
+    >(`/categories/${id}`),
+  getProductsPage: (
+    opts?: {
+      page?: number;
+      limit?: number;
+      categoryId?: string;
+      subCategoryId?: string;
+      markId?: string;
+      search?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      isDispo?: boolean;
+      isDepot?: boolean;
+      sort?: "newest" | "price_asc" | "price_desc" | "name_asc";
+    },
+    token?: string | null,
+  ) => {
+    const safeLimit = Math.min(Math.max(Number(opts?.limit ?? 10), 1), 10);
+    const params = new URLSearchParams({
+      page: String(opts?.page ?? 1),
+      limit: String(safeLimit),
+    });
+    if (opts?.categoryId) params.set("categoryId", opts.categoryId);
+    if (opts?.subCategoryId) params.set("subCategoryId", opts.subCategoryId);
+    if (opts?.markId) params.set("markId", opts.markId);
+    if (opts?.search) params.set("search", opts.search);
+    if (opts?.minPrice !== undefined) params.set("minPrice", String(opts.minPrice));
+    if (opts?.maxPrice !== undefined) params.set("maxPrice", String(opts.maxPrice));
+    if (opts?.isDispo !== undefined) params.set("isDispo", String(opts.isDispo));
+    if (opts?.isDepot !== undefined) params.set("isDepot", String(opts.isDepot));
+    if (opts?.sort) params.set("sort", opts.sort);
+    return request<ApiPaginated<Product>>(`/products?${params.toString()}`, "GET", undefined, token);
+  },
+  getFeaturedProducts: () => request<Product[]>("/products/featured"),
+  getProduct: (id: string, token?: string | null) =>
+    request<Product>(`/products/${id}`, "GET", undefined, token),
+  login: (email: string, password: string) =>
+    request<{ access_token: string; user: AuthUser }>("/auth/login", "POST", {
+      email,
+      password,
+    }),
+  register: (email: string, password: string, username?: string) =>
+    request<{ message: string }>("/auth/register", "POST", {
+      email,
+      password,
+      username,
+    }),
+  verifyRegister: (email: string, code: string) =>
+    request<{ access_token: string; user: AuthUser }>("/auth/verify", "POST", { email, code }),
+  findClients: (token: string, search: string) =>
+    request<ApiPaginated<ClientProfile>>(
+      `/clients?page=1&limit=10&search=${encodeURIComponent(search)}`,
+      "GET",
+      undefined,
+      token,
+    ),
+  createClient: (token: string, payload: Omit<ClientProfile, "id">) =>
+    request<ClientProfile>("/clients", "POST", payload, token),
+  getClientHistory: (token: string, clientId: string) =>
+    request<Array<Record<string, unknown>>>(`/clients/${clientId}/commands`, "GET", undefined, token),
+  createCommand: (token: string, payload: CheckoutCommandPayload) =>
+    request<Record<string, unknown>>("/commands/checkout", "POST", payload, token),
+  createCommandAsGuest: (payload: CheckoutCommandPayload) =>
+    request<Record<string, unknown>>("/commands/checkout", "POST", payload),
+  googleLogin: (idToken: string, intent?: "CLIENT" | "DEPOSER") =>
+    request<{ access_token: string; user: AuthUser }>("/auth/google", "POST", {
+      idToken,
+      intent,
+    }),
+  createDepositRequest: async (
+    payload: {
+      fullName: string;
+      phoneNumber: string;
+      proposedPrice: number;
+      message?: string;
+      photos: File[];
+    },
+    token?: string | null,
+  ) => {
+    const formData = new FormData();
+    formData.append("fullName", payload.fullName);
+    formData.append("phoneNumber", payload.phoneNumber);
+    formData.append("proposedPrice", String(payload.proposedPrice));
+    if (payload.message) formData.append("message", payload.message);
+    payload.photos.forEach((file) => formData.append("photos", file));
+
+    const path = token ? "/deposit-requests/me" : "/deposit-requests";
+    const headers: HeadersInit = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || `Request failed: ${res.status}`);
+    }
+    return res.json();
+  },
+  getMyDepositRequests: (token: string) =>
+    request<unknown[]>(`/deposit-requests/me`, "GET", undefined, token),
+  checkLikedProducts: (token: string, productIds: string[]) =>
+    request<{ likedIds: string[] }>("/likes/check", "POST", { productIds }, token),
+  getLikedProductsPage: (token: string, opts?: { page?: number; limit?: number }) => {
+    const params = new URLSearchParams({
+      page: String(opts?.page ?? 1),
+      limit: String(opts?.limit ?? 12),
+    });
+    return request<ApiPaginated<Product>>(`/likes/me?${params.toString()}`, "GET", undefined, token);
+  },
+  likeProduct: (token: string, productId: string) =>
+    request<{ liked: true }>(`/likes/${productId}`, "POST", undefined, token),
+  unlikeProduct: (token: string, productId: string) =>
+    request<{ liked: false }>(`/likes/${productId}`, "DELETE", undefined, token),
+  getClientFeedbacks: () => request<ClientFeedback[]>("/client-feedbacks"),
+  getMarks: () => request<Mark[]>("/marks/published"),
+  subscribeNewsletter: (email: string) =>
+    request<{ id: string; email: string }>("/newsletter/subscribe", "POST", { email }),
+  getStoreHours: () =>
+    request<
+      Array<{
+        id: string;
+        weekday: string;
+        isClosed: boolean;
+        openTime: string | null;
+        closeTime: string | null;
+      }>
+    >("/store-hours"),
+  normalizePhotoUrl: (photo?: string | null) => {
+    if (!photo) return "";
+    return photo.startsWith("http") ? photo : `${API_URL}${photo}`;
+  },
+};

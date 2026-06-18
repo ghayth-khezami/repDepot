@@ -41,18 +41,39 @@ export interface CoClient {
   updatedAt: string;
 }
 
+export interface SubCategory {
+  id: string;
+  title: string;
+  description?: string | null;
+  categoryId: string;
+  category?: { id: string; categoryName: string };
+  _count?: { products: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Category {
   id: string;
   categoryName: string;
   description?: string;
+  icon?: string;
+  coverDoc?: string;
   createdAt: string;
   updatedAt: string;
+  subCategories?: Array<
+    SubCategory & { _count?: { products: number } }
+  >;
 }
 
 export interface Product {
   id: string;
   productName: string;
   description?: string;
+  /** Optional brand logo URL from server uploads/brands */
+  marqueDoc?: string | null;
+  instagramLink?: string;
+  facebookLink?: string;
+  tiktokLink?: string;
   PrixVente: number;
   PrixAchat?: number;
   stockQuantity: number;
@@ -63,10 +84,21 @@ export interface Product {
   isDispo?: boolean;
   coclientId?: string;
   categoryId: string;
+  subCategoryId?: string | null;
+  markId?: string | null;
+  mark?: { id: string; name: string; logoDoc: string } | null;
   category?: {
     id: string;
     categoryName: string;
   };
+  subCategory?: {
+    id: string;
+    title: string;
+  };
+  photos?: Array<{
+    id: string;
+    photoDoc: string;
+  }>;
   coClient?: {
     id: string;
     firstName: string;
@@ -103,27 +135,37 @@ export interface CreateCoClientDto {
   email: string;
   phoneNumber: string;
   RIB: string;
+  password?: string;
 }
 
 export interface CreateCategoryDto {
   categoryName: string;
   description?: string;
+  icon?: string;
 }
 
 export interface UpdateCategoryDto {
   categoryName?: string;
   description?: string;
+  icon?: string;
 }
 
 export interface UpdateProductDto {
   productName?: string;
   description?: string;
+  instagramLink?: string;
+  facebookLink?: string;
+  tiktokLink?: string;
   PrixVente?: number;
   PrixAchat?: number;
   stockQuantity?: number;
+  isDispo?: boolean;
   isDepot?: boolean;
   coclientId?: string;
   categoryId?: string;
+  subCategoryId?: string;
+  markId?: string;
+  marqueDoc?: string | null;
 }
 
 export interface QueryParams {

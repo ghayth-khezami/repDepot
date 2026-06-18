@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import * as dotenv from "dotenv";
 import { resolve } from "path";
@@ -13,11 +13,13 @@ const users = [
     email: "admin@bebe-depot.com",
     password: "Admin@2024",
     username: "admin",
+    role: UserRole.ADMIN,
   },
   {
     email: "user@bebe-depot.com",
     password: "User@2024",
     username: "user",
+    role: UserRole.CLIENT,
   },
 ];
 
@@ -39,6 +41,8 @@ async function bulkInsertUsers() {
           email: user.email,
           password: hashedPassword,
           username: user.username,
+          role: user.role,
+          isVerified: true,
         },
       });
 

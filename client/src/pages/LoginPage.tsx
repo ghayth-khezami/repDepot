@@ -23,6 +23,10 @@ const LoginPage = () => {
     e.preventDefault();
     try {
       const result = await login({ email, password }).unwrap();
+      if (result.user.role !== 'ADMIN') {
+        showToast('Accès backoffice réservé aux administrateurs', 'error');
+        return;
+      }
       setAuth(result.access_token, result.user);
       showToast('Connexion réussie!', 'success');
       // Navigation will now be handled by PublicRoute + Layout overlay

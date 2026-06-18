@@ -6,11 +6,16 @@ import {
   Patch,
   Param,
   Delete,
+  Put,
   Query,
   HttpCode,
   HttpStatus,
   Res,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+  UploadedFile,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -18,30 +23,175 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
 } from "@nestjs/swagger";
 import { Response } from "express";
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ProductQueryDto } from "./dto/product-query.dto";
+import { SetFeaturedProductsDto } from "./dto/set-featured-products.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
+import { UserRole } from "@prisma/client";
 import * as Papa from "papaparse";
 import * as jsPDF from "jspdf";
 import { join } from "path";
 import * as fs from "fs";
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+  FilesInterceptor,
+} from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import { extname } from "path";
+import { compressUploadedFile, compressUploadedFiles } from "../common/image-compress.util";
 
 @ApiTags("products")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller("products")
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Create a new product" })
   @ApiResponse({ status: 201, description: "Product created" })
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
+  }
+
+  @Post("with-photos")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: "photos", maxCount: 20 },
+        { name: "marque", maxCount: 1 },
+      ],
+      {
+        storage: diskStorage({
+          destination: (req, file, cb) => {
+            if (file.fieldname === "marque") {
+              const brandsDir = join(process.cwd(), "uploads", "brands");
+              if (!fs.existsSync(brandsDir)) {
+                fs.mkdirSync(brandsDir, { recursive: true });
+              }
+              cb(null, brandsDir);
+              return;
+            }
+            const uploadsDir = join(process.cwd(), "uploads");
+            if (!fs.existsSync(uploadsDir)) {
+              fs.mkdirSync(uploadsDir, { recursive: true });
+            }
+            cb(null, uploadsDir);
+          },
+          filename: (req, file, cb) => {
+            const uniqueSuffix =
+              Date.now() + "-" + Math.round(Math.random() * 1e9);
+            const ext = extname(file.originalname);
+            const prefix =
+              file.fieldname === "marque" ? "marque-" : "product-";
+            cb(null, `${prefix}${uniqueSuffix}${ext}`);
+          },
+        }),
+        limits: {
+          fileSize: 5 * 1024 * 1024,
+        },
+        fileFilter: (req, file, cb) => {
+          if (file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+            cb(null, true);
+          } else {
+            cb(new Error("Only image files are allowed"), false);
+          }
+        },
+      },
+    ),
+  )
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        productName: { type: "string" },
+        description: { type: "string" },
+        instagramLink: { type: "string" },
+        facebookLink: { type: "string" },
+        tiktokLink: { type: "string" },
+        PrixVente: { type: "number" },
+        PrixAchat: { type: "number" },
+        stockQuantity: { type: "number" },
+        isDepot: { type: "boolean" },
+        depotPercentage: { type: "number" },
+        surcharge: { type: "number" },
+        coclientId: { type: "string" },
+        categoryId: { type: "string" },
+        subCategoryId: { type: "string" },
+        markId: { type: "string" },
+        photos: {
+          type: "array",
+          items: { type: "string", format: "binary" },
+        },
+        marque: {
+          type: "string",
+          format: "binary",
+          description: "Optional brand / marque logo (saved under uploads/brands)",
+        },
+      },
+      required: ["productName", "PrixVente", "stockQuantity", "isDepot", "categoryId"],
+    },
+  })
+  @ApiOperation({ summary: "Create product with photos in one request" })
+  async createWithPhotos(
+    @Body() body: Record<string, string>,
+    @UploadedFiles()
+    files: {
+      photos?: Express.Multer.File[];
+      marque?: Express.Multer.File[];
+    },
+  ) {
+    const dto: CreateProductDto = {
+      productName: body.productName,
+      description: body.description || undefined,
+      instagramLink: body.instagramLink || undefined,
+      facebookLink: body.facebookLink || undefined,
+      tiktokLink: body.tiktokLink || undefined,
+      PrixVente: Number(body.PrixVente),
+      PrixAchat: body.PrixAchat ? Number(body.PrixAchat) : undefined,
+      stockQuantity: Number(body.stockQuantity),
+      isDepot: body.isDepot === "true",
+      depotPercentage: body.depotPercentage
+        ? Number(body.depotPercentage)
+        : undefined,
+      surcharge: body.surcharge ? Number(body.surcharge) : 0,
+      coclientId: body.coclientId || undefined,
+      categoryId: body.categoryId,
+      subCategoryId: body.subCategoryId || undefined,
+      markId: body.markId || undefined,
+    };
+    await compressUploadedFiles(files?.photos);
+    if (files?.marque?.[0]) await compressUploadedFile(files.marque[0]);
+
+    const photoDocs = (files?.photos || []).map(
+      (file) => `/uploads/${file.filename}`,
+    );
+    const marqueFile = files?.marque?.[0];
+    const marqueDoc = marqueFile
+      ? `/uploads/brands/${marqueFile.filename}`
+      : undefined;
+    return this.productService.createWithPhotos(dto, photoDocs, marqueDoc);
+  }
+
+  @Get("admin/list")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Admin: full product list with sensitive fields" })
+  findAllAdmin(@Query() query: ProductQueryDto) {
+    return this.productService.findAll(query, { sanitize: false });
   }
 
   @Get()
@@ -50,10 +200,35 @@ export class ProductController {
   })
   @ApiResponse({ status: 200, description: "List of products" })
   findAll(@Query() query: ProductQueryDto) {
-    return this.productService.findAll(query);
+    return this.productService.findAll(query, { sanitize: true });
+  }
+
+  @Get("featured")
+  @ApiOperation({ summary: "Get featured products for homepage (max 8)" })
+  @ApiResponse({ status: 200, description: "Featured products list" })
+  getFeatured() {
+    return this.productService.getFeaturedProducts();
+  }
+
+  @Get("featured/ids")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Get featured product IDs (admin)" })
+  getFeaturedIds() {
+    return this.productService.getFeaturedProductIds();
+  }
+
+  @Put("featured")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Set featured products (max 8, ordered)" })
+  setFeatured(@Body() dto: SetFeaturedProductsDto) {
+    return this.productService.setFeaturedProducts(dto.productIds);
   }
 
   @Get("export/csv")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Export all products as CSV" })
   async exportCsv(@Res() res: Response) {
     try {
@@ -102,6 +277,8 @@ export class ProductController {
   }
 
   @Get("export/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Export all products as PDF" })
   async exportPdf(@Res() res: Response) {
     const result = await this.productService.findAll({ limit: 10000, page: 1 });
@@ -275,16 +452,86 @@ export class ProductController {
     res.send(Buffer.from(doc.output("arraybuffer")));
   }
 
+  @Post(":id/brand-mark")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(
+    FileInterceptor("marque", {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          const brandsDir = join(process.cwd(), "uploads", "brands");
+          if (!fs.existsSync(brandsDir)) {
+            fs.mkdirSync(brandsDir, { recursive: true });
+          }
+          cb(null, brandsDir);
+        },
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + "-" + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `marque-${uniqueSuffix}${ext}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+          cb(null, true);
+        } else {
+          cb(new Error("Only image files are allowed"), false);
+        }
+      },
+    }),
+  )
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({ summary: "Upload or replace optional marque (brand) logo" })
+  uploadBrandMark(
+    @Param("id") id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException("marque image file is required");
+    }
+    const path = `/uploads/brands/${file.filename}`;
+    return this.productService.setBrandMark(id, path);
+  }
+
+  @Delete(":id/brand-mark")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Remove optional marque (brand) logo" })
+  deleteBrandMark(@Param("id") id: string) {
+    return this.productService.clearBrandMark(id);
+  }
+
+  @Get("by-barcode/:code")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Admin: find product by barcode (scanner)" })
+  findByBarcode(@Param("code") code: string) {
+    return this.productService.findByBarcode(code);
+  }
+
+  @Get(":id/full")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Admin: get product with sensitive fields" })
+  findOneFull(@Param("id") id: string) {
+    return this.productService.findOne(id);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Get a product by ID" })
   @ApiParam({ name: "id", description: "Product ID" })
   @ApiResponse({ status: 200, description: "Product found" })
   @ApiResponse({ status: 404, description: "Product not found" })
   findOne(@Param("id") id: string) {
-    return this.productService.findOne(id);
+    return this.productService.findOnePublic(id);
   }
 
   @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Update a product" })
   @ApiParam({ name: "id", description: "Product ID" })
   @ApiResponse({ status: 200, description: "Product updated" })
@@ -294,6 +541,8 @@ export class ProductController {
   }
 
   @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a product" })
   @ApiParam({ name: "id", description: "Product ID" })

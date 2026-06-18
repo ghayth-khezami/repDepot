@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import {
+  Allow,
   IsString,
   IsOptional,
   IsNumber,
@@ -21,6 +22,30 @@ export class UpdateProductDto {
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({
+    description: "Instagram reel/post URL",
+    example: "https://www.instagram.com/reel/abc123/",
+  })
+  @IsOptional()
+  @IsString()
+  instagramLink?: string;
+
+  @ApiPropertyOptional({
+    description: "Facebook post/reel URL",
+    example: "https://www.facebook.com/share/r/abc123/",
+  })
+  @IsOptional()
+  @IsString()
+  facebookLink?: string;
+
+  @ApiPropertyOptional({
+    description: "TikTok video URL",
+    example: "https://www.tiktok.com/@user/video/123456789",
+  })
+  @IsOptional()
+  @IsString()
+  tiktokLink?: string;
+
   @ApiPropertyOptional({ description: "Selling price", example: 999.99 })
   @IsOptional()
   @IsNumber()
@@ -37,6 +62,11 @@ export class UpdateProductDto {
   @IsOptional()
   @IsNumber()
   stockQuantity?: number;
+
+  @ApiPropertyOptional({ description: "Availability status", example: true })
+  @IsOptional()
+  @IsBoolean()
+  isDispo?: boolean;
 
   @ApiPropertyOptional({ description: "Is in depot", example: true })
   @IsOptional()
@@ -64,4 +94,29 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+
+  @ApiPropertyOptional({ description: "Sub-category ID", example: "uuid" })
+  @IsOptional()
+  @IsString()
+  subCategoryId?: string;
+
+  @ApiPropertyOptional({ description: "Catalog mark ID", example: "uuid" })
+  @IsOptional()
+  @IsString()
+  markId?: string;
+
+  /** Set to null to remove the optional marque (brand logo) image. */
+  @ApiPropertyOptional({
+    nullable: true,
+    description: "Brand logo URL path or null to clear",
+    example: "/uploads/brands/marque-123.png",
+  })
+  @Allow()
+  @IsOptional()
+  marqueDoc?: string | null;
+
+  @ApiPropertyOptional({ description: "Store barcode" })
+  @IsOptional()
+  @IsString()
+  barcode?: string;
 }

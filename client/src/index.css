@@ -17,6 +17,50 @@ body {
   background-color: #faf5ff;
 }
 
+html.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Page chrome */
+.bo-page h1,
+.bo-page h2,
+.bo-page h3 {
+  @apply text-gray-900 dark:text-gray-100;
+}
+
+.bo-page .bo-muted {
+  @apply text-gray-600 dark:text-gray-400;
+}
+
+/* Forms — no white inputs on dark modals */
+.bo-input,
+.dark input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='color']),
+.dark textarea,
+.dark select {
+  @apply rounded-lg border border-gray-300 bg-white text-gray-900;
+}
+
+.dark .bo-input,
+.dark input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='color']),
+.dark textarea,
+.dark select {
+  @apply border-slate-600 bg-slate-800 text-gray-100;
+}
+
+.bo-label,
+.dark form label {
+  @apply text-gray-700 dark:text-gray-300;
+}
+
+.bo-btn-secondary {
+  @apply rounded-lg border border-gray-300 px-4 py-2 text-gray-800 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700;
+}
+
+.bo-panel {
+  @apply rounded-2xl bg-white shadow-lg dark:border dark:border-slate-700 dark:bg-slate-900;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

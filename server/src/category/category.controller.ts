@@ -9,12 +9,39 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiConsumes } from "@nestjs/swagger";
+import { diskStorage } from "multer";
+import { extname, join } from "path";
+import * as fs from "fs";
 import { CategoryService } from "./category.service";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 import { CategoryQueryDto } from "./dto/category-query.dto";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
+import { UserRole } from "@prisma/client";
+import { compressUploadedFile } from "../common/image-compress.util";
+import { imageFileFilter, safeImageExtension } from "../common/utils/image-upload";
+
+const coversDir = join(process.cwd(), "uploads", "categories");
+if (!fs.existsSync(coversDir)) {
+  fs.mkdirSync(coversDir, { recursive: true });
+}
+
+const coverStorage = diskStorage({
+  destination: (_req, _file, cb) => cb(null, coversDir),
+  filename: (_req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `category-${unique}${safeImageExtension(file.originalname)}`);
+  },
+});
 
 @ApiTags("categories")
 @Controller("categories")
@@ -22,10 +49,33 @@ export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(
+    FileInterceptor("cover", { storage: coverStorage, fileFilter: imageFileFilter, limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  @ApiConsumes("multipart/form-data", "application/json")
   @ApiOperation({ summary: "Create a new category" })
   @ApiResponse({ status: 201, description: "Category created" })
-  create(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoryService.create(createCategoryDto);
+  async create(
+    @Body() body: CreateCategoryDto | Record<string, string>,
+    @UploadedFile() cover?: Express.Multer.File,
+  ) {
+    const dto = body as CreateCategoryDto;
+    if (!dto.categoryName?.trim()) {
+      throw new BadRequestException("categoryName is required");
+    }
+    let coverDoc: string | undefined;
+    if (cover) {
+      await compressUploadedFile(cover);
+      coverDoc = `/uploads/categories/${cover.filename}`;
+    }
+    return this.categoryService.create({
+      categoryName: dto.categoryName.trim(),
+      description: dto.description,
+      icon: dto.icon,
+      coverDoc,
+    });
   }
 
   @Get()
@@ -45,18 +95,36 @@ export class CategoryController {
   }
 
   @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(
+    FileInterceptor("cover", { storage: coverStorage, fileFilter: imageFileFilter, limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  @ApiConsumes("multipart/form-data", "application/json")
   @ApiOperation({ summary: "Update a category" })
   @ApiParam({ name: "id", description: "Category ID" })
   @ApiResponse({ status: 200, description: "Category updated" })
   @ApiResponse({ status: 404, description: "Category not found" })
-  update(
+  async update(
     @Param("id") id: string,
-    @Body() updateCategoryDto: UpdateCategoryDto,
+    @Body() body: UpdateCategoryDto | Record<string, string>,
+    @UploadedFile() cover?: Express.Multer.File,
   ) {
-    return this.categoryService.update(id, updateCategoryDto);
+    const dto = body as UpdateCategoryDto;
+    const data: UpdateCategoryDto = {};
+    if (dto.categoryName !== undefined) data.categoryName = dto.categoryName;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.icon !== undefined) data.icon = dto.icon;
+    if (cover) {
+      await compressUploadedFile(cover);
+      data.coverDoc = `/uploads/categories/${cover.filename}`;
+    }
+    return this.categoryService.update(id, data);
   }
 
   @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a category" })
   @ApiParam({ name: "id", description: "Category ID" })

@@ -6,6 +6,7 @@ import AddressMapSelector from '../components/AddressMapSelector';
 import { CoClient, CreateCoClientDto } from '../types';
 import { Trash2, Eye, Package } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 
 const CoClientsPage = () => {
   const [page, setPage] = useState(1);
@@ -14,6 +15,7 @@ const CoClientsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCoClient, setSelectedCoClient] = useState<CoClient | null>(null);
   const [address, setAddress] = useState('');
+  const [password, setPassword] = useState('');
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewCoClient, setViewCoClient] = useState<CoClient | null>(null);
 
@@ -21,6 +23,7 @@ const CoClientsPage = () => {
   const [createCoClient] = useCreateCoClientMutation();
   const [deleteCoClient] = useDeleteCoClientMutation();
   const { showToast } = useToast();
+  const { confirm, dialog } = useConfirmDialog();
   const { data: coClientHistory, isLoading: coClientHistoryLoading } = useGetCoClientProductHistoryQuery(
     viewCoClient?.id || '',
     { skip: !viewCoClient?.id }
@@ -34,18 +37,20 @@ const CoClientsPage = () => {
   const handleAdd = () => {
     setSelectedCoClient(null);
     setAddress('');
+    setPassword('');
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce co-client ?')) {
-      try {
-        await deleteCoClient(id);
-        showToast('Co-client supprimé avec succès', 'success');
-      } catch (error) {
-        showToast('Erreur lors de la suppression', 'error');
-      }
-    }
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Supprimer le déposant',
+      message: 'Êtes-vous sûr de vouloir supprimer ce déposant ?',
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
+        await deleteCoClient(id).unwrap();
+        showToast('Déposant supprimé avec succès', 'success');
+      },
+    });
   };
 
   const handleExportCsv = () => {
@@ -94,11 +99,17 @@ const CoClientsPage = () => {
       email: formData.get('email') as string,
       phoneNumber: formData.get('phoneNumber') as string,
       RIB: formData.get('RIB') as string,
+      password: password || undefined,
     };
+
+    if (!data.password || data.password.length < 6) {
+      showToast('Le mot de passe doit contenir au moins 6 caractères', 'error');
+      return;
+    }
 
     try {
       await createCoClient(data);
-      showToast('Co-client créé avec succès', 'success');
+      showToast('Déposant créé avec succès', 'success');
       setIsModalOpen(false);
       setSelectedCoClient(null);
     } catch (error) {
@@ -117,8 +128,8 @@ const CoClientsPage = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Co-Clients</h1>
-        <p className="text-gray-600 mt-2">Gérez tous les co-clients</p>
+        <h1 className="text-2xl font-bold sm:text-3xl">Déposants</h1>
+        <p className="bo-muted mt-2">Gérez les déposants et leurs comptes de connexion</p>
       </div>
 
       <ReusableTable
@@ -158,7 +169,7 @@ const CoClientsPage = () => {
           </>
         )}
         onAdd={handleAdd}
-        addButtonLabel="Ajouter un co-client"
+        addButtonLabel="Ajouter un déposant"
         onExportCsv={handleExportCsv}
         onExportPdf={handleExportPdf}
       />
@@ -220,6 +231,32 @@ const CoClientsPage = () => {
                 console.log('Position confirmed:', lat, lng);
               }}
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe (connexion déposant)</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Minimum 6 caractères"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#';
+                  let p = '';
+                  for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
+                  setPassword(p);
+                }}
+                className="shrink-0 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold hover:bg-gray-50"
+              >
+                Générer
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">RIB</label>
@@ -355,6 +392,7 @@ const CoClientsPage = () => {
           </div>
         )}
       </Modal>
+      {dialog}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { ReactNode, useState, useEffect } from 'react';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { Search, ChevronLeft, ChevronRight, Download, FileText, Grid, List } from 'lucide-react';
 
 export interface Column<T> {
@@ -44,6 +45,7 @@ function ReusableTable<T extends { id: string }>({
   onExportPdf,
 }: ReusableTableProps<T>) {
   const [searchValue, setSearchValue] = useState('');
+  const debouncedSearch = useDebouncedValue(searchValue, 1000);
   const [isMobile, setIsMobile] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [userPreference, setUserPreference] = useState<'table' | 'cards' | null>(null);
@@ -74,9 +76,13 @@ function ReusableTable<T extends { id: string }>({
     }
   };
 
+  useEffect(() => {
+    onSearch?.(debouncedSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
   const handleSearch = (value: string) => {
     setSearchValue(value);
-    onSearch?.(value);
   };
 
   const renderCell = (column: Column<T>, row: T) => {
@@ -88,7 +94,7 @@ function ReusableTable<T extends { id: string }>({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-900 dark:shadow-slate-900/50">
       {/* Search and Filters */}
       <div className="mb-6 space-y-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
@@ -100,7 +106,7 @@ function ReusableTable<T extends { id: string }>({
                 placeholder={searchPlaceholder}
                 value={searchValue}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100"
               />
             </div>
           )}
@@ -110,7 +116,7 @@ function ReusableTable<T extends { id: string }>({
             {!isMobile && (
               <button
                 onClick={() => handleViewModeChange(viewMode === 'table' ? 'cards' : 'table')}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="rounded-lg border border-gray-300 p-2 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-800"
                 title={viewMode === 'table' ? 'Vue cartes' : 'Vue tableau'}
               >
                 {viewMode === 'table' ? <Grid className="w-5 h-5" /> : <List className="w-5 h-5" />}
@@ -151,16 +157,20 @@ function ReusableTable<T extends { id: string }>({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead>
-              <tr className="border-b border-gray-200">
+              <tr className="border-b border-gray-200 dark:border-slate-700">
                 {columns.map((column, index) => (
                   <th
                     key={index}
-                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700"
+                    className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300"
                   >
                     {column.header}
                   </th>
                 ))}
-                {actions && <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>}
+                {actions && (
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -172,15 +182,21 @@ function ReusableTable<T extends { id: string }>({
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + (actions ? 1 : 0)} className="text-center py-8 text-gray-500">
+                  <td
+                    colSpan={columns.length + (actions ? 1 : 0)}
+                    className="py-8 text-center text-gray-500 dark:text-gray-400"
+                  >
                     Aucune donnée disponible
                   </td>
                 </tr>
               ) : (
                 data.map((row) => (
-                  <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={row.id}
+                    className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800/60"
+                  >
                     {columns.map((column, index) => (
-                      <td key={index} className="py-3 px-4 text-sm text-gray-700">
+                      <td key={index} className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                         {renderCell(column, row)}
                       </td>
                     ))}
@@ -205,7 +221,7 @@ function ReusableTable<T extends { id: string }>({
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
             </div>
           ) : data.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">Aucune donnée disponible</div>
+            <div className="py-8 text-center text-gray-500 dark:text-gray-400">Aucune donnée disponible</div>
           ) : (
             <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-4 sm:gap-6`}>
               {data.map((row, index) => {
@@ -217,7 +233,7 @@ function ReusableTable<T extends { id: string }>({
                 return (
                   <div
                     key={row.id}
-                    className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden transform hover:-translate-y-2 animate-card-enter"
+                    className="group animate-card-enter overflow-hidden rounded-2xl bg-white shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl dark:bg-slate-800 dark:shadow-slate-950/50"
                     style={{
                       animationDelay: `${index * 0.05}s`,
                       animationFillMode: 'both',
@@ -275,7 +291,7 @@ function ReusableTable<T extends { id: string }>({
       {/* Pagination */}
       {pagination && (
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Affichage de {(pagination.page - 1) * pagination.limit + 1} à{' '}
             {Math.min(pagination.page * pagination.limit, pagination.total)} sur {pagination.total} résultats
           </div>
@@ -283,30 +299,20 @@ function ReusableTable<T extends { id: string }>({
             <button
               onClick={() => pagination.onPageChange(pagination.page - 1)}
               disabled={pagination.page === 1}
-              className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="rounded-lg border border-gray-300 p-2 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <span className="text-sm text-gray-700 px-2">
+            <span className="px-2 text-sm text-gray-700 dark:text-gray-300">
               Page {pagination.page} sur {pagination.totalPages}
             </span>
             <button
               onClick={() => pagination.onPageChange(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages}
-              className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="rounded-lg border border-gray-300 p-2 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
-            <select
-              value={pagination.limit}
-              onChange={(e) => pagination.onLimitChange(Number(e.target.value))}
-              className="ml-4 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
           </div>
         </div>
       )}

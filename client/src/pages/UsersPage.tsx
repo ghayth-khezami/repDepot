@@ -5,6 +5,7 @@ import Modal from '../components/Modal';
 import { User, UpdateUserDto } from '../types';
 import { Edit, Trash2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 
 const UsersPage = () => {
   const [page, setPage] = useState(1);
@@ -17,21 +18,23 @@ const UsersPage = () => {
   const [updateUser] = useUpdateUserMutation();
   const [deleteUser] = useDeleteUserMutation();
   const { showToast } = useToast();
+  const { confirm, dialog } = useConfirmDialog();
 
   const handleEdit = (user: User) => {
     setSelectedUser(user);
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
-      try {
-        await deleteUser(id);
+  const handleDelete = (id: string) => {
+    confirm({
+      title: "Supprimer l'utilisateur",
+      message: 'Êtes-vous sûr de vouloir supprimer cet utilisateur ?',
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
+        await deleteUser(id).unwrap();
         showToast('Utilisateur supprimé avec succès', 'success');
-      } catch (error) {
-        showToast('Erreur lors de la suppression', 'error');
-      }
-    }
+      },
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -68,8 +71,8 @@ const UsersPage = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h1>
-        <p className="text-gray-600 mt-2">Gérez tous les utilisateurs du système</p>
+        <h1 className="text-2xl font-bold sm:text-3xl">Gestion des Utilisateurs</h1>
+        <p className="bo-muted mt-2">Gérez tous les utilisateurs du système</p>
       </div>
 
       <ReusableTable
@@ -118,31 +121,16 @@ const UsersPage = () => {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              defaultValue={selectedUser?.email}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
+            <label className="bo-label mb-1 block text-sm font-medium">Email</label>
+            <input type="email" name="email" defaultValue={selectedUser?.email} required className="bo-input w-full" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-            <input
-              type="text"
-              name="username"
-              defaultValue={selectedUser?.username}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
+            <label className="bo-label mb-1 block text-sm font-medium">Username</label>
+            <input type="text" name="username" defaultValue={selectedUser?.username} className="bo-input w-full" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe (optionnel)</label>
-            <input
-              type="password"
-              name="password"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
+            <label className="bo-label mb-1 block text-sm font-medium">Nouveau mot de passe (optionnel)</label>
+            <input type="password" name="password" className="bo-input w-full" />
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <button
@@ -151,7 +139,7 @@ const UsersPage = () => {
                 setIsModalOpen(false);
                 setSelectedUser(null);
               }}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="bo-btn-secondary px-4 py-2"
             >
               Annuler
             </button>
@@ -164,6 +152,7 @@ const UsersPage = () => {
           </div>
         </form>
       </Modal>
+      {dialog}
     </div>
   );
 };

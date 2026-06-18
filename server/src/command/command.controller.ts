@@ -22,9 +22,14 @@ import {
 import { Response } from "express";
 import { CommandService } from "./command.service";
 import { CreateCommandDto } from "./dto/create-command.dto";
+import { CheckoutCommandDto } from "./dto/checkout-command.dto";
 import { UpdateCommandDto } from "./dto/update-command.dto";
 import { CommandQueryDto } from "./dto/command-query.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
+import { UserRole } from "@prisma/client";
+import { Throttle } from "@nestjs/throttler";
 import * as Papa from "papaparse";
 import * as jsPDF from "jspdf";
 import { join } from "path";
@@ -32,19 +37,30 @@ import * as fs from "fs";
 
 @ApiTags("commands")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller("commands")
 export class CommandController {
   constructor(private readonly commandService: CommandService) {}
 
+  @Post("checkout")
+  @Throttle({ checkout: { limit: 15, ttl: 60_000 } })
+  @ApiOperation({ summary: "Public storefront checkout" })
+  @ApiResponse({ status: 201, description: "Command created" })
+  checkout(@Body() dto: CheckoutCommandDto) {
+    return this.commandService.createFromCheckout(dto);
+  }
+
   @Post()
-  @ApiOperation({ summary: "Create a new command" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Admin: create a command" })
   @ApiResponse({ status: 201, description: "Command created" })
   create(@Body() createCommandDto: CreateCommandDto) {
     return this.commandService.create(createCommandDto);
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Get all commands with pagination and search" })
   @ApiResponse({ status: 200, description: "List of commands" })
   findAll(@Query() query: CommandQueryDto) {
@@ -52,6 +68,8 @@ export class CommandController {
   }
 
   @Get("export/csv")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Export all commands as CSV" })
   async exportCsv(@Res() res: Response) {
     try {
@@ -90,6 +108,8 @@ export class CommandController {
   }
 
   @Get("export/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Export all commands as PDF" })
   async exportPdf(@Res() res: Response) {
     const commands = await this.commandService.getAllForExport();
@@ -217,7 +237,6 @@ export class CommandController {
       const statusLabels: { [key: string]: string } = {
         NOT_DELIVERED: "Non livré",
         DELIVERED: "Livré",
-        GOT_PROFIT: "Profit",
       };
       const rowData = [
         cmd.id.substring(0, 8),
@@ -267,6 +286,8 @@ export class CommandController {
   }
 
   @Get(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Get a command by ID" })
   @ApiParam({ name: "id", description: "Command ID" })
   @ApiResponse({ status: 200, description: "Command found" })
@@ -276,6 +297,8 @@ export class CommandController {
   }
 
   @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Update a command" })
   @ApiParam({ name: "id", description: "Command ID" })
   @ApiResponse({ status: 200, description: "Command updated" })
@@ -285,6 +308,8 @@ export class CommandController {
   }
 
   @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a command" })
   @ApiParam({ name: "id", description: "Command ID" })

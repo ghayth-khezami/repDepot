@@ -1,0 +1,100 @@
+import { baseApi } from './baseApi';
+import { Product, PaginatedResponse, UpdateProductDto, QueryParams } from '../../types';
+
+export interface CreateProductDto {
+  productName: string;
+  description?: string;
+  instagramLink?: string;
+  facebookLink?: string;
+  tiktokLink?: string;
+  PrixVente: number;
+  PrixAchat?: number;
+  stockQuantity: number;
+  isDepot: boolean;
+  depotPercentage?: number;
+  surcharge?: number;
+  coclientId?: string;
+  categoryId: string;
+}
+
+export const productApi = baseApi.injectEndpoints({
+  endpoints: (builder) => ({
+    getProducts: builder.query<PaginatedResponse<Product>, QueryParams>({
+      query: (params) => {
+        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 50);
+        return {
+        url: '/products/admin/list',
+        params: { ...params, limit: safeLimit },
+      };
+      },
+      providesTags: ['Product'],
+    }),
+    getProductsInfinite: builder.query<PaginatedResponse<Product>, QueryParams>({
+      query: (params) => {
+        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 50);
+        return {
+        url: '/products/admin/list',
+        params: { ...params, limit: safeLimit },
+      };
+      },
+      providesTags: ['Product'],
+      serializeQueryArgs: ({ endpointName, queryArgs }) => {
+        const { page, ...rest } = queryArgs;
+        return `${endpointName}-${JSON.stringify(rest)}`;
+      },
+      merge: (currentCache, newItems) => {
+        if (newItems.meta.page === 1) {
+          return newItems;
+        }
+        return {
+          ...newItems,
+          data: [...currentCache.data, ...newItems.data],
+        };
+      },
+      forceRefetch({ currentArg, previousArg }) {
+        return currentArg?.page !== previousArg?.page;
+      },
+    }),
+    getProduct: builder.query<Product, string>({
+      query: (id) => `/products/${id}/full`,
+      providesTags: (result, error, id) => [{ type: 'Product', id }],
+    }),
+    getProductByBarcode: builder.query<Product, string>({
+      query: (code) => `/products/by-barcode/${encodeURIComponent(code)}`,
+      providesTags: (result) => (result ? [{ type: 'Product', id: result.id }] : ['Product']),
+    }),
+    createProduct: builder.mutation<Product, CreateProductDto>({
+      query: (data) => ({
+        url: '/products',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Product'],
+    }),
+    updateProduct: builder.mutation<Product, { id: string; data: UpdateProductDto }>({
+      query: ({ id, data }) => ({
+        url: `/products/${id}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Product', id }, 'Product'],
+    }),
+    deleteProduct: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/products/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Product'],
+    }),
+  }),
+});
+
+export const {
+  useGetProductsQuery,
+  useGetProductsInfiniteQuery,
+  useGetProductQuery,
+  useLazyGetProductByBarcodeQuery,
+  useCreateProductMutation,
+  useUpdateProductMutation,
+  useDeleteProductMutation,
+} = productApi;

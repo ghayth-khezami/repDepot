@@ -15,10 +15,42 @@ model User {
   email     String   @unique
   password  String
   username  String?  @unique
+  role      UserRole @default(CLIENT)
+  isVerified Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  likes    UserLike[]
+  depositRequests DepositRequest[]
+  coClient CoClient?
+
   @@map("users")
+}
+
+model PendingUser {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  username      String?
+  codeHash      String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("pending_users")
+}
+
+model UserLike {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("user_likes")
 }
 
 model Client {
@@ -44,11 +76,14 @@ model CoClient {
   email       String   @unique
   phoneNumber String
   RIB         String
+  userId      String?  @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  products    Product[]
-  commandDetails CommandDetail[]
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  products        Product[]
+  commandDetails  CommandDetail[]
+  depositRequests DepositRequest[]
 
   @@map("co_clients")
 }
@@ -57,18 +92,43 @@ model Category {
   id           String   @id @default(uuid())
   categoryName String   @unique
   description  String?
+  icon         String?
+  coverDoc     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  products     Product[]
+  products      Product[]
+  subCategories SubCategory[]
 
   @@map("categories")
+}
+
+model SubCategory {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  categoryId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([categoryId])
+  @@map("sub_categories")
 }
 
 model Product {
   id            String   @id @default(uuid())
   productName   String
   description   String?
+  /// Unique store barcode for label scanning (EAN-13 style numeric).
+  barcode       String?  @unique
+  /// Optional brand/marque logo path (uploads/brands).
+  marqueDoc     String?
+  instagramLink String?
+  facebookLink  String?
+  tiktokLink    String?
   PrixVente     Float
   PrixAchat     Float?
   stockQuantity Int      @default(0)
@@ -79,15 +139,34 @@ model Product {
   isDispo       Boolean  @default(true)
   coclientId    String?
   categoryId    String
+  subCategoryId String?
+  markId        String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  mark          Mark?        @relation(fields: [markId], references: [id], onDelete: SetNull)
   coClient      CoClient?    @relation(fields: [coclientId], references: [id], onDelete: SetNull)
   photos        ProductPhoto[]
   commandDetails CommandDetail[]
+  likes         UserLike[]
+  featuredSlot  FeaturedProduct?
 
   @@map("products")
+}
+
+model FeaturedProduct {
+  id        String   @id @default(uuid())
+  productId String   @unique
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([sortOrder])
+  @@map("featured_products")
 }
 
 model ProductPhoto {
@@ -99,7 +178,7 @@ model ProductPhoto {
 
   product   Product  @relation(fields: [idProduct], references: [id], onDelete: Cascade)
 
-  @@map("product_photos")
+  @@map("multifilesproducts")
 }
 
 model Command {
@@ -116,6 +195,44 @@ model Command {
   commandDetails  CommandDetail[]
 
   @@map("commands")
+}
+
+model DepositRequest {
+  id            String               @id @default(uuid())
+  userId        String?
+  coClientId    String?
+  fullName      String
+  phoneNumber   String
+  proposedPrice Float
+  message       String?
+  photos        String[]
+  contractDoc   String?
+  status        DepositRequestStatus @default(PENDING)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  user     User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  coClient CoClient?            @relation(fields: [coClientId], references: [id], onDelete: SetNull)
+  items    DepositRequestItem[]
+
+  @@map("deposit_requests")
+}
+
+model DepositRequestItem {
+  id                   String   @id @default(uuid())
+  depositRequestId     String
+  productName          String
+  proposedPrice        Float
+  commissionPercent    Float?
+  priceAfterCommission Float?
+  photos               String[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  depositRequest DepositRequest @relation(fields: [depositRequestId], references: [id], onDelete: Cascade)
+
+  @@index([depositRequestId])
+  @@map("deposit_request_items")
 }
 
 model CommandDetail {
@@ -139,4 +256,73 @@ enum CommandStatus {
   NOT_DELIVERED
   DELIVERED
   GOT_PROFIT
+}
+
+enum UserRole {
+  CLIENT
+  DEPOSER
+  ADMIN
+}
+
+enum DepositRequestStatus {
+  PENDING
+  CONTACTED
+  CONFIRMED
+  CLOSED
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model StoreHour {
+  id        String   @id @default(uuid())
+  weekday   Weekday  @unique
+  isClosed  Boolean  @default(false)
+  openTime  String?
+  closeTime String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("store_hours")
+}
+
+model Mark {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  logoDoc   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@map("marks")
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("newsletter_subscribers")
+}
+
+model ClientFeedback {
+  id          String   @id @default(uuid())
+  clientName  String
+  description String
+  rating      Int
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("client_feedbacks")
 }
