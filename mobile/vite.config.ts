@@ -10,21 +10,21 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['logo.jpg', 'icon.svg'],
+        includeAssets: ['logo.png', 'Baby loading.json'],
         manifest: {
           name: 'BÉBÉ-DÉPÔT Admin',
           short_name: 'Bébé-Dépôt',
           description: 'Application mobile admin BÉBÉ-DÉPÔT — produits, scan, commandes',
           theme_color: '#7c3aed',
-          background_color: '#faf5ff',
+          background_color: '#1e1035',
           display: 'standalone',
           orientation: 'portrait',
           lang: 'fr',
           start_url: '/',
           scope: '/',
           icons: [
-            { src: '/logo.jpg', sizes: '192x192', type: 'image/jpeg', purpose: 'any' },
-            { src: '/logo.jpg', sizes: '512x512', type: 'image/jpeg', purpose: 'any maskable' },
+            { src: '/logo.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/logo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
           ],
         },
         workbox: {

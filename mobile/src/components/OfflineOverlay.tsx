@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { useOnline } from '../hooks/useOnline';
 
 export function OfflineOverlay() {
   const online = useOnline();
   const [checking, setChecking] = useState(false);
+  const wasOfflineRef = useRef(false);
 
   useEffect(() => {
-    if (online) {
-      setChecking(false);
-      const t = window.setTimeout(() => window.location.reload(), 400);
-      return () => window.clearTimeout(t);
+    if (!online) {
+      wasOfflineRef.current = true;
+      return;
     }
-    return undefined;
+    // Only reload when coming back online — never on initial page load
+    if (wasOfflineRef.current) {
+      wasOfflineRef.current = false;
+      window.location.reload();
+    }
   }, [online]);
 
   if (online) return null;
@@ -20,6 +24,7 @@ export function OfflineOverlay() {
   const retry = () => {
     setChecking(true);
     if (navigator.onLine) {
+      wasOfflineRef.current = true;
       window.location.reload();
       return;
     }
@@ -42,7 +47,7 @@ export function OfflineOverlay() {
           type="button"
           onClick={retry}
           disabled={checking}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white/95 px-6 py-4 font-bold text-primary-800 shadow-xl disabled:opacity-70"
+          className="btn-pill mt-8 inline-flex w-full items-center justify-center gap-2 bg-white/95 px-6 py-4 font-bold text-primary-800 shadow-xl disabled:opacity-70"
         >
           <RefreshCw size={20} className={checking ? 'animate-spin' : ''} />
           {checking ? 'Vérification…' : 'Réessayer'}

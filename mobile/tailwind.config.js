@@ -20,10 +20,15 @@ export default {
         lavender: {
           50: '#faf5ff',
           100: '#f3e8ff',
+          300: '#d8b4fe',
           600: '#9f7aea',
           700: '#805ad5',
           800: '#6b46c1',
         },
+      },
+      borderRadius: {
+        '4xl': '2rem',
+        '5xl': '2.5rem',
       },
       padding: {
         'safe-bottom': 'env(safe-area-inset-bottom, 0px)',
