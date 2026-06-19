@@ -1,30 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { useOnline } from '../hooks/useOnline';
 
 export function OfflineOverlay() {
   const online = useOnline();
   const [checking, setChecking] = useState(false);
-  const wasOfflineRef = useRef(false);
-
-  useEffect(() => {
-    if (!online) {
-      wasOfflineRef.current = true;
-      return;
-    }
-    // Only reload when coming back online — never on initial page load
-    if (wasOfflineRef.current) {
-      wasOfflineRef.current = false;
-      window.location.reload();
-    }
-  }, [online]);
 
   if (online) return null;
 
   const retry = () => {
     setChecking(true);
     if (navigator.onLine) {
-      wasOfflineRef.current = true;
       window.location.reload();
       return;
     }
@@ -41,13 +27,13 @@ export function OfflineOverlay() {
         </div>
         <h2 className="text-xl font-bold text-white">Vous êtes hors ligne</h2>
         <p className="mt-2 text-sm text-white/85">
-          Connexion internet requise. L&apos;écran se rafraîchira dès que vous serez en ligne.
+          Connexion internet requise. Appuyez sur Réessayer une fois reconnecté.
         </p>
         <button
           type="button"
           onClick={retry}
           disabled={checking}
-          className="btn-pill mt-8 inline-flex w-full items-center justify-center gap-2 bg-white/95 px-6 py-4 font-bold text-primary-800 shadow-xl disabled:opacity-70"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white/95 px-6 py-4 font-bold text-primary-800 shadow-xl disabled:opacity-70"
         >
           <RefreshCw size={20} className={checking ? 'animate-spin' : ''} />
           {checking ? 'Vérification…' : 'Réessayer'}

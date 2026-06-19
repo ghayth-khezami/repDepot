@@ -75,3 +75,37 @@ button {
     border-radius: 48% 52% 55% 45%;
   }
 }
+
+/* Login — floating baby stickers */
+.login-sticker {
+  position: absolute;
+  opacity: 0.28;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  animation: login-float ease-in-out infinite;
+  will-change: transform;
+}
+
+.dark .login-sticker {
+  opacity: 0.18;
+  mix-blend-mode: screen;
+}
+
+@keyframes login-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate3d(6px, -14px, 0) rotate(4deg);
+  }
+  66% {
+    transform: translate3d(-8px, -8px, 0) rotate(-3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-sticker {
+    animation: none;
+  }
+}

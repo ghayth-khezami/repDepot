@@ -10,7 +10,18 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['logo.png', 'Baby loading.json'],
+        includeAssets: [
+          'logo.png',
+          'Baby loading.json',
+          'sticker 4.png',
+          'sticker 5.png',
+          'sticker 6.png',
+          'sticker 7.png',
+          'sticker 9.png',
+          'sticker 10.png',
+          'sticker 11.png',
+          'sticket 1 .png',
+        ],
         manifest: {
           name: 'BÉBÉ-DÉPÔT Admin',
           short_name: 'Bébé-Dépôt',

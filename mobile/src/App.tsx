@@ -20,9 +20,9 @@ import NewsletterPage from './pages/NewsletterPage';
 import UsersPage from './pages/UsersPage';
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, bootstrapping } = useAuth();
-  if (bootstrapping) return null;
-  return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 export default function App() {

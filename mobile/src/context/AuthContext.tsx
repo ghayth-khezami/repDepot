@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearSession = () => {
     setToken(null);
     setUser(null);
+    setSplashActive(false);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
@@ -55,9 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBootstrapping(false);
       return;
     }
-    setToken(storedToken);
-    setSplashActive(true);
-    const startedAt = Date.now();
+
     let cancelled = false;
 
     fetchMe()
@@ -68,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearSession();
           return;
         }
+        setToken(storedToken);
         setUser(res.user);
         localStorage.setItem('user', JSON.stringify(res.user));
       })
@@ -75,10 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) clearSession();
       })
       .finally(() => {
-        if (!cancelled) {
-          setBootstrapping(false);
-          endSplashAfter(startedAt);
-        }
+        if (!cancelled) setBootstrapping(false);
       });
 
     return () => {
