@@ -5,8 +5,8 @@ import {
   useCreateCoClientMutation,
   useDeleteCoClientMutation,
 } from '../store/api/coClientApi';
-import { BottomSheet } from '../components/BottomSheet';
-import { FabAdd, FieldLabel, TextInput, PrimaryButton, ItemActions, ListCard } from '../components/mobile-forms';
+import { FormModal } from '../components/FormModal';
+import { FieldLabel, TextInput, PrimaryButton, ItemActions, ListCard } from '../components/mobile-forms';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
 import type { CoClient } from '../types';
@@ -54,6 +54,8 @@ export default function CoClientsPage() {
     <>
       <PaginatedListPage<CoClient>
         title="Déposants"
+        onAdd={() => setFormOpen(true)}
+        addLabel="Déposant"
         useQuery={useGetCoClientsQuery}
         renderItem={(c) => (
           <ListCard>
@@ -66,9 +68,8 @@ export default function CoClientsPage() {
           </ListCard>
         )}
       />
-      <FabAdd onClick={() => setFormOpen(true)} label="Déposant" />
       {formOpen ? (
-        <BottomSheet title="Nouveau déposant" onClose={() => setFormOpen(false)}>
+        <FormModal title="Nouveau déposant" onClose={() => setFormOpen(false)}>
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
             <FieldLabel label="Prénom *"><TextInput value={fields.firstName} onChange={set('firstName')} required /></FieldLabel>
             <FieldLabel label="Nom *"><TextInput value={fields.lastName} onChange={set('lastName')} required /></FieldLabel>
@@ -78,7 +79,7 @@ export default function CoClientsPage() {
             <FieldLabel label="RIB *"><TextInput value={fields.RIB} onChange={set('RIB')} required /></FieldLabel>
             <PrimaryButton type="submit" loading={isLoading}>Créer</PrimaryButton>
           </form>
-        </BottomSheet>
+        </FormModal>
       ) : null}
     </>
   );

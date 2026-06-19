@@ -35,11 +35,32 @@ export function ProductPrice({ value }: { value: number }) {
   return <span className="text-lg font-bold text-primary-700 dark:text-primary-300">{formatTnd(value)}</span>;
 }
 
-export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function PageHeader({
+  title,
+  subtitle,
+  onAdd,
+  addLabel = 'Ajouter',
+}: {
+  title: string;
+  subtitle?: string;
+  onAdd?: () => void;
+  addLabel?: string;
+}) {
   return (
-    <div className="mb-4 px-4 pt-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
-      {subtitle ? <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p> : null}
+    <div className="mb-4 flex items-start justify-between gap-3 px-4 pt-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
+        {subtitle ? <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p> : null}
+      </div>
+      {onAdd ? (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="shrink-0 rounded-xl bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm"
+        >
+          + {addLabel}
+        </button>
+      ) : null}
     </div>
   );
 }

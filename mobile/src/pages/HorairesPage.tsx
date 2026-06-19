@@ -47,7 +47,7 @@ export default function HorairesPage() {
   };
 
   return (
-    <div className="pb-24">
+    <div className="pb-6">
       <PageHeader title="Horaires" subtitle="Horaires d'ouverture boutique" />
       {isLoading ? <EmptyState message="Chargement…" /> : (
         <>
@@ -84,7 +84,7 @@ export default function HorairesPage() {
               </li>
             ))}
           </ul>
-          <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] inset-x-4 z-40 mt-6">
+          <div className="mt-6 px-4">
             <PrimaryButton type="button" onClick={() => void save()} loading={saving}>
               Enregistrer les horaires
             </PrimaryButton>

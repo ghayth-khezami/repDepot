@@ -8,6 +8,8 @@ type Props<T extends { id: string }> = {
   title: string;
   subtitle?: string;
   searchPlaceholder?: string;
+  onAdd?: () => void;
+  addLabel?: string;
   useQuery: (args: { page: number; limit: number; search?: string }) => {
     data?: PaginatedResponse<T>;
     isLoading: boolean;
@@ -20,6 +22,8 @@ export function PaginatedListPage<T extends { id: string }>({
   title,
   subtitle,
   searchPlaceholder = 'Rechercher…',
+  onAdd,
+  addLabel,
   useQuery,
   renderItem,
 }: Props<T>) {
@@ -56,7 +60,12 @@ export function PaginatedListPage<T extends { id: string }>({
 
   return (
     <div className="pb-6">
-      <PageHeader title={title} subtitle={subtitle ?? `${data?.meta.total ?? 0} au total`} />
+      <PageHeader
+        title={title}
+        subtitle={subtitle ?? `${data?.meta.total ?? 0} au total`}
+        onAdd={onAdd}
+        addLabel={addLabel}
+      />
       <div className="px-4">
         <input
           type="search"

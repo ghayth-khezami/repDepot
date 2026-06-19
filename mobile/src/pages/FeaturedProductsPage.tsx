@@ -47,7 +47,7 @@ export default function FeaturedProductsPage() {
   const pickerProducts = (searchResults?.data ?? []) as Product[];
 
   return (
-    <div className="pb-24">
+    <div className="pb-6">
       <PageHeader title="Coups de cœur" subtitle={`${selected.length}/8 sélectionnés`} />
       {isLoading ? <EmptyState message="Chargement…" /> : (
         <>
@@ -91,7 +91,7 @@ export default function FeaturedProductsPage() {
               ))}
             </ul>
           </div>
-          <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] inset-x-4 z-40">
+          <div className="mt-6 px-4">
             <PrimaryButton type="button" onClick={() => void submit()} loading={saving}>
               Enregistrer les coups de cœur
             </PrimaryButton>

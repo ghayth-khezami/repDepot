@@ -11,8 +11,8 @@ import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue
 import { EmptyState, PageHeader } from '../components/ui';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
-import { FabAdd, FieldLabel, TextInput, SelectInput, PrimaryButton, ItemActions } from '../components/mobile-forms';
-import { BottomSheet } from '../components/BottomSheet';
+import { FieldLabel, TextInput, SelectInput, PrimaryButton, ItemActions } from '../components/mobile-forms';
+import { FormModal } from '../components/FormModal';
 import { formatTnd } from '../lib/apiBase';
 import type { Command } from '../types';
 import { PAGE_SIZE } from '../lib/pagination';
@@ -121,8 +121,13 @@ export default function CommandsPage() {
   };
 
   return (
-    <div className="pb-24">
-      <PageHeader title="Commandes" subtitle={`${data?.meta.total ?? 0} au total`} />
+    <div className="pb-6">
+      <PageHeader
+        title="Commandes"
+        subtitle={`${data?.meta.total ?? 0} au total`}
+        onAdd={() => { setEditCmd(null); setFormOpen(true); }}
+        addLabel="Commande"
+      />
       <div className="space-y-3 px-4">
         <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="w-full rounded-2xl border border-gray-200 px-4 py-3 dark:border-slate-600 dark:bg-slate-900" />
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-2xl border border-gray-200 px-4 py-3 dark:border-slate-600 dark:bg-slate-900">
@@ -155,9 +160,8 @@ export default function CommandsPage() {
         </ul>
       )}
       <div ref={sentinelRef} className="h-8" />
-      <FabAdd onClick={() => { setEditCmd(null); setFormOpen(true); }} label="Commande" />
       {formOpen ? (
-        <BottomSheet title={editCmd ? 'Modifier commande' : 'Nouvelle commande'} onClose={() => setFormOpen(false)}>
+        <FormModal title={editCmd ? 'Modifier commande' : 'Nouvelle commande'} onClose={() => setFormOpen(false)}>
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
             {!editCmd ? (
               <FieldLabel label="Client *">
@@ -175,7 +179,7 @@ export default function CommandsPage() {
             <FieldLabel label="Nb articles"><TextInput type="number" min={1} value={productsNumber} onChange={(e) => setProductsNumber(e.target.value)} /></FieldLabel>
             <PrimaryButton type="submit" loading={creating}>Enregistrer</PrimaryButton>
           </form>
-        </BottomSheet>
+        </FormModal>
       ) : null}
     </div>
   );

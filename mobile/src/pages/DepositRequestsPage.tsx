@@ -6,7 +6,7 @@ import {
   type DepositRequest,
   type DepositRequestStatus,
 } from '../store/api/depositRequestApi';
-import { BottomSheet } from '../components/BottomSheet';
+import { FormModal } from '../components/FormModal';
 import { SecondaryButton } from '../components/mobile-forms';
 import { PageHeader, EmptyState } from '../components/ui';
 import { useToast } from '../context/ToastContext';
@@ -114,7 +114,7 @@ export default function DepositRequestsPage() {
       <div ref={sentinelRef} className="h-8" />
 
       {selectedId && detail ? (
-        <BottomSheet title="Demande de dépôt" onClose={() => setSelectedId(null)}>
+        <FormModal title="Demande de dépôt" onClose={() => setSelectedId(null)}>
           <div className="space-y-3 text-sm">
             <p><strong>Nom:</strong> {detail.fullName}</p>
             <p><strong>Tél:</strong> {detail.phoneNumber}</p>
@@ -139,7 +139,7 @@ export default function DepositRequestsPage() {
               ))}
             </div>
           </div>
-        </BottomSheet>
+        </FormModal>
       ) : null}
     </div>
   );

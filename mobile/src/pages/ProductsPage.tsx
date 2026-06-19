@@ -10,7 +10,6 @@ import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue
 import { EmptyState, PageHeader, ProductPrice, ProductStatusBadge, ProductThumb } from '../components/ui';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
-import { FabAdd } from '../components/mobile-forms';
 import { downloadAllProductLabels } from '../lib/download';
 import type { Product } from '../types';
 import { ProductDetailSheet } from '../components/ProductDetailSheet';
@@ -112,8 +111,13 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="pb-24">
-      <PageHeader title="Produits" subtitle={`${data?.meta.total ?? 0} au total`} />
+    <div className="pb-6">
+      <PageHeader
+        title="Produits"
+        subtitle={`${data?.meta.total ?? 0} au total`}
+        onAdd={() => { setEditProduct(null); setFormOpen(true); }}
+        addLabel="Produit"
+      />
 
       <div className="space-y-3 px-4">
         <button
@@ -178,8 +182,6 @@ export default function ProductsPage() {
 
       <div ref={sentinelRef} className="h-8" />
       {isFetching && page > 1 ? <p className="py-4 text-center text-xs text-gray-500">Chargement…</p> : null}
-
-      <FabAdd onClick={() => { setEditProduct(null); setFormOpen(true); }} label="Produit" />
 
       {selected ? (
         <ProductDetailSheet

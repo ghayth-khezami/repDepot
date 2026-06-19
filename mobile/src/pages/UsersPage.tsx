@@ -5,7 +5,7 @@ import {
   useUpdateUserMutation,
   useDeleteUserMutation,
 } from '../store/api/userApi';
-import { BottomSheet } from '../components/BottomSheet';
+import { FormModal } from '../components/FormModal';
 import { FieldLabel, TextInput, PrimaryButton, ItemActions, ListCard } from '../components/mobile-forms';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
@@ -77,14 +77,14 @@ export default function UsersPage() {
         )}
       />
       {edit ? (
-        <BottomSheet title="Modifier utilisateur" onClose={() => setEdit(null)}>
+        <FormModal title="Modifier utilisateur" onClose={() => setEdit(null)}>
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
             <FieldLabel label="Email *"><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></FieldLabel>
             <FieldLabel label="Nom d'utilisateur"><TextInput value={username} onChange={(e) => setUsername(e.target.value)} /></FieldLabel>
             <FieldLabel label="Nouveau mot de passe"><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Laisser vide pour ne pas changer" /></FieldLabel>
             <PrimaryButton type="submit" loading={isLoading}>Enregistrer</PrimaryButton>
           </form>
-        </BottomSheet>
+        </FormModal>
       ) : null}
     </>
   );

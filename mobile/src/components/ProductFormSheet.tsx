@@ -8,7 +8,8 @@ import {
   type CreateProductDto,
 } from '../store/api/productApi';
 import { createProductWithPhotos } from '../lib/uploadProduct';
-import { BottomSheet } from './BottomSheet';
+import { FormModal } from './FormModal';
+import { FileUploadBox } from './FileUploadBox';
 import {
   FieldLabel,
   TextInput,
@@ -17,6 +18,7 @@ import {
   PrimaryButton,
 } from './mobile-forms';
 import { useToast } from '../context/ToastContext';
+import { uploadUrl } from '../lib/apiBase';
 import type { Product, UpdateProductDto } from '../types';
 import { PAGE_SIZE } from '../lib/pagination';
 
@@ -117,7 +119,7 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
   };
 
   return (
-    <BottomSheet title={isEdit ? 'Modifier le produit' : 'Nouveau produit'} onClose={onClose}>
+    <FormModal title={isEdit ? 'Modifier le produit' : 'Nouveau produit'} onClose={onClose}>
       <form onSubmit={(e) => void submit(e)} className="space-y-4">
         <FieldLabel label="Nom *">
           <TextInput value={productName} onChange={(e) => setProductName(e.target.value)} required />
@@ -175,21 +177,21 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
             Disponible à la vente
           </label>
         ) : null}
-        {!isEdit ? (
-          <FieldLabel label="Photos (optionnel)">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
-              className="mt-1 w-full text-sm"
-            />
-          </FieldLabel>
-        ) : null}
+        <FileUploadBox
+          label={isEdit ? 'Photos' : 'Photos (optionnel)'}
+          files={photos}
+          onChange={setPhotos}
+          multiple
+          existingUrls={
+            product?.photos?.length
+              ? product.photos.map((p) => uploadUrl(p.photoDoc)).filter(Boolean)
+              : []
+          }
+        />
         <PrimaryButton type="submit" loading={creating || updating}>
           {isEdit ? 'Enregistrer' : 'Créer le produit'}
         </PrimaryButton>
       </form>
-    </BottomSheet>
+    </FormModal>
   );
 }

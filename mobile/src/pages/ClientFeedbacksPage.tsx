@@ -7,8 +7,8 @@ import {
   useDeleteClientFeedbackMutation,
   type ClientFeedback,
 } from '../store/api/clientFeedbackApi';
-import { BottomSheet } from '../components/BottomSheet';
-import { FabAdd, FieldLabel, TextInput, TextArea, PrimaryButton, ItemActions, ListCard } from '../components/mobile-forms';
+import { FormModal } from '../components/FormModal';
+import { FieldLabel, TextInput, TextArea, PrimaryButton, ItemActions, ListCard } from '../components/mobile-forms';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
 
@@ -83,6 +83,8 @@ export default function ClientFeedbacksPage() {
     <>
       <PaginatedListPage<ClientFeedback>
         title="Avis clients"
+        onAdd={openCreate}
+        addLabel="Avis"
         useQuery={useGetClientFeedbacksAdminQuery}
         renderItem={(f) => (
           <ListCard>
@@ -98,9 +100,8 @@ export default function ClientFeedbacksPage() {
           </ListCard>
         )}
       />
-      <FabAdd onClick={openCreate} label="Avis" />
       {formOpen ? (
-        <BottomSheet title={edit ? 'Modifier avis' : 'Nouvel avis'} onClose={() => setFormOpen(false)}>
+        <FormModal title={edit ? 'Modifier avis' : 'Nouvel avis'} onClose={() => setFormOpen(false)}>
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
             <FieldLabel label="Nom client *"><TextInput value={clientName} onChange={(e) => setClientName(e.target.value)} required /></FieldLabel>
             <FieldLabel label="Description *"><TextArea value={description} onChange={(e) => setDescription(e.target.value)} required /></FieldLabel>
@@ -113,7 +114,7 @@ export default function ClientFeedbacksPage() {
             </label>
             <PrimaryButton type="submit" loading={creating || updating}>Enregistrer</PrimaryButton>
           </form>
-        </BottomSheet>
+        </FormModal>
       ) : null}
     </>
   );

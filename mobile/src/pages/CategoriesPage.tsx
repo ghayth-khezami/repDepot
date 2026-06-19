@@ -6,10 +6,12 @@ import {
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
 } from '../store/api/categoryApi';
-import { BottomSheet } from '../components/BottomSheet';
-import { FabAdd, FieldLabel, TextInput, TextArea, PrimaryButton, ItemActions, ListCard } from '../components/mobile-forms';
+import { FormModal } from '../components/FormModal';
+import { FileUploadBox } from '../components/FileUploadBox';
+import { FieldLabel, TextInput, TextArea, PrimaryButton, ItemActions, ListCard } from '../components/mobile-forms';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
+import { uploadUrl } from '../lib/apiBase';
 import type { Category } from '../types';
 
 export default function CategoriesPage() {
@@ -17,7 +19,7 @@ export default function CategoriesPage() {
   const [edit, setEdit] = useState<Category | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverFiles, setCoverFiles] = useState<File[]>([]);
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [createCategory, { isLoading: creating }] = useCreateCategoryMutation();
@@ -29,7 +31,7 @@ export default function CategoriesPage() {
     setEdit(null);
     setName('');
     setDescription('');
-    setCoverFile(null);
+    setCoverFiles([]);
     setFormOpen(true);
   };
 
@@ -37,12 +39,13 @@ export default function CategoriesPage() {
     setEdit(c);
     setName(c.categoryName);
     setDescription(c.description ?? '');
-    setCoverFile(null);
+    setCoverFiles([]);
     setFormOpen(true);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const coverFile = coverFiles[0] ?? null;
     try {
       const data = { categoryName: name.trim(), description: description.trim() || undefined };
       if (edit) {
@@ -75,6 +78,8 @@ export default function CategoriesPage() {
     <>
       <PaginatedListPage<Category>
         title="Catégories"
+        onAdd={openCreate}
+        addLabel="Catégorie"
         useQuery={useGetCategoriesQuery}
         renderItem={(c) => (
           <ListCard>
@@ -86,18 +91,20 @@ export default function CategoriesPage() {
           </ListCard>
         )}
       />
-      <FabAdd onClick={openCreate} label="Catégorie" />
       {formOpen ? (
-        <BottomSheet title={edit ? 'Modifier catégorie' : 'Nouvelle catégorie'} onClose={() => setFormOpen(false)}>
+        <FormModal title={edit ? 'Modifier catégorie' : 'Nouvelle catégorie'} onClose={() => setFormOpen(false)}>
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
             <FieldLabel label="Nom *"><TextInput value={name} onChange={(e) => setName(e.target.value)} required /></FieldLabel>
             <FieldLabel label="Description"><TextArea value={description} onChange={(e) => setDescription(e.target.value)} /></FieldLabel>
-            <FieldLabel label="Photo de couverture">
-              <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} className="mt-1 w-full text-sm" />
-            </FieldLabel>
+            <FileUploadBox
+              label="Photo de couverture"
+              files={coverFiles}
+              onChange={setCoverFiles}
+              existingUrls={edit?.coverDoc ? [uploadUrl(edit.coverDoc)] : []}
+            />
             <PrimaryButton type="submit" loading={creating || updating}>Enregistrer</PrimaryButton>
           </form>
-        </BottomSheet>
+        </FormModal>
       ) : null}
     </>
   );
