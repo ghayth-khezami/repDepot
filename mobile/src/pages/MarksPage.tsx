@@ -1,28 +1,96 @@
+import { useState } from 'react';
 import { PaginatedListPage } from '../components/PaginatedListPage';
-import { useGetMarksInfiniteQuery } from '../store/api/markApi';
+import {
+  useGetMarksInfiniteQuery,
+  useCreateMarkMutation,
+  useUpdateMarkMutation,
+  useDeleteMarkMutation,
+  type Mark,
+} from '../store/api/markApi';
 import { uploadUrl } from '../lib/apiBase';
-
-interface Mark {
-  id: string;
-  name: string;
-  logoDoc: string;
-}
+import { BottomSheet } from '../components/BottomSheet';
+import { FabAdd, FieldLabel, TextInput, PrimaryButton, ItemActions, ListCard } from '../components/mobile-forms';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../components/ConfirmDialog';
 
 export default function MarksPage() {
+  const [formOpen, setFormOpen] = useState(false);
+  const [edit, setEdit] = useState<Mark | null>(null);
+  const [name, setName] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const { showToast } = useToast();
+  const confirm = useConfirm();
+  const [createMark, { isLoading: creating }] = useCreateMarkMutation();
+  const [updateMark, { isLoading: updating }] = useUpdateMarkMutation();
+  const [deleteMark] = useDeleteMarkMutation();
+  const [, setRefresh] = useState(0);
+
+  const openCreate = () => { setEdit(null); setName(''); setLogoFile(null); setFormOpen(true); };
+  const openEdit = (m: Mark) => { setEdit(m); setName(m.name); setLogoFile(null); setFormOpen(true); };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const fd = new FormData();
+      fd.append('name', name.trim());
+      if (logoFile) fd.append('logo', logoFile);
+      if (edit) {
+        if (!logoFile) { showToast('Logo requis pour modification (re-uploadez si besoin)', 'error'); return; }
+        await updateMark({ id: edit.id, body: fd }).unwrap();
+        showToast('Marque modifiée', 'success');
+      } else {
+        if (!logoFile) { showToast('Logo requis', 'error'); return; }
+        await createMark(fd).unwrap();
+        showToast('Marque créée', 'success');
+      }
+      setFormOpen(false);
+      setRefresh((n) => n + 1);
+    } catch {
+      showToast('Erreur', 'error');
+    }
+  };
+
+  const remove = async (m: Mark) => {
+    const ok = await confirm({ title: 'Supprimer', message: `Supprimer « ${m.name} » ?`, destructive: true, confirmLabel: 'Supprimer' });
+    if (!ok) return;
+    try {
+      await deleteMark(m.id).unwrap();
+      showToast('Supprimé', 'success');
+      setRefresh((n) => n + 1);
+    } catch {
+      showToast('Erreur', 'error');
+    }
+  };
+
   return (
-    <PaginatedListPage<Mark>
-      title="Marques"
-      useQuery={useGetMarksInfiniteQuery}
-      renderItem={(m) => (
-        <div className="flex items-center gap-3 rounded-2xl border border-primary-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-          {m.logoDoc ? (
-            <img src={uploadUrl(m.logoDoc)} alt="" className="h-12 w-12 rounded-xl object-contain" />
-          ) : (
-            <div className="h-12 w-12 rounded-xl bg-primary-50" />
-          )}
-          <p className="font-semibold">{m.name}</p>
-        </div>
-      )}
-    />
+    <>
+      <PaginatedListPage<Mark>
+        title="Marques"
+        useQuery={useGetMarksInfiniteQuery}
+        renderItem={(m) => (
+          <ListCard>
+            {m.logoDoc ? (
+              <img src={uploadUrl(m.logoDoc)} alt="" className="h-12 w-12 rounded-xl object-contain" />
+            ) : (
+              <div className="h-12 w-12 rounded-xl bg-primary-50" />
+            )}
+            <p className="min-w-0 flex-1 font-semibold">{m.name}</p>
+            <ItemActions onEdit={() => openEdit(m)} onDelete={() => void remove(m)} />
+          </ListCard>
+        )}
+      />
+      <FabAdd onClick={openCreate} label="Marque" />
+      {formOpen ? (
+        <BottomSheet title={edit ? 'Modifier marque' : 'Nouvelle marque'} onClose={() => setFormOpen(false)}>
+          <form onSubmit={(e) => void submit(e)} className="space-y-4">
+            <FieldLabel label="Nom *"><TextInput value={name} onChange={(e) => setName(e.target.value)} required /></FieldLabel>
+            <FieldLabel label="Logo *">
+              <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)} className="mt-1 w-full text-sm" />
+            </FieldLabel>
+            <PrimaryButton type="submit" loading={creating || updating}>Enregistrer</PrimaryButton>
+          </form>
+        </BottomSheet>
+      ) : null}
+    </>
   );
 }

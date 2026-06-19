@@ -143,6 +143,7 @@ export interface UpdateProductDto {
   stockQuantity?: number;
   isDispo?: boolean;
   isDepot?: boolean;
+  depotPercentage?: number;
   categoryId?: string;
   subCategoryId?: string;
   markId?: string;

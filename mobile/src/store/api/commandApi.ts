@@ -35,6 +35,7 @@ export interface UpdateCommandDto {
   dateLivraison?: string;
   productIds?: string[];
   clientId?: string;
+  adresseLivraison?: string;
 }
 
 export const commandApi = baseApi.injectEndpoints({

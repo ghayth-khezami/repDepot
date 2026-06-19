@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import {
   useGetProductsQuery,
   useUpdateProductMutation,
+  useDeleteProductMutation,
 } from '../store/api/productApi';
 import { useGetCategoriesQuery } from '../store/api/categoryApi';
 import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue';
 import { EmptyState, PageHeader, ProductPrice, ProductStatusBadge, ProductThumb } from '../components/ui';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../components/ConfirmDialog';
+import { FabAdd } from '../components/mobile-forms';
+import { downloadAllProductLabels } from '../lib/download';
 import type { Product } from '../types';
 import { ProductDetailSheet } from '../components/ProductDetailSheet';
+import { ProductFormSheet } from '../components/ProductFormSheet';
 
 export default function ProductsPage() {
   const [page, setPage] = useState(1);
@@ -17,9 +22,13 @@ export default function ProductsPage() {
   const [categoryId, setCategoryId] = useState('');
   const [items, setItems] = useState<Product[]>([]);
   const [selected, setSelected] = useState<Product | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [updateProduct] = useUpdateProductMutation();
+  const [deleteProduct] = useDeleteProductMutation();
 
   const filterKey = `${debouncedSearch}|${categoryId}`;
   useEffect(() => {
@@ -28,7 +37,7 @@ export default function ProductsPage() {
   }, [filterKey]);
 
   const { data: categories } = useGetCategoriesQuery({ page: 1, limit: 100 });
-  const { data, isLoading, isFetching } = useGetProductsQuery({
+  const { data, isLoading, isFetching, refetch } = useGetProductsQuery({
     page,
     limit: 10,
     search: debouncedSearch || undefined,
@@ -50,6 +59,12 @@ export default function ProductsPage() {
   }, [hasMore, isFetching]);
   const sentinelRef = useInfiniteScroll(loadMore, hasMore, isFetching);
 
+  const refreshList = () => {
+    setPage(1);
+    setItems([]);
+    void refetch();
+  };
+
   const markSold = async (product: Product) => {
     try {
       await updateProduct({
@@ -68,11 +83,46 @@ export default function ProductsPage() {
     }
   };
 
+  const handleDelete = async (product: Product) => {
+    const ok = await confirm({
+      title: 'Supprimer le produit',
+      message: `Supprimer « ${product.productName} » ?`,
+      confirmLabel: 'Supprimer',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteProduct(product.id).unwrap();
+      showToast('Produit supprimé', 'success');
+      setSelected(null);
+      refreshList();
+    } catch {
+      showToast('Erreur suppression', 'error');
+    }
+  };
+
+  const handleBulkLabels = async () => {
+    try {
+      showToast('Génération PDF…', 'success');
+      await downloadAllProductLabels();
+    } catch {
+      showToast('Erreur téléchargement PDF', 'error');
+    }
+  };
+
   return (
-    <div className="pb-6">
+    <div className="pb-24">
       <PageHeader title="Produits" subtitle={`${data?.meta.total ?? 0} au total`} />
 
       <div className="space-y-3 px-4">
+        <button
+          type="button"
+          onClick={() => void handleBulkLabels()}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary-300 py-2.5 text-sm font-semibold text-primary-700 dark:border-primary-700 dark:text-primary-300"
+        >
+          <Download size={16} />
+          Télécharger toutes les étiquettes PDF
+        </button>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
@@ -90,9 +140,7 @@ export default function ProductsPage() {
         >
           <option value="">Toutes les catégories</option>
           {(categories?.data ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.categoryName}
-            </option>
+            <option key={c.id} value={c.id}>{c.categoryName}</option>
           ))}
         </select>
       </div>
@@ -130,11 +178,23 @@ export default function ProductsPage() {
       <div ref={sentinelRef} className="h-8" />
       {isFetching && page > 1 ? <p className="py-4 text-center text-xs text-gray-500">Chargement…</p> : null}
 
+      <FabAdd onClick={() => { setEditProduct(null); setFormOpen(true); }} label="Produit" />
+
       {selected ? (
         <ProductDetailSheet
           product={selected}
           onClose={() => setSelected(null)}
           onMarkSold={() => void markSold(selected)}
+          onEdit={() => { setEditProduct(selected); setFormOpen(true); setSelected(null); }}
+          onDelete={() => void handleDelete(selected)}
+        />
+      ) : null}
+
+      {formOpen ? (
+        <ProductFormSheet
+          product={editProduct}
+          onClose={() => { setFormOpen(false); setEditProduct(null); }}
+          onSaved={refreshList}
         />
       ) : null}
     </div>

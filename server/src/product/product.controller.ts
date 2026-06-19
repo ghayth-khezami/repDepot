@@ -48,6 +48,10 @@ import {
 import { diskStorage } from "multer";
 import { extname } from "path";
 import { compressUploadedFile, compressUploadedFiles } from "../common/image-compress.util";
+import {
+  buildProductLabelsPdf,
+  buildSingleProductLabelPdf,
+} from "../common/barcode-label.util";
 
 @ApiTags("products")
 @ApiBearerAuth()
@@ -452,6 +456,31 @@ export class ProductController {
     res.send(Buffer.from(doc.output("arraybuffer")));
   }
 
+  @Get("export/labels/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Export barcode label stickers PDF for all products" })
+  async exportLabelsPdf(@Res() res: Response, @Query() query: ProductQueryDto) {
+    const result = await this.productService.findAll({
+      limit: 10000,
+      page: 1,
+      ...query,
+    });
+    const buffer = buildProductLabelsPdf(
+      result.data.map((product) => ({
+        productName: product.productName,
+        PrixVente: product.PrixVente,
+        barcode: product.barcode,
+      })),
+    );
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=etiquettes-code-barres.pdf",
+    );
+    res.send(buffer);
+  }
+
   @Post(":id/brand-mark")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -510,6 +539,28 @@ export class ProductController {
   @ApiOperation({ summary: "Admin: find product by barcode (scanner)" })
   findByBarcode(@Param("code") code: string) {
     return this.productService.findByBarcode(code);
+  }
+
+  @Get(":id/label/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Download barcode label PDF for one product" })
+  async exportSingleLabelPdf(@Param("id") id: string, @Res() res: Response) {
+    const product = await this.productService.findOne(id);
+    const buffer = buildSingleProductLabelPdf({
+      productName: product.productName,
+      PrixVente: product.PrixVente,
+      barcode: product.barcode,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    const safeName = product.productName
+      .replace(/[^a-z0-9-_]/gi, "_")
+      .slice(0, 40);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=etiquette-${safeName}.pdf`,
+    );
+    res.send(buffer);
   }
 
   @Get(":id/full")
