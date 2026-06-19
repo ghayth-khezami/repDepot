@@ -101,15 +101,25 @@ First request after idle may take 30–60 s (cold start).
    | Output Directory | `dist` |
    | Install Command | `pnpm install` |
 
-3. Environment variable:
+3. Environment variable (**exact URL, no placeholder, no trailing slash**):
 
    ```env
-   VITE_API_URL=https://YOUR-SERVICE.onrender.com
+   VITE_API_URL=https://repdepot-qgek.onrender.com
    ```
+
+   > `VITE_*` vars are baked in at **build time** — after changing, click **Redeploy** on Vercel.
 
 4. Deploy → copy URL, e.g. `https://depot-mobile.vercel.app`.
 
-5. Back on **Render**, set `MOBILE_URL=https://depot-mobile.vercel.app` → **Manual Deploy** (or wait for auto-redeploy).
+5. Back on **Render**, set:
+
+   ```env
+   MOBILE_URL=https://bebedepot.vercel.app
+   ```
+
+   (your real Vercel URL — no trailing slash) → **Manual Deploy**.
+
+   > After the CORS update in code, any `https://*.vercel.app` origin is allowed in production. Setting `MOBILE_URL` is still recommended.
 
 ### Install on phone (downloadable PWA)
 

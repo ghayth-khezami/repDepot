@@ -23,8 +23,13 @@ export default function LoginPage() {
       setAuth(res.access_token, res.user);
       showToast('Connexion réussie', 'success');
       navigate('/', { replace: true });
-    } catch {
-      showToast('Email ou mot de passe incorrect', 'error');
+    } catch (err: unknown) {
+      const status = (err as { status?: number | string })?.status;
+      if (status === 'FETCH_ERROR' || status === 0) {
+        showToast('Impossible de joindre l\'API — vérifiez VITE_API_URL et MOBILE_URL (CORS)', 'error');
+      } else {
+        showToast('Email ou mot de passe incorrect', 'error');
+      }
     }
   };
 

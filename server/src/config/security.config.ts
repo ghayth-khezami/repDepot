@@ -15,6 +15,20 @@ export function getJwtSecret(): string {
   return secret;
 }
 
+export function normalizeOrigin(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
+
+/** Vercel mobile PWA — allow any *.vercel.app over HTTPS in production. */
+export function isVercelAppOrigin(origin: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return protocol === "https:" && hostname.endsWith(".vercel.app");
+  } catch {
+    return false;
+  }
+}
+
 export function getCorsOrigins(): string[] {
   const raw = [
     process.env.WEB_URL,
@@ -24,7 +38,7 @@ export function getCorsOrigins(): string[] {
   ]
     .filter(Boolean)
     .flatMap((v) => v!.split(","))
-    .map((v) => v.trim())
+    .map((v) => normalizeOrigin(v))
     .filter(Boolean);
 
   if (process.env.NODE_ENV !== "production") {
@@ -38,4 +52,15 @@ export function getCorsOrigins(): string[] {
   }
 
   return [...new Set(raw)];
+}
+
+export function isCorsOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return true;
+  const normalized = normalizeOrigin(origin);
+  const allowed = getCorsOrigins();
+  if (allowed.some((a) => normalizeOrigin(a) === normalized)) return true;
+  if (process.env.NODE_ENV === "production" && isVercelAppOrigin(normalized)) {
+    return true;
+  }
+  return false;
 }

@@ -10,7 +10,7 @@ import { join } from "path";
 import * as fs from "fs";
 import * as express from "express";
 import helmet from "helmet";
-import { getCorsOrigins, getJwtSecret } from "./config/security.config";
+import { getCorsOrigins, getJwtSecret, isCorsOriginAllowed } from "./config/security.config";
 
 async function bootstrap() {
   getJwtSecret();
@@ -32,7 +32,17 @@ async function bootstrap() {
 
   const corsOrigins = getCorsOrigins();
   app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : false,
+    origin: (origin, callback) => {
+      if (isCorsOriginAllowed(origin)) {
+        callback(null, true);
+        return;
+      }
+      if (corsOrigins.length === 0 && process.env.NODE_ENV !== "production") {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
