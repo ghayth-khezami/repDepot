@@ -16,7 +16,7 @@ services:
       pnpm prisma generate &&
       pnpm build
     startCommand: npm run prisma:migrate:prod && npm run start:prod
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production

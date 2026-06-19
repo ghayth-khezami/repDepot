@@ -166,13 +166,50 @@ For admin mobile scanner + orders, DB on Neon is fine; plan for image storage se
 
 ---
 
-## Part 6 — Reduce API cold starts (optional, free)
+## Part 6 — Keep API awake (optional, free, safe)
 
-Render free sleeps after ~15 min. Ping every 10 min so the scanner feels faster:
+Render **free** sleeps after ~15 min without traffic. First request after sleep can take **30–60 s** (cold start). A light ping avoids that for scanner + WebSocket notifications.
 
-- [cron-job.org](https://cron-job.org) (free) → GET `https://YOUR-SERVICE.onrender.com` every 10 minutes.
+### Safe setup (recommended)
 
-Uses Render’s 750 free instance hours/month — one ping every 10 min is well within limits.
+1. Deploy includes `GET /health` → `{ "ok": true }` (no DB, no side effects).
+2. Use **[cron-job.org](https://cron-job.org)** (free account):
+   - **URL:** `https://YOUR-SERVICE.onrender.com/health`
+   - **Method:** GET
+   - **Interval:** every **14 minutes** (not faster)
+   - **Timeout:** 30 s
+
+### Why this is safe on free tier
+
+| Topic | Detail |
+|-------|--------|
+| Render free limit | **750 instance hours / month** |
+| Always-on math | ~720 h/month if never sleeping (30 days × 24 h) |
+| Ping every 14 min | Keeps one API awake ≈ **720 h** — fits in 750 h |
+| Do **not** ping faster than every **5 min** | No benefit, wastes hours |
+| `/health` endpoint | Tiny JSON response — no orders, no DB load |
+
+### Optional: business hours only (saves hours)
+
+If you want headroom on the 750 h cap, ping only when the shop is open, e.g.:
+
+- **08:00–23:00** Africa/Tunis, every 14 min
+
+Outside those hours the API may sleep; first morning request is slower.
+
+### What it does **not** affect
+
+- Does not change your code or data
+- Does not count as a “visit” for analytics
+- Does not break WebSockets (keeps connection-friendly warm instance)
+- Neon DB is separate — health check does not wake Neon (Neon wakes on first query anyway)
+
+### Verify
+
+```bash
+curl https://YOUR-SERVICE.onrender.com/health
+# {"ok":true,"ts":"..."}
+```
 
 ---
 

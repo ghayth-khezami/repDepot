@@ -20,6 +20,7 @@ import { ClientFeedbackModule } from "./client-feedback/client-feedback.module";
 import { MarkModule } from "./mark/mark.module";
 import { NewsletterModule } from "./newsletter/newsletter.module";
 import { NotificationModule } from "./notification/notification.module";
+import { HealthModule } from "./health/health.module";
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { NotificationModule } from "./notification/notification.module";
     MarkModule,
     NewsletterModule,
     NotificationModule,
+    HealthModule,
   ],
   providers: [
     {
