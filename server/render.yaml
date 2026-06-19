@@ -11,12 +11,11 @@ services:
     plan: free
     rootDir: server
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.27.0 --activate &&
+      npm install -g pnpm@10.27.0 &&
       pnpm install --frozen-lockfile &&
       pnpm prisma generate &&
       pnpm build
-    startCommand: pnpm prisma migrate deploy && pnpm start:prod
+    startCommand: npm run prisma:migrate:prod && npm run start:prod
     healthCheckPath: /
     envVars:
       - key: NODE_ENV

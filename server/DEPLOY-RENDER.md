@@ -58,8 +58,8 @@ pnpm create:user   # optional: create admin (see create-user script)
    | Name | `depot-api` (or `repdepot-4`) |
    | Root Directory | `server` |
    | Runtime | Node |
-   | Build Command | `corepack enable && corepack prepare pnpm@10.27.0 --activate && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm build` |
-   | Start Command | `pnpm prisma migrate deploy && pnpm start:prod` |
+   | Build Command | `npm install -g pnpm@10.27.0 && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm build` |
+   | Start Command | `npm run prisma:migrate:prod && npm run start:prod` |
    | Plan | **Free** |
 
 3. Environment variables:
