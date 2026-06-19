@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationService } from "../notification/notification.service";
 import { CreateDepositRequestDto } from "./dto/create-deposit-request.dto";
 import { DepositRequestQueryDto } from "./dto/deposit-request-query.dto";
 import { UpdateDepositRequestStatusDto } from "./dto/update-deposit-request-status.dto";
@@ -15,16 +16,21 @@ export type DepositRequestItemInput = {
 
 @Injectable()
 export class DepositRequestService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
-  create(dto: CreateDepositRequestDto, photos: string[], userId?: string | null) {
-    return this.prisma.depositRequest.create({
+  async create(dto: CreateDepositRequestDto, photos: string[], userId?: string | null) {
+    const result = await this.prisma.depositRequest.create({
       data: {
         ...dto,
         photos,
         userId: userId || null,
       },
     });
+    void this.notificationService.notifyDepositRequestCreated(result);
+    return result;
   }
 
   async createAdmin(payload: {

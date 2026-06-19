@@ -176,6 +176,69 @@ Uses Render’s 750 free instance hours/month — one ping every 10 min is well 
 
 ---
 
+## Part 7 — Real-time notifications (WebSocket + phone push)
+
+When a customer **checks out on the web** or submits a **demande de dépôt**, admins get:
+
+- **Instant in-app** notification on the mobile PWA (WebSocket)
+- **Phone banner** if Web Push is enabled (even when the app is in background)
+
+### 1. Run the notifications migration
+
+After pulling the latest code:
+
+```powershell
+cd server
+$env:DATABASE_URL="postgresql://..."   # Neon URL
+pnpm prisma migrate deploy
+```
+
+This creates `notifications` and `push_subscriptions` tables.
+
+### 2. Generate VAPID keys (Web Push)
+
+On your PC:
+
+```bash
+cd server
+npx web-push generate-vapid-keys
+```
+
+Add to **Render** environment variables:
+
+| Key | Value |
+|-----|-------|
+| `VAPID_PUBLIC_KEY` | public key from command above |
+| `VAPID_PRIVATE_KEY` | private key |
+| `VAPID_SUBJECT` | `mailto:admin@bebe-depot.com` |
+
+Redeploy Render after adding these.
+
+> Without VAPID keys, WebSocket + in-app notifications still work; only background phone push is disabled.
+
+### 3. Redeploy mobile PWA
+
+Push handler is in `mobile/public/push-sw.js` (included in the service worker).
+
+1. Redeploy Vercel (`mobile/`).
+2. On your phone: open the PWA → log in as **ADMIN**.
+3. Accept **notification permission** when prompted.
+4. Tap the **bell** to see history; new web orders/deposits appear instantly.
+
+### 4. WebSocket endpoint
+
+- Namespace: `wss://YOUR-API.onrender.com/notifications`
+- Auth: JWT token in `auth.token` (mobile app handles this automatically)
+- Render **free tier supports WebSockets**; reconnects after API cold start
+
+### 5. Test flow
+
+1. Open mobile admin app (logged in).
+2. On the **web storefront**, place an order or submit a deposit request.
+3. Mobile should show toast + bell badge within 1–2 seconds.
+
+---
+
 ## Checklist
 
 - [ ] Neon project created; `DATABASE_URL` with `sslmode=require`
@@ -186,6 +249,9 @@ Uses Render’s 750 free instance hours/month — one ping every 10 min is well 
 - [ ] Admin user exists in Neon DB
 - [ ] PWA installed on iPhone (Safari) and/or Android (Chrome)
 - [ ] Google OAuth origins updated for production URLs
+- [ ] Notifications migration applied (`notifications` table exists)
+- [ ] `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` set on Render (optional but recommended for phone push)
+- [ ] Mobile PWA notification permission granted on admin phone
 
 ---
 

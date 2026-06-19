@@ -40,11 +40,13 @@ export function PageHeader({
   subtitle,
   onAdd,
   addLabel = 'Ajouter',
+  addDisabled = false,
 }: {
   title: string;
   subtitle?: string;
   onAdd?: () => void;
   addLabel?: string;
+  addDisabled?: boolean;
 }) {
   return (
     <div className="mb-4 flex items-start justify-between gap-3 px-4 pt-4">
@@ -56,7 +58,8 @@ export function PageHeader({
         <button
           type="button"
           onClick={onAdd}
-          className="shrink-0 rounded-xl bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm"
+          disabled={addDisabled}
+          className="shrink-0 rounded-xl bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
         >
           + {addLabel}
         </button>
@@ -67,4 +70,37 @@ export function PageHeader({
 
 export function EmptyState({ message }: { message: string }) {
   return <p className="px-4 py-12 text-center text-sm text-gray-500">{message}</p>;
+}
+
+export function ListSkeleton({ count = 5, withThumb = true }: { count?: number; withThumb?: boolean }) {
+  return (
+    <ul className="mt-4 space-y-2 px-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <li
+          key={i}
+          className="flex animate-pulse items-center gap-3 rounded-2xl border border-primary-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+        >
+          {withThumb ? <div className="h-20 w-20 shrink-0 rounded-2xl bg-gray-200 dark:bg-slate-700" /> : null}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-4 w-3/4 rounded-lg bg-gray-200 dark:bg-slate-700" />
+            <div className="h-3 w-1/2 rounded-lg bg-gray-200 dark:bg-slate-700" />
+            <div className="h-3 w-1/3 rounded-lg bg-gray-100 dark:bg-slate-800" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function KpiSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 px-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="animate-pulse rounded-2xl border border-primary-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <div className="h-3 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+          <div className="mt-3 h-6 w-1/2 rounded bg-gray-200 dark:bg-slate-700" />
+        </div>
+      ))}
+    </div>
+  );
 }

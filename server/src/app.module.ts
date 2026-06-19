@@ -19,6 +19,7 @@ import { SubCategoryModule } from "./sub-category/sub-category.module";
 import { ClientFeedbackModule } from "./client-feedback/client-feedback.module";
 import { MarkModule } from "./mark/mark.module";
 import { NewsletterModule } from "./newsletter/newsletter.module";
+import { NotificationModule } from "./notification/notification.module";
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { NewsletterModule } from "./newsletter/newsletter.module";
     ClientFeedbackModule,
     MarkModule,
     NewsletterModule,
+    NotificationModule,
   ],
   providers: [
     {

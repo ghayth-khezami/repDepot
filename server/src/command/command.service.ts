@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { CommandStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationService } from "../notification/notification.service";
 import { CreateCommandDto } from "./dto/create-command.dto";
 import { CheckoutCommandDto } from "./dto/checkout-command.dto";
 import { UpdateCommandDto } from "./dto/update-command.dto";
@@ -9,7 +10,10 @@ import { PaginatedResponse } from "../common/dto/pagination.dto";
 
 @Injectable()
 export class CommandService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   private async resolvePricing(productIds: string[]) {
     const products = await this.prisma.product.findMany({
@@ -40,7 +44,7 @@ export class CommandService {
       dto;
     const pricing = await this.resolvePricing(productIds);
 
-    return this.persistCommand({
+    const command = await this.persistCommand({
       productIds,
       clientId,
       guestClient,
@@ -52,6 +56,11 @@ export class CommandService {
       productsNumber: pricing.productsNumber,
       status: CommandStatus.NOT_DELIVERED,
     });
+
+    if (command) {
+      void this.notificationService.notifyCommandCreated(command);
+    }
+    return command;
   }
 
   async create(createCommandDto: CreateCommandDto) {

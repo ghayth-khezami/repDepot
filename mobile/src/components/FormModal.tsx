@@ -5,17 +5,23 @@ export function FormModal({
   title,
   onClose,
   children,
+  busy = false,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  busy?: boolean;
 }) {
+  const tryClose = () => {
+    if (!busy) onClose();
+  };
+
   return (
     <>
       <button
         type="button"
         className="fixed inset-0 z-[80] bg-black/40"
-        onClick={onClose}
+        onClick={tryClose}
         aria-label="Fermer"
       />
       <div
@@ -27,8 +33,9 @@ export function FormModal({
           <h2 className="text-base font-bold text-gray-900 dark:text-white">{title}</h2>
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800"
+            onClick={tryClose}
+            disabled={busy}
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-slate-800"
             aria-label="Fermer"
           >
             <X size={20} />

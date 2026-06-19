@@ -4,6 +4,7 @@ dotenv.config();
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { IoAdapter } from "@nestjs/platform-socket.io";
 import { AppModule } from "./app.module";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { join } from "path";
@@ -16,6 +17,7 @@ async function bootstrap() {
   getJwtSecret();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 

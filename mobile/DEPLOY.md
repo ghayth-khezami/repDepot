@@ -128,7 +128,28 @@ Uploadez le contenu de `dist/` et configurez le fallback SPA vers `index.html`.
 
 Endpoint API : `GET /products/by-barcode/:code` (admin JWT)
 
-## 7. Fonctionnalités
+## 7. Notifications en temps réel (commandes & dépôts)
+
+Quand un client passe une **commande** ou une **demande de dépôt** sur le site web, l’app admin reçoit :
+
+- une alerte **instantanée** (WebSocket) dans l’app
+- une **notification téléphone** si vous acceptez la permission (Web Push)
+
+### Configuration serveur
+
+1. Appliquer la migration : `pnpm prisma migrate deploy` (table `notifications`)
+2. Générer les clés VAPID : `npx web-push generate-vapid-keys`
+3. Sur Render, ajouter `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+
+Voir `server/DEPLOY-RENDER.md` § Part 7 pour le détail.
+
+### Sur le téléphone
+
+1. Ouvrez la PWA admin → connectez-vous
+2. Acceptez **Autoriser les notifications**
+3. Cloche en haut à droite → historique + badge non lus
+
+## 8. Fonctionnalités
 
 | Zone | Écrans |
 |------|--------|
@@ -137,11 +158,11 @@ Endpoint API : `GET /products/by-barcode/:code` (admin JWT)
 
 Pagination serveur : **10 par page**, recherche et filtres côté API.
 
-## 8. Icônes PWA
+## 9. Icônes PWA
 
 Remplacez `public/pwa-192.png` et `public/pwa-512.png` par votre logo carré (PNG).
 
-## 9. Dépannage
+## 10. Dépannage
 
 | Problème | Solution |
 |----------|----------|
@@ -150,3 +171,4 @@ Remplacez `public/pwa-192.png` et `public/pwa-512.png` par votre logo carré (PN
 | Caméra ne marche pas | HTTPS obligatoire (pas en HTTP sauf localhost) |
 | Scan introuvable | `pnpm prisma migrate deploy` + produit créé après migration |
 | Boucle produits | Mettre à jour l'app (dernière version) |
+| Pas de notification | Migration DB + VAPID sur Render + permission téléphone |

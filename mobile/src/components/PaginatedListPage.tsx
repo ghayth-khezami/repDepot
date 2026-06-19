@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { PageHeader, EmptyState } from '../components/ui';
+import { PageHeader, EmptyState, ListSkeleton } from '../components/ui';
 import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue';
 import type { PaginatedResponse } from '../types';
 import { PAGE_SIZE } from '../lib/pagination';
@@ -10,6 +10,8 @@ type Props<T extends { id: string }> = {
   searchPlaceholder?: string;
   onAdd?: () => void;
   addLabel?: string;
+  addDisabled?: boolean;
+  hideHeader?: boolean;
   useQuery: (args: { page: number; limit: number; search?: string }) => {
     data?: PaginatedResponse<T>;
     isLoading: boolean;
@@ -24,6 +26,8 @@ export function PaginatedListPage<T extends { id: string }>({
   searchPlaceholder = 'Rechercher…',
   onAdd,
   addLabel,
+  addDisabled,
+  hideHeader,
   useQuery,
   renderItem,
 }: Props<T>) {
@@ -60,12 +64,27 @@ export function PaginatedListPage<T extends { id: string }>({
 
   return (
     <div className="pb-6">
-      <PageHeader
-        title={title}
-        subtitle={subtitle ?? `${data?.meta.total ?? 0} au total`}
-        onAdd={onAdd}
-        addLabel={addLabel}
-      />
+      {hideHeader ? null : (
+        <PageHeader
+          title={title}
+          subtitle={subtitle ?? `${data?.meta.total ?? 0} au total`}
+          onAdd={onAdd}
+          addLabel={addLabel}
+          addDisabled={addDisabled}
+        />
+      )}
+      {!hideHeader ? null : onAdd ? (
+        <div className="mb-3 flex justify-end px-4">
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={addDisabled}
+            className="rounded-xl bg-primary-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            + {addLabel ?? 'Ajouter'}
+          </button>
+        </div>
+      ) : null}
       <div className="px-4">
         <input
           type="search"
@@ -76,7 +95,7 @@ export function PaginatedListPage<T extends { id: string }>({
         />
       </div>
       {isLoading && page === 1 ? (
-        <EmptyState message="Chargement…" />
+        <ListSkeleton count={5} withThumb={false} />
       ) : items.length === 0 ? (
         <EmptyState message="Aucun résultat." />
       ) : (

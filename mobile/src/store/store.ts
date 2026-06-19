@@ -15,6 +15,8 @@ import './api/storeHoursApi';
 import './api/userApi';
 import './api/featuredProductApi';
 import './api/subCategoryApi';
+import './api/productPhotoApi';
+import './api/notificationApi';
 
 export const store = configureStore({
   reducer: { [baseApi.reducerPath]: baseApi.reducer },

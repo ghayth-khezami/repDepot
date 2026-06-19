@@ -16,6 +16,8 @@ export interface CreateProductDto {
   surcharge?: number;
   coclientId?: string;
   categoryId: string;
+  subCategoryId?: string;
+  markId?: string;
 }
 
 export const productApi = baseApi.injectEndpoints({

@@ -7,7 +7,7 @@ import {
 } from '../store/api/productApi';
 import { useGetCategoriesQuery } from '../store/api/categoryApi';
 import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue';
-import { EmptyState, PageHeader, ProductPrice, ProductStatusBadge, ProductThumb } from '../components/ui';
+import { EmptyState, PageHeader, ProductPrice, ProductStatusBadge, ProductThumb, ListSkeleton } from '../components/ui';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
 import { downloadAllProductLabels } from '../lib/download';
@@ -115,8 +115,13 @@ export default function ProductsPage() {
       <PageHeader
         title="Produits"
         subtitle={`${data?.meta.total ?? 0} au total`}
-        onAdd={() => { setEditProduct(null); setFormOpen(true); }}
+        onAdd={() => {
+          if (formOpen) return;
+          setEditProduct(null);
+          setFormOpen(true);
+        }}
         addLabel="Produit"
+        addDisabled={formOpen}
       />
 
       <div className="space-y-3 px-4">
@@ -151,7 +156,7 @@ export default function ProductsPage() {
       </div>
 
       {isLoading && page === 1 ? (
-        <EmptyState message="Chargement…" />
+        <ListSkeleton count={6} />
       ) : items.length === 0 ? (
         <EmptyState message="Aucun produit trouvé." />
       ) : (

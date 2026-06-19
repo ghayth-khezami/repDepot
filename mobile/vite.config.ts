@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           navigateFallback: '/index.html',
+          importScripts: ['push-sw.js'],
           runtimeCaching: [
             {
               urlPattern: ({ url }) => url.pathname.startsWith('/uploads'),

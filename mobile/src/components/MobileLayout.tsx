@@ -2,7 +2,8 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Package, ScanLine, ShoppingBag, User, Menu, Bell } from 'lucide-react';
 import { useState } from 'react';
 import { Drawer } from './Drawer';
-import { useToast } from '../context/ToastContext';
+import { NotificationPanel } from './NotificationPanel';
+import { useNotifications } from '../context/NotificationContext';
 
 const tabs = [
   { to: '/', label: 'Accueil', icon: LayoutDashboard, end: true },
@@ -14,7 +15,7 @@ const tabs = [
 
 export function MobileLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { showToast } = useToast();
+  const { openPanel, unreadCount } = useNotifications();
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-lavender-50 dark:bg-slate-950">
@@ -33,11 +34,16 @@ export function MobileLayout() {
         </div>
         <button
           type="button"
-          onClick={() => showToast('Aucune nouvelle notification', 'success')}
+          onClick={openPanel}
           className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700 dark:bg-slate-800 dark:text-primary-300"
           aria-label="Notifications"
         >
           <Bell size={20} />
+          {unreadCount > 0 ? (
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          ) : null}
         </button>
       </header>
 
@@ -76,6 +82,7 @@ export function MobileLayout() {
       </nav>
 
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <NotificationPanel />
     </div>
   );
 }
