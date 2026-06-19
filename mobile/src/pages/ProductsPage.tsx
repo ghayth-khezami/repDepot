@@ -7,7 +7,7 @@ import {
 } from '../store/api/productApi';
 import { useGetCategoriesQuery } from '../store/api/categoryApi';
 import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue';
-import { EmptyState, PageHeader, ProductPrice, ProductStatusBadge, ProductThumb, ListSkeleton } from '../components/ui';
+import { EmptyState, PageHeader, ProductPrice, ProductStatusBadge, ProductThumb, ProductCardSkeleton } from '../components/ui';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
 import { downloadAllProductLabels } from '../lib/download';
@@ -156,7 +156,7 @@ export default function ProductsPage() {
       </div>
 
       {isLoading && page === 1 ? (
-        <ListSkeleton count={6} />
+        <ProductCardSkeleton count={6} />
       ) : items.length === 0 ? (
         <EmptyState message="Aucun produit trouvé." />
       ) : (

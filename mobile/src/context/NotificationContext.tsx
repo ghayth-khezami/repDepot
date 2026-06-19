@@ -20,7 +20,12 @@ import {
   useSubscribePushMutation,
   type AppNotification,
 } from '../store/api/notificationApi';
-import { getWsOrigin, registerPushSubscription, showSystemNotification } from '../lib/pushNotifications';
+import {
+  getWsOrigin,
+  hasActivePushSubscription,
+  registerPushSubscription,
+  showSystemNotification,
+} from '../lib/pushNotifications';
 
 type NotificationContextValue = {
   unreadCount: number;
@@ -89,6 +94,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       socketRef.current = null;
       setConnected(false);
       setLiveItems([]);
+      setPushEnabled(false);
       return;
     }
 
@@ -112,25 +118,40 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     };
   }, [isAuthenticated, token, handleIncoming]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void hasActivePushSubscription().then(setPushEnabled);
+  }, [isAuthenticated]);
+
   const enablePush = useCallback(async () => {
     try {
       const { publicKey } = await fetchVapid().unwrap();
       if (!publicKey) {
-        showToast('Push non configuré sur le serveur', 'error');
+        showToast('Push non configuré sur le serveur (clés VAPID manquantes sur Render)', 'error');
         return;
       }
-      const ok = await registerPushSubscription(publicKey, (sub) => subscribePush(sub).unwrap());
-      setPushEnabled(ok);
-      showToast(ok ? 'Notifications téléphone activées' : 'Permission refusée', ok ? 'success' : 'error');
-    } catch {
-      showToast('Erreur activation push', 'error');
+
+      const result = await registerPushSubscription(publicKey, (sub) => subscribePush(sub).unwrap());
+      if (result.ok) {
+        setPushEnabled(true);
+        showToast('Notifications téléphone activées', 'success');
+        return;
+      }
+
+      setPushEnabled(false);
+      showToast(result.message, result.reason === 'denied' ? 'info' : 'error');
+    } catch (err) {
+      setPushEnabled(false);
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('401') || msg.includes('403')) {
+        showToast('Session expirée — reconnectez-vous', 'error');
+      } else if (msg.includes('Failed to fetch') || msg.includes('Network')) {
+        showToast('API inaccessible — vérifiez VITE_API_URL', 'error');
+      } else {
+        showToast(msg || 'Erreur activation push — vérifiez VAPID sur Render et réessayez', 'error');
+      }
     }
   }, [fetchVapid, subscribePush, showToast]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    void enablePush();
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps -- once on login
 
   const markRead = useCallback(
     async (id: string) => {

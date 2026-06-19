@@ -1,5 +1,10 @@
 export function getApiOrigin(): string {
-  return import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const fromEnv = import.meta.env.VITE_API_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && !import.meta.env.DEV) {
+    console.warn('[depot] VITE_API_URL manquant au build — les photos API ne s’afficheront pas.');
+  }
+  return 'http://localhost:3000';
 }
 
 export function getApiBaseUrl(): string {
@@ -9,8 +14,17 @@ export function getApiBaseUrl(): string {
 export function uploadUrl(path: string): string {
   if (!path) return '';
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  const normalized = path.startsWith('/') ? path : `/${path}`;
-  return import.meta.env.DEV ? normalized : `${getApiOrigin()}${normalized}`;
+
+  let normalized = path.startsWith('/') ? path : `/${path}`;
+  if (!normalized.startsWith('/uploads/') && !normalized.startsWith('/uploads')) {
+    const bare = path.replace(/^\/+/, '');
+    if (bare && !bare.includes('/')) {
+      normalized = `/uploads/${bare}`;
+    }
+  }
+
+  if (import.meta.env.DEV) return normalized;
+  return `${getApiOrigin()}${normalized}`;
 }
 
 export function formatTnd(value: number): string {

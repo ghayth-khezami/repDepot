@@ -5,6 +5,7 @@ import { useLazyGetProductByBarcodeQuery, useUpdateProductMutation } from '../st
 import { ProductDetailSheet } from '../components/ProductDetailSheet';
 import { PageHeader } from '../components/ui';
 import { playScanBeep, playSuccessBeep, vibrateScan } from '../lib/beep';
+import { barcodeLookupCandidates, normalizeBarcodeInput } from '../lib/barcode';
 import { useToast } from '../context/ToastContext';
 import type { Product } from '../types';
 
@@ -62,7 +63,21 @@ export default function ScanPage() {
       }
 
       try {
-        const result = await fetchByBarcode(trimmed).unwrap();
+        const candidates = barcodeLookupCandidates(trimmed);
+        let result: Product | null = null;
+        let lastError: unknown;
+
+        for (const code of candidates) {
+          try {
+            result = await fetchByBarcode(code).unwrap();
+            break;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        if (!result) throw lastError ?? new Error('not found');
+
         lastScanRef.current = trimmed;
         lastScanAtRef.current = Date.now();
         setProduct(result);
@@ -92,17 +107,28 @@ export default function ScanPage() {
           formatsToSupport: [
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.CODE_39,
             Html5QrcodeSupportedFormats.QR_CODE,
           ],
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         });
         scannerRef.current = scanner;
         await scanner.start(
           { facingMode: 'environment' },
-          { fps: 8, qrbox: { width: 260, height: 140 } },
+          {
+            fps: 10,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const width = Math.min(viewfinderWidth * 0.88, 320);
+              const height = Math.min(viewfinderHeight * 0.38, 160);
+              return { width: Math.floor(width), height: Math.floor(height) };
+            },
+            aspectRatio: 1.777,
+          },
           (decoded) => {
-            if (!cancelled) handleScanDecoded(decoded);
+            if (!cancelled) handleScanDecoded(normalizeBarcodeInput(decoded));
           },
           () => {},
         );

@@ -11,7 +11,7 @@ Create a **separate** Vercel project from the mobile PWA (do not reuse mobile se
 | **Root Directory** | `web` |
 | **Framework Preset** | Next.js |
 | **Build Command** | `pnpm build` (or leave default) |
-| **Output Directory** | *(leave empty — do NOT use `dist`)* |
+| **Output Directory** | `dist` (aligned with `next.config.ts` when deployed on Vercel) |
 | **Install Command** | `pnpm install` |
 
 ### Environment variables
@@ -24,13 +24,15 @@ No trailing slash. Redeploy after changing env vars.
 
 ### Common error: `output directory "dist" was not found`
 
-Next.js builds to `.next`, not `dist`. `dist` is for the **mobile** Vite app.
+This happens when Vercel **Output Directory** is set to `dist` but Next.js builds to `.next` by default.
 
-**Fix in Vercel → Project → Settings → General:**
+**Fix (already in this repo):** `web/next.config.ts` sets `distDir: "dist"` on Vercel, and `web/vercel.json` declares `"outputDirectory": "dist"`.
+
+In **Vercel → Project → Settings → General** also confirm:
 
 1. Root Directory = `web`
-2. **Clear** Output Directory (blank) or delete `dist`
-3. Framework = Next.js
+2. Framework = **Next.js** (not Vite)
+3. Output Directory = `dist` (or leave blank if you remove `distDir` from next.config)
 4. Redeploy
 
 This repo includes `web/vercel.json` with the correct Next.js settings.

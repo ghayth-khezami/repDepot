@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { normalizeEan13 } from "../common/barcode-label.util";
 import { sanitizeProductForStorefront } from "../common/utils/sanitize-product";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
@@ -319,25 +320,49 @@ export class ProductService {
     return sanitizeProductForStorefront(product);
   }
 
+  private barcodeLookupCandidates(raw: string): string[] {
+    const trimmed = raw.trim().replace(/\s/g, "");
+    if (!trimmed) return [];
+
+    const digits = trimmed.replace(/\D/g, "");
+    const candidates = new Set<string>([trimmed]);
+    if (digits) {
+      candidates.add(digits);
+      candidates.add(normalizeEan13(digits));
+      if (digits.length === 13 && digits.startsWith("0")) {
+        candidates.add(digits.slice(1));
+      }
+      if (digits.length === 12) {
+        candidates.add(`0${digits}`);
+        candidates.add(normalizeEan13(`0${digits}`));
+      }
+    }
+    return [...candidates].filter(Boolean);
+  }
+
   async findByBarcode(barcode: string) {
-    const code = barcode.trim();
-    if (!code) {
+    const candidates = this.barcodeLookupCandidates(barcode);
+    if (!candidates.length) {
       throw new BadRequestException("Code-barres invalide.");
     }
-    const product = await this.prisma.product.findUnique({
-      where: { barcode: code },
-      include: {
-        category: { select: { id: true, categoryName: true } },
-        subCategory: { select: { id: true, title: true } },
-        mark: { select: { id: true, name: true, logoDoc: true } },
-        coClient: { select: { id: true, firstName: true, lastName: true } },
-        photos: true,
-      },
-    });
-    if (!product) {
-      throw new NotFoundException("Produit introuvable pour ce code-barres.");
+
+    const include = {
+      category: { select: { id: true, categoryName: true } },
+      subCategory: { select: { id: true, title: true } },
+      mark: { select: { id: true, name: true, logoDoc: true } },
+      coClient: { select: { id: true, firstName: true, lastName: true } },
+      photos: true,
+    } as const;
+
+    for (const code of candidates) {
+      const product = await this.prisma.product.findUnique({
+        where: { barcode: code },
+        include,
+      });
+      if (product) return product;
     }
-    return product;
+
+    throw new NotFoundException("Produit introuvable pour ce code-barres.");
   }
 
   async update(id: string, updateProductDto: UpdateProductDto) {

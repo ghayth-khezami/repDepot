@@ -13,16 +13,62 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return arr;
 }
 
+async function ensureServiceWorkerReady(timeoutMs = 12000): Promise<ServiceWorkerRegistration> {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('Service worker non supporté sur cet appareil.');
+  }
+
+  const existing = await navigator.serviceWorker.getRegistration('/');
+  if (!existing) {
+    await navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
+      /* vite-plugin-pwa may already register under a hashed filename */
+    });
+  }
+
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<ServiceWorkerRegistration>((_, reject) => {
+      window.setTimeout(() => reject(new Error('Service worker indisponible — réessayez après avoir rouvert l’app.')), timeoutMs);
+    }),
+  ]);
+}
+
+export async function hasActivePushSubscription(): Promise<boolean> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return !!sub;
+  } catch {
+    return false;
+  }
+}
+
+export type PushRegisterResult =
+  | { ok: true }
+  | { ok: false; reason: 'unsupported' | 'denied' | 'server' | 'error'; message: string };
+
 export async function registerPushSubscription(
   vapidPublicKey: string,
   subscribe: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }) => Promise<unknown>,
-): Promise<boolean> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+): Promise<PushRegisterResult> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return { ok: false, reason: 'unsupported', message: 'Notifications push non supportées sur ce navigateur.' };
+  }
 
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return false;
+  let permission = Notification.permission;
+  if (permission === 'default') {
+    permission = await Notification.requestPermission();
+  }
+  if (permission !== 'granted') {
+    return {
+      ok: false,
+      reason: 'denied',
+      message: 'Autorisez les notifications dans les réglages du téléphone pour cette app.',
+    };
+  }
 
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await ensureServiceWorkerReady();
   let sub = await reg.pushManager.getSubscription();
 
   if (!sub) {
@@ -33,14 +79,16 @@ export async function registerPushSubscription(
   }
 
   const json = sub.toJSON();
-  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return false;
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    return { ok: false, reason: 'error', message: 'Abonnement push incomplet — réessayez.' };
+  }
 
   await subscribe({
     endpoint: json.endpoint,
     keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
   });
 
-  return true;
+  return { ok: true };
 }
 
 export function showSystemNotification(title: string, body: string, linkPath?: string) {

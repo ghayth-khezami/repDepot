@@ -1,14 +1,27 @@
+import { useState } from 'react';
 import { uploadUrl, formatTnd } from '../lib/apiBase';
 import type { Product } from '../types';
 
+function productPhotoSrc(product: Product): string | null {
+  const doc = product.photos?.[0]?.photoDoc;
+  return doc ? uploadUrl(doc) : null;
+}
+
 export function ProductThumb({ product, size = 'md' }: { product: Product; size?: 'sm' | 'md' | 'lg' }) {
-  const photo = product.photos?.[0]?.photoDoc;
-  const src = photo ? uploadUrl(photo) : null;
+  const [failed, setFailed] = useState(false);
+  const src = productPhotoSrc(product);
   const dim = size === 'sm' ? 'h-14 w-14' : size === 'lg' ? 'h-32 w-32' : 'h-20 w-20';
   return (
     <div className={`${dim} shrink-0 overflow-hidden rounded-2xl bg-primary-50 dark:bg-slate-800`}>
-      {src ? (
-        <img src={src} alt="" className="h-full w-full object-cover" />
+      {src && !failed ? (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">—</div>
       )}
@@ -90,6 +103,11 @@ export function ListSkeleton({ count = 5, withThumb = true }: { count?: number; 
       ))}
     </ul>
   );
+}
+
+/** Product list row skeleton — matches ProductsPage card layout */
+export function ProductCardSkeleton({ count = 6 }: { count?: number }) {
+  return <ListSkeleton count={count} withThumb />;
 }
 
 export function KpiSkeleton() {

@@ -5,7 +5,7 @@ import {
   useSetFeaturedProductsMutation,
 } from '../store/api/featuredProductApi';
 import { useGetProductsQuery } from '../store/api/productApi';
-import { PageHeader, ProductThumb, ProductPrice, EmptyState } from '../components/ui';
+import { PageHeader, ProductThumb, ProductPrice, EmptyState, ListSkeleton } from '../components/ui';
 import { PrimaryButton, TextInput } from '../components/mobile-forms';
 import { useToast } from '../context/ToastContext';
 import type { Product } from '../types';
@@ -49,7 +49,7 @@ export default function FeaturedProductsPage() {
   return (
     <div className="pb-6">
       <PageHeader title="Coups de cœur" subtitle={`${selected.length}/8 sélectionnés`} />
-      {isLoading ? <EmptyState message="Chargement…" /> : (
+      {isLoading ? <ListSkeleton count={4} /> : (
         <>
           <div className="px-4">
             <p className="mb-2 text-sm font-semibold text-gray-600">Actuellement en vitrine</p>

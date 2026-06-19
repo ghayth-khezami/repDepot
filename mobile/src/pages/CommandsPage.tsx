@@ -7,9 +7,9 @@ import {
   type CreateCommandDto,
 } from '../store/api/commandApi';
 import { useGetClientsQuery } from '../store/api/clientApi';
-import { useGetProductsQuery } from '../store/api/productApi';
 import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue';
-import { EmptyState, PageHeader, ListSkeleton, ProductPrice, ProductThumb } from '../components/ui';
+import { EmptyState, PageHeader, ListSkeleton } from '../components/ui';
+import { ProductMultiSelect } from '../components/ProductMultiSelect';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
 import { FieldLabel, TextInput, SelectInput, PrimaryButton, ItemActions } from '../components/mobile-forms';
@@ -36,12 +36,6 @@ export default function CommandsPage() {
   const [clientId, setClientId] = useState('');
   const [adresse, setAdresse] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
-  const [productSearch, setProductSearch] = useState('');
-  const debouncedProductSearch = useDebouncedValue(productSearch, 350);
-  const { data: productResults } = useGetProductsQuery(
-    { page: 1, limit: 10, search: debouncedProductSearch || undefined },
-    { skip: !formOpen || !!editCmd },
-  );
 
   const filterKey = `${debouncedSearch}|${status}`;
   useEffect(() => { setPage(1); setItems([]); }, [filterKey]);
@@ -71,7 +65,6 @@ export default function CommandsPage() {
     setClientId('');
     setAdresse('');
     setSelectedProducts([]);
-    setProductSearch('');
     setFormOpen(true);
   };
 
@@ -90,12 +83,6 @@ export default function CommandsPage() {
     setEditCmd(cmd);
     setAdresse(cmd.adresseLivraison);
     setFormOpen(true);
-  };
-
-  const toggleProduct = (p: Product) => {
-    setSelectedProducts((prev) =>
-      prev.some((x) => x.id === p.id) ? prev.filter((x) => x.id !== p.id) : [...prev, p],
-    );
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -146,10 +133,6 @@ export default function CommandsPage() {
       showToast('Erreur', 'error');
     }
   };
-
-  const pickerProducts = (productResults?.data ?? []).filter(
-    (p) => p.isDispo !== false && p.stockQuantity > 0,
-  );
 
   return (
     <div className="pb-6">
@@ -210,49 +193,8 @@ export default function CommandsPage() {
                   </SelectInput>
                 </FieldLabel>
                 <FieldLabel label="Produits *">
-                  <TextInput
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Rechercher un produit…"
-                  />
+                  <ProductMultiSelect selected={selectedProducts} onChange={setSelectedProducts} />
                 </FieldLabel>
-                {selectedProducts.length > 0 ? (
-                  <ul className="space-y-2 rounded-xl border border-primary-100 bg-primary-50/50 p-2 dark:border-slate-700 dark:bg-slate-800/50">
-                    {selectedProducts.map((p) => (
-                      <li key={p.id} className="flex items-center gap-2">
-                        <ProductThumb product={p} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{p.productName}</p>
-                          <ProductPrice value={p.PrixVente} />
-                        </div>
-                        <button type="button" onClick={() => toggleProduct(p)} className="text-xs font-semibold text-red-600">Retirer</button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                <ul className="max-h-48 space-y-1 overflow-y-auto">
-                  {pickerProducts.map((p) => {
-                    const selected = selectedProducts.some((x) => x.id === p.id);
-                    return (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          onClick={() => toggleProduct(p)}
-                          className={`flex w-full items-center gap-2 rounded-xl border p-2 text-left ${
-                            selected ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-gray-200 dark:border-slate-700'
-                          }`}
-                        >
-                          <ProductThumb product={p} size="sm" />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{p.productName}</p>
-                            <ProductPrice value={p.PrixVente} />
-                          </div>
-                          <span className="text-xs font-bold">{selected ? '✓' : '+'}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
                 <div className="rounded-xl bg-gray-50 p-3 text-sm dark:bg-slate-800">
                   <p><strong>{totals.count}</strong> produit(s)</p>
                   <p>Total vente: <strong>{formatTnd(totals.prixVente)}</strong></p>

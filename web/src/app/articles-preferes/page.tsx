@@ -6,6 +6,7 @@ import { useShop } from "@/context/ShopContext";
 import { api } from "@/lib/api";
 import { Product } from "@/types";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductGridSkeletons } from "@/components/ProductCardSkeleton";
 
 const LIMIT = 12;
 
@@ -101,7 +102,11 @@ export default function ArticlesPreferesPage() {
         </p>
       </div>
 
-      {items.length === 0 && !loading ? (
+      {loading && items.length === 0 ? (
+        <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-3 lg:grid-cols-4">
+          <ProductGridSkeletons count={8} />
+        </div>
+      ) : items.length === 0 && !loading ? (
         <div className="surface-card p-10 text-center">
           <p className="font-medium">Aucun article préféré pour le moment.</p>
           <p className="mt-2 text-sm text-muted-foreground">

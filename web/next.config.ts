@@ -15,6 +15,9 @@ function remotePatterns() {
 }
 
 const nextConfig: NextConfig = {
+  // Vercel projects imported from the old Vite setup often keep Output Directory = "dist".
+  // Next.js defaults to ".next"; align build output so deploy succeeds without dashboard changes.
+  distDir: process.env.VERCEL ? "dist" : ".next",
   images: {
     remotePatterns: remotePatterns(),
     formats: ["image/avif", "image/webp"],

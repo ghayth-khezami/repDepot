@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductGridSkeletons } from "@/components/ProductCardSkeleton";
 import { useShop } from "@/context/ShopContext";
 import { useInfiniteProducts } from "@/hooks/useInfiniteProducts";
 import { api } from "@/lib/api";
@@ -56,9 +57,11 @@ export default function MarkProductsPage() {
         </div>
       </div>
 
-      {loading && items.length === 0 && (
-        <p className="text-muted-foreground">{fr.loading}</p>
-      )}
+      {loading && items.length === 0 ? (
+        <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-3 lg:grid-cols-4">
+          <ProductGridSkeletons count={8} />
+        </div>
+      ) : null}
       {!loading && items.length === 0 && (
         <p className="text-muted-foreground">Aucun produit pour cette marque.</p>
       )}
