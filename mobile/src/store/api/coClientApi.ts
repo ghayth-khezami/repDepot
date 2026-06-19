@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { CoClient, PaginatedResponse, CreateCoClientDto, QueryParams } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export interface CoClientProductHistoryItem {
   id: string;
@@ -24,7 +25,7 @@ export const coClientApi = baseApi.injectEndpoints({
     getCoClients: builder.query<PaginatedResponse<CoClient>, QueryParams>({
       query: (params) => ({
         url: '/co-clients',
-        params,
+        params: { ...params, limit: clampPageSize(params?.limit) },
       }),
       providesTags: ['CoClient'],
     }),

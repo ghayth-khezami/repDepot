@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { Client, PaginatedResponse, CreateClientDto, QueryParams } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export interface ClientCommandHistoryItem {
   id: string;
@@ -23,7 +24,7 @@ export const clientApi = baseApi.injectEndpoints({
     getClients: builder.query<PaginatedResponse<Client>, QueryParams>({
       query: (params) => ({
         url: '/clients',
-        params,
+        params: { ...params, limit: clampPageSize(params?.limit) },
       }),
       providesTags: ['Client'],
     }),

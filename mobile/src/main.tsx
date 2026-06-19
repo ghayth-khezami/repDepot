@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './components/ConfirmDialog';
+import { OfflineOverlay } from './components/OfflineOverlay';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <AuthProvider>
             <ToastProvider>
               <ConfirmProvider>
+                <OfflineOverlay />
                 <App />
               </ConfirmProvider>
             </ToastProvider>

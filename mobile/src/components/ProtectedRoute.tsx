@@ -1,15 +1,19 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { WelcomeSplash } from './WelcomeSplash';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, bootstrapping } = useAuth();
+  const { isAuthenticated, bootstrapping, splashActive } = useAuth();
+
   if (bootstrapping) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-lavender-50 dark:bg-slate-950">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
-      </div>
-    );
+    return <WelcomeSplash />;
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+
+  return (
+    <>
+      {splashActive ? <WelcomeSplash /> : null}
+      {children}
+    </>
+  );
 }

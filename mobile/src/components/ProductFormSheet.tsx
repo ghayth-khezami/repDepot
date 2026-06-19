@@ -18,6 +18,7 @@ import {
 } from './mobile-forms';
 import { useToast } from '../context/ToastContext';
 import type { Product, UpdateProductDto } from '../types';
+import { PAGE_SIZE } from '../lib/pagination';
 
 type Props = {
   product?: Product | null;
@@ -28,9 +29,9 @@ type Props = {
 export function ProductFormSheet({ product, onClose, onSaved }: Props) {
   const isEdit = !!product;
   const { showToast } = useToast();
-  const { data: categories } = useGetCategoriesQuery({ page: 1, limit: 100 });
-  const { data: coClients } = useGetCoClientsQuery({ page: 1, limit: 100 });
-  const { data: marks } = useGetMarksQuery({ page: 1, limit: 100 });
+  const { data: categories } = useGetCategoriesQuery({ page: 1, limit: PAGE_SIZE });
+  const { data: coClients } = useGetCoClientsQuery({ page: 1, limit: PAGE_SIZE });
+  const { data: marks } = useGetMarksQuery({ page: 1, limit: PAGE_SIZE });
   const [createProduct, { isLoading: creating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: updating }] = useUpdateProductMutation();
 

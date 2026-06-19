@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { Category, PaginatedResponse, CreateCategoryDto, UpdateCategoryDto, QueryParams } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 function buildCategoryFormData(
   data: CreateCategoryDto | UpdateCategoryDto,
@@ -19,7 +20,7 @@ export const categoryApi = baseApi.injectEndpoints({
     getCategories: builder.query<PaginatedResponse<Category>, QueryParams>({
       query: (params) => ({
         url: '/categories',
-        params,
+        params: { ...params, limit: clampPageSize(params?.limit) },
       }),
       providesTags: ['Category'],
     }),

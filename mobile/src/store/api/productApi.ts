@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { Product, PaginatedResponse, UpdateProductDto, QueryParams } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export interface CreateProductDto {
   productName: string;
@@ -20,23 +21,17 @@ export interface CreateProductDto {
 export const productApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProducts: builder.query<PaginatedResponse<Product>, QueryParams>({
-      query: (params) => {
-        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 50);
-        return {
+      query: (params) => ({
         url: '/products/admin/list',
-        params: { ...params, limit: safeLimit },
-      };
-      },
+        params: { ...params, limit: clampPageSize(params?.limit) },
+      }),
       providesTags: ['Product'],
     }),
     getProductsInfinite: builder.query<PaginatedResponse<Product>, QueryParams>({
-      query: (params) => {
-        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 50);
-        return {
+      query: (params) => ({
         url: '/products/admin/list',
-        params: { ...params, limit: safeLimit },
-      };
-      },
+        params: { ...params, limit: clampPageSize(params?.limit) },
+      }),
       providesTags: ['Product'],
       serializeQueryArgs: ({ endpointName, queryArgs }) => {
         const { page, ...rest } = queryArgs;

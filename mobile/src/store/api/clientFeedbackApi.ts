@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { PaginatedResponse, QueryParams } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export interface ClientFeedback {
   id: string;
@@ -27,7 +28,7 @@ export const clientFeedbackApi = baseApi.injectEndpoints({
     getClientFeedbacksAdmin: builder.query<PaginatedResponse<ClientFeedback>, QueryParams>({
       query: (params) => ({
         url: '/client-feedbacks/admin',
-        params,
+        params: { ...params, limit: clampPageSize(params?.limit) },
       }),
       providesTags: ['ClientFeedback'],
     }),

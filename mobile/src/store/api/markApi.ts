@@ -1,6 +1,7 @@
 import { baseApi } from './baseApi';
 import { PaginatedResponse } from '../../types';
 import { getApiBaseUrl } from '../../lib/apiBase';
+import { clampPageSize } from '../../lib/pagination';
 
 async function uploadMark(
   path: string,
@@ -34,16 +35,22 @@ export const markApi = baseApi.injectEndpoints({
       PaginatedResponse<Mark>,
       { page?: number; limit?: number; search?: string }
     >({
-      query: ({ page = 1, limit = 10, search }) => {
-        const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      query: ({ page = 1, limit, search }) => {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(clampPageSize(limit)),
+        });
         if (search) params.set('search', search);
         return `/marks?${params.toString()}`;
       },
       providesTags: ['Mark'],
     }),
     getMarksInfinite: builder.query<PaginatedResponse<Mark>, { page?: number; limit?: number; search?: string }>({
-      query: ({ page = 1, limit = 10, search }) => {
-        const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      query: ({ page = 1, limit, search }) => {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(clampPageSize(limit)),
+        });
         if (search) params.set('search', search);
         return `/marks?${params.toString()}`;
       },

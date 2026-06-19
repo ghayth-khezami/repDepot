@@ -12,6 +12,7 @@ import { PageHeader, EmptyState } from '../components/ui';
 import { useToast } from '../context/ToastContext';
 import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue';
 import { formatTnd } from '../lib/apiBase';
+import { PAGE_SIZE } from '../lib/pagination';
 
 const statusLabel: Record<string, string> = {
   PENDING: 'En attente',
@@ -43,7 +44,7 @@ export default function DepositRequestsPage() {
 
   const { data, isLoading, isFetching } = useGetDepositRequestsQuery({
     page,
-    limit: 10,
+    limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
     status: statusFilter || undefined,
   });

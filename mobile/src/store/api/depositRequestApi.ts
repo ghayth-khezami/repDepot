@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { PaginatedResponse, QueryParams } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export interface DepositRequestItem {
   id: string;
@@ -33,7 +34,7 @@ export const depositRequestApi = baseApi.injectEndpoints({
     getDepositRequests: builder.query<PaginatedResponse<DepositRequest>, QueryParams>({
       query: (params) => ({
         url: '/deposit-requests',
-        params,
+        params: { ...params, limit: clampPageSize(params?.limit) },
       }),
       providesTags: ['DepositRequest'],
     }),

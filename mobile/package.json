@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "packageManager": "pnpm@10.27.0",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite --port 5171",
     "build": "tsc && vite build",
@@ -13,6 +15,7 @@
   "dependencies": {
     "@reduxjs/toolkit": "^2.0.1",
     "html5-qrcode": "^2.3.8",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.303.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

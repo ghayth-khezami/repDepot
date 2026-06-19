@@ -1,12 +1,13 @@
 import { baseApi } from './baseApi';
 import { User, PaginatedResponse, CreateUserDto, UpdateUserDto, QueryParams } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export const userApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getUsers: builder.query<PaginatedResponse<User>, QueryParams>({
       query: (params) => ({
         url: '/users',
-        params,
+        params: { ...params, limit: clampPageSize(params?.limit) },
       }),
       providesTags: ['User'],
     }),

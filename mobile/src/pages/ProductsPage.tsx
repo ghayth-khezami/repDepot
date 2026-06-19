@@ -15,6 +15,7 @@ import { downloadAllProductLabels } from '../lib/download';
 import type { Product } from '../types';
 import { ProductDetailSheet } from '../components/ProductDetailSheet';
 import { ProductFormSheet } from '../components/ProductFormSheet';
+import { PAGE_SIZE } from '../lib/pagination';
 
 export default function ProductsPage() {
   const [page, setPage] = useState(1);
@@ -36,10 +37,10 @@ export default function ProductsPage() {
     setItems([]);
   }, [filterKey]);
 
-  const { data: categories } = useGetCategoriesQuery({ page: 1, limit: 100 });
+  const { data: categories } = useGetCategoriesQuery({ page: 1, limit: PAGE_SIZE });
   const { data, isLoading, isFetching, refetch } = useGetProductsQuery({
     page,
-    limit: 10,
+    limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
     categoryId: categoryId || undefined,
   });

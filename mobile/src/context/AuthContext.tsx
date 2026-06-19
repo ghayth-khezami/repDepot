@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { useNavigate } from 'react-router-dom';
 import { useLazyGetMeQuery } from '../store/api/authApi';
 
+const SPLASH_MS = 2400;
+
 interface User {
   id: string;
   email: string;
@@ -16,6 +18,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   bootstrapping: boolean;
+  splashActive: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [bootstrapping, setBootstrapping] = useState(true);
+  const [splashActive, setSplashActive] = useState(false);
   const navigate = useNavigate();
   const [fetchMe] = useLazyGetMeQuery();
 
@@ -40,6 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('user');
   };
 
+  const endSplashAfter = (startedAt: number) => {
+    const wait = Math.max(0, SPLASH_MS - (Date.now() - startedAt));
+    window.setTimeout(() => setSplashActive(false), wait);
+  };
+
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     if (!storedToken) {
@@ -47,7 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setToken(storedToken);
+    setSplashActive(true);
+    const startedAt = Date.now();
     let cancelled = false;
+
     fetchMe()
       .unwrap()
       .then((res) => {
@@ -63,8 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) clearSession();
       })
       .finally(() => {
-        if (!cancelled) setBootstrapping(false);
+        if (!cancelled) {
+          setBootstrapping(false);
+          endSplashAfter(startedAt);
+        }
       });
+
     return () => {
       cancelled = true;
     };
@@ -76,10 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser);
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser));
+    setSplashActive(true);
+    endSplashAfter(Date.now());
   };
 
   const logout = () => {
     clearSession();
+    setSplashActive(false);
     navigate('/login');
   };
 
@@ -92,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         isAuthenticated: !!token && !!user,
         bootstrapping,
+        splashActive,
       }}
     >
       {children}

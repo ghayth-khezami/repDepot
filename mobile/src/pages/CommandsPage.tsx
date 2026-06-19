@@ -15,6 +15,7 @@ import { FabAdd, FieldLabel, TextInput, SelectInput, PrimaryButton, ItemActions 
 import { BottomSheet } from '../components/BottomSheet';
 import { formatTnd } from '../lib/apiBase';
 import type { Command } from '../types';
+import { PAGE_SIZE } from '../lib/pagination';
 
 export default function CommandsPage() {
   const [page, setPage] = useState(1);
@@ -29,7 +30,7 @@ export default function CommandsPage() {
   const [updateCommand] = useUpdateCommandMutation();
   const [deleteCommand] = useDeleteCommandMutation();
   const [createCommand, { isLoading: creating }] = useCreateCommandMutation();
-  const { data: clients } = useGetClientsQuery({ page: 1, limit: 100 });
+  const { data: clients } = useGetClientsQuery({ page: 1, limit: PAGE_SIZE });
 
   const [clientId, setClientId] = useState('');
   const [adresse, setAdresse] = useState('');
@@ -41,7 +42,7 @@ export default function CommandsPage() {
   useEffect(() => { setPage(1); setItems([]); }, [filterKey]);
 
   const { data, isLoading, isFetching, refetch } = useGetCommandsQuery({
-    page, limit: 10, search: debouncedSearch || undefined, status: status || undefined,
+    page, limit: PAGE_SIZE, search: debouncedSearch || undefined, status: status || undefined,
   });
 
   useEffect(() => {

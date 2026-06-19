@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { PageHeader, EmptyState } from '../components/ui';
 import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue';
 import type { PaginatedResponse } from '../types';
+import { PAGE_SIZE } from '../lib/pagination';
 
 type Props<T extends { id: string }> = {
   title: string;
@@ -34,7 +35,7 @@ export function PaginatedListPage<T extends { id: string }>({
 
   const { data, isLoading, isFetching } = useQuery({
     page,
-    limit: 10,
+    limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
   });
 

@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { PaginatedResponse, QueryParams } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export interface Command {
   id: string;
@@ -43,7 +44,7 @@ export const commandApi = baseApi.injectEndpoints({
     getCommands: builder.query<PaginatedResponse<Command>, QueryParams>({
       query: (params) => ({
         url: '/commands',
-        params,
+        params: { ...params, limit: clampPageSize(params?.limit) },
       }),
       providesTags: ['Command'],
     }),

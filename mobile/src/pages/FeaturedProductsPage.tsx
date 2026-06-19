@@ -9,6 +9,7 @@ import { PageHeader, ProductThumb, ProductPrice, EmptyState } from '../component
 import { PrimaryButton, TextInput } from '../components/mobile-forms';
 import { useToast } from '../context/ToastContext';
 import type { Product } from '../types';
+import { PAGE_SIZE } from '../lib/pagination';
 
 export default function FeaturedProductsPage() {
   const { data: featured, isLoading } = useGetFeaturedProductsQuery();
@@ -17,7 +18,7 @@ export default function FeaturedProductsPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const { showToast } = useToast();
   const [save, { isLoading: saving }] = useSetFeaturedProductsMutation();
-  const { data: searchResults } = useGetProductsQuery({ page: 1, limit: 20, search: search || undefined });
+  const { data: searchResults } = useGetProductsQuery({ page: 1, limit: PAGE_SIZE, search: search || undefined });
 
   useEffect(() => {
     if (featuredIds) setSelected(featuredIds);
