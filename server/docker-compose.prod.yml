@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: depot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: depot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U depot -d depot']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://depot:${POSTGRES_PASSWORD}@postgres:5432/depot?schema=public
+    ports:
+      - '${PORT:-3000}:3000'
+    volumes:
+      - uploads:/app/uploads
+    command: >
+      sh -c "pnpm prisma migrate deploy && node dist/main"
+
+volumes:
+  pgdata:
+  uploads:

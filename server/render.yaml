@@ -1,0 +1,35 @@
+# Render Blueprint — API only (database on Neon, free past 30 days)
+# Dashboard → New → Blueprint → connect repo → set Root Directory: server (or use this file at repo root)
+#
+# Do NOT create Render Postgres on the free tier — it expires after 30 days.
+# Create Neon first, then paste DATABASE_URL in Render env vars.
+
+services:
+  - type: web
+    name: depot-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.27.0 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm prisma generate &&
+      pnpm build
+    startCommand: pnpm prisma migrate deploy && pnpm start:prod
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: WEB_URL
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: MOBILE_URL
+        sync: false

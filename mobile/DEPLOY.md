@@ -70,6 +70,10 @@ Les fichiers statiques sont dans `mobile/dist/`.
 
 ## 4. Déployer (recommandé : Vercel)
 
+> **API + base de données :** voir `server/DEPLOY-RENDER.md`  
+> Utilisez **Neon** pour PostgreSQL (gratuit, sans expiration) + **Render** pour l’API.  
+> **Ne pas** utiliser Render Postgres gratuit — expire après **30 jours**.
+
 ### Option A — Vercel (gratuit, HTTPS obligatoire pour PWA + caméra)
 
 1. Créez un compte sur [vercel.com](https://vercel.com)
