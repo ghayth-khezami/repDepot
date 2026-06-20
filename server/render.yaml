@@ -15,7 +15,7 @@ services:
       pnpm install --frozen-lockfile &&
       pnpm prisma generate &&
       pnpm build
-    startCommand: npm run prisma:migrate:prod && npm run start:prod
+    startCommand: npm run prisma:migrate:prod && npm run seed:categories && npm run start:prod
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

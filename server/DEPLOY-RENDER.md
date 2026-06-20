@@ -59,7 +59,7 @@ pnpm create:user   # optional: create admin (see create-user script)
    | Root Directory | `server` |
    | Runtime | Node |
    | Build Command | `npm install -g pnpm@10.27.0 && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm build` |
-   | Start Command | `npm run prisma:migrate:prod && npm run start:prod` |
+   | Start Command | `npm run prisma:migrate:prod && npm run seed:categories && npm run start:prod` |
    | Plan | **Free** |
 
 3. Environment variables:
