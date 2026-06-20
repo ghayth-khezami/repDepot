@@ -18,11 +18,11 @@ type ProductSeed = {
 };
 
 const CATEGORIES = [
-  { categoryName: "Vetements", description: "Vêtements et chaussures bébé, fille et garçon." },
+  { categoryName: "Vêtements", description: "Vêtements et chaussures bébé, fille et garçon." },
   { categoryName: "Poussettes", description: "Poussettes, lits parapluie et équipement de transport bébé." },
   { categoryName: "Jouets", description: "Jouets d'éveil, éducatifs et peluches pour bébé." },
   {
-    categoryName: "Equipement maman",
+    categoryName: "Équipement maman",
     description: "Tire-lait, accessoires allaitement et équipement maman.",
   },
 ] as const;
@@ -749,15 +749,15 @@ async function main() {
     attachMockFiles(POUSSettes_PRODUCTS, POUSSettes_PHOTOS),
   );
 
-  console.log("\n👕 Vetements (20 produits)");
+  console.log("\n👕 Vêtements (20 produits)");
   await seedCategory(
-    "Vetements",
+    "Vêtements",
     attachMockFiles(VETEMENTS_PRODUCTS, VETEMENTS_PHOTOS),
   );
 
-  console.log("\n🤱 Equipement maman (20 produits)");
+  console.log("\n🤱 Équipement maman (20 produits)");
   await seedCategory(
-    "Equipement maman",
+    "Équipement maman",
     attachMockFiles(MAMAN_PRODUCTS, MAMAN_PHOTOS),
   );
 
