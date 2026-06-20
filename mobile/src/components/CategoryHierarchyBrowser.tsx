@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, FolderTree, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, FolderTree, Plus } from 'lucide-react';
 import {
   useGetCategoriesQuery,
   useCreateCategoryMutation,
@@ -32,6 +32,7 @@ import { FieldLabel, TextInput, TextArea, PrimaryButton, ItemActions } from './m
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from './ConfirmDialog';
 import { uploadUrl } from '../lib/apiBase';
+import { downloadCategoryHierarchyPdf } from '../lib/download';
 import type { Category } from '../types';
 
 type StackItem =
@@ -52,16 +53,40 @@ const LEVEL_CHILD_LABEL: Record<StackItem['level'] | 'root', string> = {
 
 export function CategoryHierarchyBrowser() {
   const [stack, setStack] = useState<StackItem[]>([]);
+  const [downloading, setDownloading] = useState(false);
+  const { showToast } = useToast();
   const current = stack[stack.length - 1] ?? null;
 
   const popTo = (index: number) => setStack((s) => s.slice(0, index));
   const goBack = () => setStack((s) => s.slice(0, -1));
+
+  const handleDownloadHierarchy = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      showToast('Génération du PDF…', 'success');
+      await downloadCategoryHierarchyPdf();
+    } catch {
+      showToast('Erreur téléchargement PDF', 'error');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="pb-6">
       <div className="mb-4 px-4 pt-4">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Catégories</h1>
         <p className="mt-1 text-sm text-gray-500">Parcourez la hiérarchie en cliquant sur chaque niveau</p>
+        <button
+          type="button"
+          disabled={downloading}
+          onClick={() => void handleDownloadHierarchy()}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary-300 py-2.5 text-sm font-semibold text-primary-700 disabled:opacity-60 dark:border-primary-700 dark:text-primary-300"
+        >
+          <Download size={16} />
+          {downloading ? 'Génération…' : 'Télécharger hiérarchie (PDF couleur)'}
+        </button>
         {stack.length > 0 ? (
           <nav className="mt-3 flex flex-wrap items-center gap-1 text-xs">
             <button type="button" onClick={() => popTo(0)} className="font-semibold text-primary-600 dark:text-primary-400">

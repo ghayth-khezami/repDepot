@@ -13,7 +13,9 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
+  Res,
 } from "@nestjs/common";
+import { Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiConsumes } from "@nestjs/swagger";
 import { diskStorage } from "multer";
@@ -29,6 +31,7 @@ import { Roles } from "../auth/roles.decorator";
 import { UserRole } from "@prisma/client";
 import { compressUploadedFile } from "../common/image-compress.util";
 import { imageFileFilter, safeImageExtension } from "../common/utils/image-upload";
+import { buildCategoryHierarchyPdf } from "../common/category-hierarchy-pdf.util";
 
 const coversDir = join(process.cwd(), "uploads", "categories");
 if (!fs.existsSync(coversDir)) {
@@ -83,6 +86,18 @@ export class CategoryController {
   @ApiResponse({ status: 200, description: "List of categories" })
   findAll(@Query() query: CategoryQueryDto) {
     return this.categoryService.findAll(query);
+  }
+
+  @Get("export/hierarchy/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Export full category hierarchy as colored PDF (admin)" })
+  async exportHierarchyPdf(@Res() res: Response) {
+    const tree = await this.categoryService.getFullHierarchy();
+    const pdf = buildCategoryHierarchyPdf(tree);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=categories-hierarchie.pdf");
+    res.send(pdf);
   }
 
   @Get(":id")

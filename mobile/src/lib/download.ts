@@ -35,3 +35,7 @@ export function downloadProductsListPdf(): Promise<void> {
 export function downloadProductsCsv(): Promise<void> {
   return downloadAuthenticatedFile('/products/export/csv', 'produits.csv');
 }
+
+export function downloadCategoryHierarchyPdf(): Promise<void> {
+  return downloadAuthenticatedFile('/categories/export/hierarchy/pdf', 'categories-hierarchie.pdf');
+}

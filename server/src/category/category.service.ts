@@ -88,4 +88,28 @@ export class CategoryService {
 
     return { message: "Category deleted successfully" };
   }
+
+  async getFullHierarchy() {
+    return this.prisma.category.findMany({
+      orderBy: { categoryName: "asc" },
+      include: {
+        subCategories: {
+          orderBy: { title: "asc" },
+          include: {
+            subSubCategories1: {
+              orderBy: { title: "asc" },
+              include: {
+                subSubCategories2: {
+                  orderBy: { title: "asc" },
+                  include: {
+                    subSubCategories3: { orderBy: { title: "asc" } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 }
