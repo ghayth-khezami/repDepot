@@ -31,7 +31,7 @@ export const subCategoryApi = baseApi.injectEndpoints({
       { page?: number; limit?: number; search?: string; categoryId?: string }
     >({
       query: ({ page = 1, limit = 10, search, categoryId }) => {
-        const safeLimit = Math.min(Math.max(Number(limit ?? 10), 1), 10);
+        const safeLimit = Math.min(Math.max(Number(limit ?? 10), 1), 100);
         const params = new URLSearchParams({ page: String(page), limit: String(safeLimit) });
         if (search) params.set('search', search);
         if (categoryId) params.set('categoryId', categoryId);

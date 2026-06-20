@@ -112,11 +112,59 @@ model SubCategory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  products Product[]
+  category           Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products           Product[]
+  subSubCategories1  SubSubCategory1[]
 
   @@index([categoryId])
   @@map("sub_categories")
+}
+
+model SubSubCategory1 {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  subCategoryId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subCategory          SubCategory          @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  subSubCategories2    SubSubCategory2[]
+  products             Product[]
+
+  @@index([subCategoryId])
+  @@map("sub_sub_categories_1")
+}
+
+model SubSubCategory2 {
+  id                String   @id @default(uuid())
+  title             String
+  description       String?
+  subSubCategory1Id String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subSubCategory1      SubSubCategory1      @relation(fields: [subSubCategory1Id], references: [id], onDelete: Cascade)
+  subSubCategories3    SubSubCategory3[]
+  products             Product[]
+
+  @@index([subSubCategory1Id])
+  @@map("sub_sub_categories_2")
+}
+
+model SubSubCategory3 {
+  id                String   @id @default(uuid())
+  title             String
+  description       String?
+  subSubCategory2Id String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subSubCategory2 SubSubCategory2 @relation(fields: [subSubCategory2Id], references: [id], onDelete: Cascade)
+  products        Product[]
+
+  @@index([subSubCategory2Id])
+  @@map("sub_sub_categories_3")
 }
 
 model Product {
@@ -139,15 +187,21 @@ model Product {
   gain          Float?   @default(0)
   isDispo       Boolean  @default(true)
   coclientId    String?
-  categoryId    String
-  subCategoryId String?
-  markId        String?
+  categoryId         String
+  subCategoryId      String?
+  subSubCategory1Id  String?
+  subSubCategory2Id  String?
+  subSubCategory3Id  String?
+  markId             String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
-  mark          Mark?        @relation(fields: [markId], references: [id], onDelete: SetNull)
+  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subCategory      SubCategory?      @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  subSubCategory1  SubSubCategory1?  @relation(fields: [subSubCategory1Id], references: [id], onDelete: SetNull)
+  subSubCategory2  SubSubCategory2?  @relation(fields: [subSubCategory2Id], references: [id], onDelete: SetNull)
+  subSubCategory3  SubSubCategory3?  @relation(fields: [subSubCategory3Id], references: [id], onDelete: SetNull)
+  mark             Mark?             @relation(fields: [markId], references: [id], onDelete: SetNull)
   coClient      CoClient?    @relation(fields: [coclientId], references: [id], onDelete: SetNull)
   photos        ProductPhoto[]
   commandDetails CommandDetail[]

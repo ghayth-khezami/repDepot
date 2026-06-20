@@ -76,10 +76,16 @@ export interface Product {
   coclientId?: string;
   categoryId: string;
   subCategoryId?: string | null;
+  subSubCategory1Id?: string | null;
+  subSubCategory2Id?: string | null;
+  subSubCategory3Id?: string | null;
   markId?: string | null;
   mark?: { id: string; name: string; logoDoc: string } | null;
   category?: { id: string; categoryName: string };
   subCategory?: { id: string; title: string };
+  subSubCategory1?: { id: string; title: string };
+  subSubCategory2?: { id: string; title: string };
+  subSubCategory3?: { id: string; title: string };
   photos?: Array<{ id: string; photoDoc: string }>;
   coClient?: { id: string; firstName: string; lastName: string };
   createdAt: string;
@@ -146,6 +152,9 @@ export interface UpdateProductDto {
   depotPercentage?: number;
   categoryId?: string;
   subCategoryId?: string;
+  subSubCategory1Id?: string;
+  subSubCategory2Id?: string;
+  subSubCategory3Id?: string;
   markId?: string;
   coclientId?: string;
   barcode?: string;

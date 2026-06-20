@@ -21,7 +21,7 @@ export class SubCategoryService {
 
   async findAll(query: SubCategoryQueryDto): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 10, search, categoryId } = query;
-    const actualLimit = Math.min(limit || 10, 10);
+    const actualLimit = Math.min(limit || 10, 100);
     const skip = (page - 1) * actualLimit;
 
     const where: Record<string, unknown> = {};

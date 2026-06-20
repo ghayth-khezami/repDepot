@@ -215,6 +215,9 @@ export class ProductService {
               title: true,
             },
           },
+          subSubCategory1: { select: { id: true, title: true } },
+          subSubCategory2: { select: { id: true, title: true } },
+          subSubCategory3: { select: { id: true, title: true } },
           mark: {
             select: {
               id: true,
@@ -289,6 +292,9 @@ export class ProductService {
             description: true,
           },
         },
+        subSubCategory1: { select: { id: true, title: true } },
+        subSubCategory2: { select: { id: true, title: true } },
+        subSubCategory3: { select: { id: true, title: true } },
         mark: {
           select: {
             id: true,

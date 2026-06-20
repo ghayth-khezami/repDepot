@@ -15,6 +15,7 @@ import './api/storeHoursApi';
 import './api/userApi';
 import './api/featuredProductApi';
 import './api/subCategoryApi';
+import './api/subSubCategoryApi';
 import './api/productPhotoApi';
 import './api/notificationApi';
 

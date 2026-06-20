@@ -16,6 +16,7 @@ import { LikesModule } from "./likes/likes.module";
 import { DepositRequestModule } from "./deposit-request/deposit-request.module";
 import { StoreHoursModule } from "./store-hours/store-hours.module";
 import { SubCategoryModule } from "./sub-category/sub-category.module";
+import { SubSubCategoryModule } from "./sub-sub-category/sub-sub-category.module";
 import { ClientFeedbackModule } from "./client-feedback/client-feedback.module";
 import { MarkModule } from "./mark/mark.module";
 import { NewsletterModule } from "./newsletter/newsletter.module";
@@ -67,6 +68,7 @@ import { HealthModule } from "./health/health.module";
     DepositRequestModule,
     StoreHoursModule,
     SubCategoryModule,
+    SubSubCategoryModule,
     ClientFeedbackModule,
     MarkModule,
     NewsletterModule,

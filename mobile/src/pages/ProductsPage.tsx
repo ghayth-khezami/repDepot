@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Download, Search } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Search } from 'lucide-react';
 import {
   useGetProductsQuery,
   useUpdateProductMutation,
@@ -10,7 +10,7 @@ import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue
 import { EmptyState, PageHeader, ProductPrice, ProductStatusBadge, ProductThumb, ProductCardSkeleton } from '../components/ui';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
-import { downloadAllProductLabels } from '../lib/download';
+import { downloadAllProductLabels, downloadProductsCsv, downloadProductsListPdf } from '../lib/download';
 import type { Product } from '../types';
 import { ProductDetailSheet } from '../components/ProductDetailSheet';
 import { ProductFormSheet } from '../components/ProductFormSheet';
@@ -103,10 +103,28 @@ export default function ProductsPage() {
 
   const handleBulkLabels = async () => {
     try {
-      showToast('Génération PDF…', 'success');
+      showToast('Génération PDF étiquettes…', 'success');
       await downloadAllProductLabels();
     } catch {
       showToast('Erreur téléchargement PDF', 'error');
+    }
+  };
+
+  const handleListPdf = async () => {
+    try {
+      showToast('Génération liste PDF…', 'success');
+      await downloadProductsListPdf();
+    } catch {
+      showToast('Erreur téléchargement PDF', 'error');
+    }
+  };
+
+  const handleCsv = async () => {
+    try {
+      showToast('Export Excel/CSV…', 'success');
+      await downloadProductsCsv();
+    } catch {
+      showToast('Erreur export CSV', 'error');
     }
   };
 
@@ -124,15 +142,33 @@ export default function ProductsPage() {
         addDisabled={formOpen}
       />
 
-      <div className="space-y-3 px-4">
+      <div className="space-y-2 px-4">
         <button
           type="button"
           onClick={() => void handleBulkLabels()}
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary-300 py-2.5 text-sm font-semibold text-primary-700 dark:border-primary-700 dark:text-primary-300"
         >
           <Download size={16} />
-          Télécharger toutes les étiquettes PDF
+          Étiquettes code-barres (PDF)
         </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => void handleListPdf()}
+            className="flex items-center justify-center gap-2 rounded-2xl border border-primary-200 py-2.5 text-sm font-semibold text-primary-700 dark:border-slate-600 dark:text-primary-300"
+          >
+            <FileText size={16} />
+            Liste PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleCsv()}
+            className="flex items-center justify-center gap-2 rounded-2xl border border-primary-200 py-2.5 text-sm font-semibold text-primary-700 dark:border-slate-600 dark:text-primary-300"
+          >
+            <FileSpreadsheet size={16} />
+            Excel / CSV
+          </button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input

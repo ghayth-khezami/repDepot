@@ -12,7 +12,7 @@ export const baseApi = createApi({
     },
   }),
   tagTypes: [
-    'User', 'Client', 'CoClient', 'Category', 'SubCategory', 'Product', 'Command',
+    'User', 'Client', 'CoClient', 'Category', 'SubCategory', 'SubSubCategory1', 'SubSubCategory2', 'SubSubCategory3', 'Product', 'Command',
     'DepositRequest', 'StoreHours', 'ClientFeedback', 'Mark', 'Newsletter', 'FeaturedProduct',
     'Notification',
   ],

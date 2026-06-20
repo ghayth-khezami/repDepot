@@ -9,7 +9,6 @@ import ScanPage from './pages/ScanPage';
 import CommandsPage from './pages/CommandsPage';
 import ProfilePage from './pages/ProfilePage';
 import CategoriesPage from './pages/CategoriesPage';
-import MarksPage from './pages/MarksPage';
 import ClientsPage from './pages/ClientsPage';
 import CoClientsPage from './pages/CoClientsPage';
 import DepositRequestsPage from './pages/DepositRequestsPage';
@@ -43,7 +42,6 @@ export default function App() {
         <Route path="commands" element={<CommandsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="categories" element={<CategoriesPage />} />
-        <Route path="marques" element={<MarksPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="co-clients" element={<CoClientsPage />} />
         <Route path="deposit-requests" element={<DepositRequestsPage />} />

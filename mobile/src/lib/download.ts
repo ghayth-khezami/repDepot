@@ -27,3 +27,11 @@ export function downloadProductLabel(productId: string, productName: string): Pr
 export function downloadAllProductLabels(): Promise<void> {
   return downloadAuthenticatedFile('/products/export/labels/pdf', 'etiquettes-code-barres.pdf');
 }
+
+export function downloadProductsListPdf(): Promise<void> {
+  return downloadAuthenticatedFile('/products/export/pdf', 'liste-produits.pdf');
+}
+
+export function downloadProductsCsv(): Promise<void> {
+  return downloadAuthenticatedFile('/products/export/csv', 'produits.csv');
+}

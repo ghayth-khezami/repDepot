@@ -24,6 +24,45 @@ export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>
   return <select {...props} className={`${inputClass} ${props.className ?? ''}`} />;
 }
 
+export function AchatDepotToggle({
+  mode,
+  onChange,
+  disabled,
+}: {
+  mode: 'achat' | 'depot';
+  onChange: (mode: 'achat' | 'depot') => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="mx-auto flex w-full max-w-xs rounded-2xl border border-primary-200 bg-primary-50/60 p-1 dark:border-slate-600 dark:bg-slate-800/60">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange('achat')}
+        className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition ${
+          mode === 'achat'
+            ? 'bg-white text-primary-700 shadow-sm dark:bg-slate-900 dark:text-primary-300'
+            : 'text-gray-500 dark:text-gray-400'
+        }`}
+      >
+        Achat
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange('depot')}
+        className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition ${
+          mode === 'depot'
+            ? 'bg-white text-primary-700 shadow-sm dark:bg-slate-900 dark:text-primary-300'
+            : 'text-gray-500 dark:text-gray-400'
+        }`}
+      >
+        Dépôt
+      </button>
+    </div>
+  );
+}
+
 export function PrimaryButton({
   children,
   loading,

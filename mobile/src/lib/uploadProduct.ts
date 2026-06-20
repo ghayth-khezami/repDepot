@@ -2,9 +2,8 @@ import { getApiOrigin } from './apiBase';
 import type { CreateProductDto } from '../store/api/productApi';
 
 export async function createProductWithPhotos(
-  data: CreateProductDto & { subCategoryId?: string; markId?: string },
+  data: CreateProductDto,
   photos: File[],
-  marqueFile?: File | null,
 ): Promise<unknown> {
   const token = localStorage.getItem('token');
   const fd = new FormData();
@@ -14,7 +13,6 @@ export async function createProductWithPhotos(
     }
   });
   photos.forEach((f) => fd.append('photos', f));
-  if (marqueFile) fd.append('marque', marqueFile);
 
   const res = await fetch(`${getApiOrigin()}/products/with-photos`, {
     method: 'POST',

@@ -175,6 +175,9 @@ export class ProductController {
       coclientId: body.coclientId || undefined,
       categoryId: body.categoryId,
       subCategoryId: body.subCategoryId || undefined,
+      subSubCategory1Id: body.subSubCategory1Id || undefined,
+      subSubCategory2Id: body.subSubCategory2Id || undefined,
+      subSubCategory3Id: body.subSubCategory3Id || undefined,
       markId: body.markId || undefined,
     };
     await compressUploadedFiles(files?.photos);

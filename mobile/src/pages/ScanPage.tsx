@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Keyboard, RotateCcw } from 'lucide-react';
+import { Keyboard, RotateCcw, Volume2 } from 'lucide-react';
 import { useLazyGetProductByBarcodeQuery, useUpdateProductMutation } from '../store/api/productApi';
 import { ProductDetailSheet } from '../components/ProductDetailSheet';
 import { PageHeader } from '../components/ui';
-import { playScanBeep, playSuccessBeep, vibrateScan } from '../lib/beep';
+import { playScanBeep, playSuccessBeep, playErrorBeep, vibrateScan, unlockAudio } from '../lib/beep';
 import { barcodeLookupCandidates, normalizeBarcodeInput } from '../lib/barcode';
 import { useToast } from '../context/ToastContext';
 import type { Product } from '../types';
 
 const SCANNER_ID = 'barcode-scanner-region';
-const SCAN_COOLDOWN_MS = 2500;
+const SCAN_COOLDOWN_MS = 1800;
 
 type LookupState = 'idle' | 'loading' | 'not_found' | 'error';
 
@@ -18,6 +18,7 @@ export default function ScanPage() {
   const [manualCode, setManualCode] = useState('');
   const [product, setProduct] = useState<Product | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
   const [lookupState, setLookupState] = useState<LookupState>('idle');
   const [lastFailedCode, setLastFailedCode] = useState('');
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -25,6 +26,7 @@ export default function ScanPage() {
   const lookupStateRef = useRef<LookupState>('idle');
   const lastScanRef = useRef('');
   const lastScanAtRef = useRef(0);
+  const resumeTimerRef = useRef<number | null>(null);
   const [fetchByBarcode] = useLazyGetProductByBarcodeQuery();
   const [updateProduct] = useUpdateProductMutation();
   const { showToast } = useToast();
@@ -33,18 +35,54 @@ export default function ScanPage() {
     lookupStateRef.current = lookupState;
   }, [lookupState]);
 
-  const pauseScanner = useCallback(() => {
-    pausedRef.current = true;
-  }, []);
+  const clearResumeTimer = () => {
+    if (resumeTimerRef.current != null) {
+      window.clearTimeout(resumeTimerRef.current);
+      resumeTimerRef.current = null;
+    }
+  };
 
   const resumeScanner = useCallback(() => {
     pausedRef.current = false;
     lastScanRef.current = '';
+    clearResumeTimer();
+  }, []);
+
+  const pauseScanner = useCallback(() => {
+    pausedRef.current = true;
+    clearResumeTimer();
+  }, []);
+
+  const scheduleAutoResume = useCallback(() => {
+    clearResumeTimer();
+    resumeTimerRef.current = window.setTimeout(() => {
+      if (!product) {
+        setLookupState('idle');
+        setLastFailedCode('');
+        resumeScanner();
+      }
+    }, 3500);
+  }, [product, resumeScanner]);
+
+  const enableAudio = useCallback(async () => {
+    await unlockAudio();
+    setAudioReady(true);
+    playScanBeep();
+  }, []);
+
+  useEffect(() => {
+    const warm = () => void unlockAudio().then(() => setAudioReady(true));
+    document.addEventListener('touchstart', warm, { once: true, passive: true });
+    document.addEventListener('click', warm, { once: true });
+    return () => {
+      document.removeEventListener('touchstart', warm);
+      document.removeEventListener('click', warm);
+    };
   }, []);
 
   const lookupCode = useCallback(
     async (code: string, fromRetry = false) => {
-      const trimmed = code.trim();
+      const trimmed = normalizeBarcodeInput(code);
       if (!trimmed) return;
 
       const now = Date.now();
@@ -52,6 +90,7 @@ export default function ScanPage() {
         return;
       }
 
+      void unlockAudio();
       pauseScanner();
       setLookupState('loading');
       setLastFailedCode(trimmed);
@@ -67,9 +106,9 @@ export default function ScanPage() {
         let result: Product | null = null;
         let lastError: unknown;
 
-        for (const code of candidates) {
+        for (const candidate of candidates) {
           try {
-            result = await fetchByBarcode(code).unwrap();
+            result = await fetchByBarcode(candidate).unwrap();
             break;
           } catch (err) {
             lastError = err;
@@ -83,11 +122,15 @@ export default function ScanPage() {
         setProduct(result);
         setLookupState('idle');
         setLastFailedCode('');
+        playSuccessBeep();
+        vibrateScan();
       } catch {
         setLookupState('not_found');
+        playErrorBeep();
+        scheduleAutoResume();
       }
     },
-    [fetchByBarcode, pauseScanner],
+    [fetchByBarcode, pauseScanner, scheduleAutoResume],
   );
 
   const handleScanDecoded = useCallback(
@@ -111,24 +154,22 @@ export default function ScanPage() {
             Html5QrcodeSupportedFormats.UPC_E,
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.QR_CODE,
           ],
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         });
         scannerRef.current = scanner;
         await scanner.start(
           { facingMode: 'environment' },
           {
-            fps: 10,
+            fps: 12,
+            disableFlip: false,
             qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const width = Math.min(viewfinderWidth * 0.88, 320);
-              const height = Math.min(viewfinderHeight * 0.38, 160);
-              return { width: Math.floor(width), height: Math.floor(height) };
+              const width = Math.floor(Math.min(viewfinderWidth * 0.94, 360));
+              const height = Math.floor(Math.min(viewfinderHeight * 0.42, 180));
+              return { width, height };
             },
-            aspectRatio: 1.777,
           },
           (decoded) => {
-            if (!cancelled) handleScanDecoded(normalizeBarcodeInput(decoded));
+            if (!cancelled) handleScanDecoded(decoded);
           },
           () => {},
         );
@@ -141,6 +182,7 @@ export default function ScanPage() {
     void start();
     return () => {
       cancelled = true;
+      clearResumeTimer();
       const s = scannerRef.current;
       scannerRef.current = null;
       if (s) {
@@ -167,16 +209,30 @@ export default function ScanPage() {
   const showFailure = lookupState === 'not_found' || lookupState === 'error';
 
   return (
-    <div className="pb-4">
+    <div className="pb-4" onClick={() => void unlockAudio()}>
       <PageHeader
         title="Scanner"
-        subtitle={cameraReady ? 'Pointez la caméra vers le code-barres' : 'Caméra indisponible — saisie manuelle'}
+        subtitle={cameraReady ? 'Alignez le code-barres dans le cadre' : 'Caméra indisponible — saisie manuelle'}
       />
 
-      <div className="relative mx-4 overflow-hidden rounded-2xl border border-primary-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div id={SCANNER_ID} className="min-h-[220px] w-full" />
+      {!audioReady ? (
+        <div className="mx-4 mb-3">
+          <button
+            type="button"
+            onClick={() => void enableAudio()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 py-2.5 text-sm font-semibold text-primary-700 dark:border-slate-600 dark:bg-slate-800 dark:text-primary-300"
+          >
+            <Volume2 size={16} />
+            Activer le son du scan
+          </button>
+        </div>
+      ) : null}
+
+      <div className="relative mx-4 overflow-hidden rounded-2xl border border-primary-100 bg-black shadow-sm dark:border-slate-700">
+        <div id={SCANNER_ID} className="min-h-[240px] w-full" />
+        <div className="pointer-events-none absolute inset-x-6 top-1/2 h-[42%] -translate-y-1/2 rounded-xl border-2 border-primary-400/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
         {lookupState === 'loading' ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
             <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
           </div>
         ) : null}
@@ -186,6 +242,9 @@ export default function ScanPage() {
         <div className="mx-4 mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
           <p className="text-center text-sm text-amber-900 dark:text-amber-100">
             Aucun produit pour « {lastFailedCode} »
+          </p>
+          <p className="mt-1 text-center text-xs text-amber-800/80 dark:text-amber-200/80">
+            Reprise automatique du scan dans quelques secondes…
           </p>
           <div className="mt-3 flex gap-2">
             <button

@@ -17,7 +17,9 @@ export interface CreateProductDto {
   coclientId?: string;
   categoryId: string;
   subCategoryId?: string;
-  markId?: string;
+  subSubCategory1Id?: string;
+  subSubCategory2Id?: string;
+  subSubCategory3Id?: string;
 }
 
 export const productApi = baseApi.injectEndpoints({

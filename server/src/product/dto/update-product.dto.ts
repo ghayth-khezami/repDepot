@@ -100,6 +100,21 @@ export class UpdateProductDto {
   @IsString()
   subCategoryId?: string;
 
+  @ApiPropertyOptional({ description: "Sub-sub-category level 1 ID", example: "uuid" })
+  @IsOptional()
+  @IsString()
+  subSubCategory1Id?: string;
+
+  @ApiPropertyOptional({ description: "Sub-sub-category level 2 ID", example: "uuid" })
+  @IsOptional()
+  @IsString()
+  subSubCategory2Id?: string;
+
+  @ApiPropertyOptional({ description: "Sub-sub-category level 3 ID", example: "uuid" })
+  @IsOptional()
+  @IsString()
+  subSubCategory3Id?: string;
+
   @ApiPropertyOptional({ description: "Catalog mark ID", example: "uuid" })
   @IsOptional()
   @IsString()

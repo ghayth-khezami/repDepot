@@ -2,7 +2,6 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Heart,
   FolderTree,
-  Award,
   Users,
   FileText,
   Clock,
@@ -19,7 +18,6 @@ import { useTheme } from '../context/ThemeContext';
 const links = [
   { to: '/coups-de-coeur', label: 'Coups de cœur', icon: Heart },
   { to: '/categories', label: 'Catégories', icon: FolderTree },
-  { to: '/marques', label: 'Marques', icon: Award },
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/co-clients', label: 'Déposants', icon: Users },
   { to: '/deposit-requests', label: 'Demandes dépôt', icon: FileText },
