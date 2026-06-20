@@ -33,6 +33,7 @@ import { useToast } from '../context/ToastContext';
 import { useConfirm } from './ConfirmDialog';
 import { uploadUrl } from '../lib/apiBase';
 import { downloadCategoryHierarchyPdf } from '../lib/download';
+import { useInfinitePaginatedQuery } from '../hooks/usePaginatedList';
 import type { Category } from '../types';
 
 type StackItem =
@@ -85,7 +86,7 @@ export function CategoryHierarchyBrowser() {
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary-300 py-2.5 text-sm font-semibold text-primary-700 disabled:opacity-60 dark:border-primary-700 dark:text-primary-300"
         >
           <Download size={16} />
-          {downloading ? 'Génération…' : 'Télécharger hiérarchie (PDF couleur)'}
+          {downloading ? 'Génération…' : 'Télécharger hiérarchie (PDF)'}
         </button>
         {stack.length > 0 ? (
           <nav className="mt-3 flex flex-wrap items-center gap-1 text-xs">
@@ -154,6 +155,7 @@ function ChildSection({
   loading,
   empty,
   children,
+  footer,
 }: {
   title: string;
   count: number;
@@ -163,6 +165,7 @@ function ChildSection({
   loading?: boolean;
   empty: string;
   children: React.ReactNode;
+  footer?: React.ReactNode;
 }) {
   return (
     <div className="px-4">
@@ -185,7 +188,10 @@ function ChildSection({
       ) : count === 0 ? (
         <p className="rounded-2xl border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400 dark:border-slate-700">{empty}</p>
       ) : (
-        <ul className="space-y-2">{children}</ul>
+        <>
+          <ul className="space-y-2">{children}</ul>
+          {footer}
+        </>
       )}
     </div>
   );
@@ -228,11 +234,14 @@ function CategoryRootLevel({ onOpen }: { onOpen: (item: StackItem) => void }) {
   const [coverFiles, setCoverFiles] = useState<File[]>([]);
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const { data, isLoading } = useGetCategoriesQuery({ page: 1, limit: 100 });
+  const { items, total, isLoading, isFetching, sentinelRef } = useInfinitePaginatedQuery(
+    useGetCategoriesQuery,
+    {},
+    'root',
+  );
   const [createCategory, { isLoading: creating }] = useCreateCategoryMutation();
   const [updateCategory, { isLoading: updating }] = useUpdateCategoryMutation();
   const [deleteCategory] = useDeleteCategoryMutation();
-  const items = data?.data ?? [];
 
   const openCreate = () => {
     setEdit(null);
@@ -259,12 +268,20 @@ function CategoryRootLevel({ onOpen }: { onOpen: (item: StackItem) => void }) {
     <>
       <ChildSection
         title="Catégories"
-        count={items.length}
+        count={total}
         onAdd={openCreate}
         addLabel="Catégorie"
         addDisabled={formOpen}
         loading={isLoading}
         empty="Aucune catégorie — ajoutez la première."
+        footer={
+          <>
+            <div ref={sentinelRef} className="h-4" />
+            {isFetching && items.length > 0 ? (
+              <p className="py-2 text-center text-xs text-gray-400">Chargement…</p>
+            ) : null}
+          </>
+        }
       >
         {items.map((c) => (
           <DrillRow
@@ -312,11 +329,14 @@ function SubCategoryLevel({
   const [description, setDescription] = useState('');
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const { data, isLoading } = useGetSubCategoriesQuery({ page: 1, limit: 100, categoryId });
+  const { items, total, isLoading, isFetching, sentinelRef } = useInfinitePaginatedQuery(
+    useGetSubCategoriesQuery,
+    { categoryId },
+    categoryId,
+  );
   const [createSub, { isLoading: creating }] = useCreateSubCategoryMutation();
   const [updateSub, { isLoading: updating }] = useUpdateSubCategoryMutation();
   const [deleteSub] = useDeleteSubCategoryMutation();
-  const items = data?.data ?? [];
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,12 +365,20 @@ function SubCategoryLevel({
       </div>
       <ChildSection
         title={LEVEL_CHILD_LABEL.category}
-        count={items.length}
+        count={total}
         onAdd={() => { setEditId(null); setTitle(''); setDescription(''); setFormOpen(true); }}
         addLabel="Sous-cat."
         addDisabled={formOpen}
         loading={isLoading}
         empty="Aucune sous-catégorie — ajoutez-en une."
+        footer={
+          <>
+            <div ref={sentinelRef} className="h-4" />
+            {isFetching && items.length > 0 ? (
+              <p className="py-2 text-center text-xs text-gray-400">Chargement…</p>
+            ) : null}
+          </>
+        }
       >
         {items.map((s) => (
           <DrillRow
@@ -395,11 +423,14 @@ function Ss1Level({
   const [description, setDescription] = useState('');
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const { data, isLoading } = useGetSubSubCategories1Query({ page: 1, limit: 100, subCategoryId: parent.id });
+  const { items, total, isLoading, isFetching, sentinelRef } = useInfinitePaginatedQuery(
+    useGetSubSubCategories1Query,
+    { subCategoryId: parent.id },
+    parent.id,
+  );
   const [create, { isLoading: creating }] = useCreateSubSubCategory1Mutation();
   const [update, { isLoading: updating }] = useUpdateSubSubCategory1Mutation();
   const [remove] = useDeleteSubSubCategory1Mutation();
-  const items = data?.data ?? [];
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -420,12 +451,20 @@ function Ss1Level({
       <CurrentNodeCard label="Sous-catégorie" title={parent.label} />
       <ChildSection
         title={LEVEL_CHILD_LABEL.subCategory}
-        count={items.length}
+        count={total}
         onAdd={() => { setEditId(null); setTitle(''); setDescription(''); setFormOpen(true); }}
         addLabel="SS-cat. 1"
         addDisabled={formOpen}
         loading={isLoading}
         empty="Aucune SS-cat. 1 — ajoutez-en une."
+        footer={
+          <>
+            <div ref={sentinelRef} className="h-4" />
+            {isFetching && items.length > 0 ? (
+              <p className="py-2 text-center text-xs text-gray-400">Chargement…</p>
+            ) : null}
+          </>
+        }
       >
         {items.map((row) => (
           <DrillRow
@@ -470,11 +509,14 @@ function Ss2Level({
   const [description, setDescription] = useState('');
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const { data, isLoading } = useGetSubSubCategories2Query({ page: 1, limit: 100, subSubCategory1Id: parent.id });
+  const { items, total, isLoading, isFetching, sentinelRef } = useInfinitePaginatedQuery(
+    useGetSubSubCategories2Query,
+    { subSubCategory1Id: parent.id },
+    parent.id,
+  );
   const [create, { isLoading: creating }] = useCreateSubSubCategory2Mutation();
   const [update, { isLoading: updating }] = useUpdateSubSubCategory2Mutation();
   const [remove] = useDeleteSubSubCategory2Mutation();
-  const items = data?.data ?? [];
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -495,12 +537,20 @@ function Ss2Level({
       <CurrentNodeCard label="SS-catégorie 1" title={parent.label} />
       <ChildSection
         title={LEVEL_CHILD_LABEL.ss1}
-        count={items.length}
+        count={total}
         onAdd={() => { setEditId(null); setTitle(''); setDescription(''); setFormOpen(true); }}
         addLabel="SS-cat. 2"
         addDisabled={formOpen}
         loading={isLoading}
         empty="Aucune SS-cat. 2 — ajoutez-en une."
+        footer={
+          <>
+            <div ref={sentinelRef} className="h-4" />
+            {isFetching && items.length > 0 ? (
+              <p className="py-2 text-center text-xs text-gray-400">Chargement…</p>
+            ) : null}
+          </>
+        }
       >
         {items.map((row) => (
           <DrillRow
@@ -545,11 +595,14 @@ function Ss3Level({
   const [description, setDescription] = useState('');
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const { data, isLoading } = useGetSubSubCategories3Query({ page: 1, limit: 100, subSubCategory2Id: parent.id });
+  const { items, total, isLoading, isFetching, sentinelRef } = useInfinitePaginatedQuery(
+    useGetSubSubCategories3Query,
+    { subSubCategory2Id: parent.id },
+    parent.id,
+  );
   const [create, { isLoading: creating }] = useCreateSubSubCategory3Mutation();
   const [update, { isLoading: updating }] = useUpdateSubSubCategory3Mutation();
   const [remove] = useDeleteSubSubCategory3Mutation();
-  const items = data?.data ?? [];
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -570,12 +623,20 @@ function Ss3Level({
       <CurrentNodeCard label="SS-catégorie 2" title={parent.label} />
       <ChildSection
         title={LEVEL_CHILD_LABEL.ss2}
-        count={items.length}
+        count={total}
         onAdd={() => { setEditId(null); setTitle(''); setDescription(''); setFormOpen(true); }}
         addLabel="SS-cat. 3"
         addDisabled={formOpen}
         loading={isLoading}
         empty="Aucune SS-cat. 3 — ajoutez-en une."
+        footer={
+          <>
+            <div ref={sentinelRef} className="h-4" />
+            {isFetching && items.length > 0 ? (
+              <p className="py-2 text-center text-xs text-gray-400">Chargement…</p>
+            ) : null}
+          </>
+        }
       >
         {items.map((row) => (
           <DrillRow
@@ -611,8 +672,12 @@ function Ss3DetailLevel({ item, onBack }: { item: Extract<StackItem, { level: 's
   const [description, setDescription] = useState('');
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const { data } = useGetSubSubCategories3Query({ page: 1, limit: 100, subSubCategory2Id: item.subSubCategory2Id });
-  const row = useMemo(() => data?.data.find((r) => r.id === item.id), [data, item.id]);
+  const { items } = useInfinitePaginatedQuery(
+    useGetSubSubCategories3Query,
+    { subSubCategory2Id: item.subSubCategory2Id },
+    item.id,
+  );
+  const row = useMemo(() => items.find((r) => r.id === item.id), [items, item.id]);
   const [update, { isLoading: updating }] = useUpdateSubSubCategory3Mutation();
   const [remove] = useDeleteSubSubCategory3Mutation();
 

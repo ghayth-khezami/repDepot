@@ -26,6 +26,7 @@ import {
   registerPushSubscription,
   showSystemNotification,
 } from '../lib/pushNotifications';
+import { PAGE_SIZE } from '../lib/pagination';
 
 type NotificationContextValue = {
   unreadCount: number;
@@ -58,7 +59,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const socketRef = useRef<Socket | null>(null);
 
   const { data: listData, refetch: refetchList } = useGetNotificationsQuery(
-    { page: 1, limit: 30 },
+    { page: 1, limit: PAGE_SIZE },
     { skip: !isAuthenticated },
   );
   const { data: unreadData, refetch: refetchUnread } = useGetUnreadCountQuery(undefined, {

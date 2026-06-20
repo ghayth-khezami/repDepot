@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { PaginatedResponse } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export interface SubSubCategory1 {
   id: string;
@@ -61,8 +62,8 @@ export const subSubCategoryApi = baseApi.injectEndpoints({
       PaginatedResponse<SubSubCategory1>,
       { page?: number; limit?: number; search?: string; subCategoryId?: string }
     >({
-      query: ({ page = 1, limit = 100, search, subCategoryId }) =>
-        `/sub-sub-categories-1?${buildParams({ page, limit, search, subCategoryId })}`,
+      query: ({ page = 1, limit = 10, search, subCategoryId }) =>
+        `/sub-sub-categories-1?${buildParams({ page, limit: clampPageSize(limit), search, subCategoryId })}`,
       providesTags: ['SubSubCategory1'],
     }),
     createSubSubCategory1: builder.mutation<
@@ -88,8 +89,8 @@ export const subSubCategoryApi = baseApi.injectEndpoints({
       PaginatedResponse<SubSubCategory2>,
       { page?: number; limit?: number; search?: string; subSubCategory1Id?: string }
     >({
-      query: ({ page = 1, limit = 100, search, subSubCategory1Id }) =>
-        `/sub-sub-categories-2?${buildParams({ page, limit, search, subSubCategory1Id })}`,
+      query: ({ page = 1, limit = 10, search, subSubCategory1Id }) =>
+        `/sub-sub-categories-2?${buildParams({ page, limit: clampPageSize(limit), search, subSubCategory1Id })}`,
       providesTags: ['SubSubCategory2'],
     }),
     createSubSubCategory2: builder.mutation<
@@ -115,8 +116,8 @@ export const subSubCategoryApi = baseApi.injectEndpoints({
       PaginatedResponse<SubSubCategory3>,
       { page?: number; limit?: number; search?: string; subSubCategory2Id?: string }
     >({
-      query: ({ page = 1, limit = 100, search, subSubCategory2Id }) =>
-        `/sub-sub-categories-3?${buildParams({ page, limit, search, subSubCategory2Id })}`,
+      query: ({ page = 1, limit = 10, search, subSubCategory2Id }) =>
+        `/sub-sub-categories-3?${buildParams({ page, limit: clampPageSize(limit), search, subSubCategory2Id })}`,
       providesTags: ['SubSubCategory3'],
     }),
     createSubSubCategory3: builder.mutation<

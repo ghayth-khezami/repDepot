@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi';
+import { clampPageSize } from '../../lib/pagination';
 
 export type AppNotification = {
   id: string;
@@ -17,8 +18,8 @@ export const notificationApi = baseApi.injectEndpoints({
       { data: AppNotification[]; meta: { unreadCount: number; total: number } },
       { page?: number; limit?: number }
     >({
-      query: ({ page = 1, limit = 20 }) =>
-        `/notifications?page=${page}&limit=${limit}`,
+      query: ({ page = 1, limit = 10 }) =>
+        `/notifications?page=${page}&limit=${clampPageSize(limit)}`,
       providesTags: ['Notification'],
     }),
     getUnreadCount: builder.query<{ count: number }, void>({

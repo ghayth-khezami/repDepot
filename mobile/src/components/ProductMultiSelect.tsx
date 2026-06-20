@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
-import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDebouncedValue, useInfiniteScroll } from '../hooks/useDebouncedValue';
 import { useGetProductsQuery } from '../store/api/productApi';
+import { PAGE_SIZE } from '../lib/pagination';
 import { ProductPrice, ProductThumb } from './ui';
 import type { Product } from '../types';
 
@@ -14,15 +15,37 @@ type Props = {
 export function ProductMultiSelect({ selected, onChange, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [loadedProducts, setLoadedProducts] = useState<Product[]>([]);
   const debouncedSearch = useDebouncedValue(search, 300);
 
+  useEffect(() => {
+    setPage(1);
+    setLoadedProducts([]);
+  }, [debouncedSearch, open]);
+
   const { data, isFetching } = useGetProductsQuery(
-    { page: 1, limit: 50, search: debouncedSearch || undefined, isDispo: true },
+    { page, limit: PAGE_SIZE, search: debouncedSearch || undefined, isDispo: true },
     { skip: !open },
   );
 
+  useEffect(() => {
+    if (!open || !data?.data) return;
+    setLoadedProducts((prev) => {
+      if (page === 1) return data.data;
+      const ids = new Set(prev.map((p) => p.id));
+      return [...prev, ...data.data.filter((p) => !ids.has(p.id))];
+    });
+  }, [data, page, open]);
+
+  const hasMore = open && data ? data.meta.page < data.meta.totalPages : false;
+  const loadMore = useCallback(() => {
+    if (hasMore && !isFetching) setPage((p) => p + 1);
+  }, [hasMore, isFetching]);
+  const sentinelRef = useInfiniteScroll(loadMore, hasMore, isFetching);
+
   const pickerProducts = useMemo(() => {
-    const available = (data?.data ?? []).filter((p) => p.isDispo !== false && p.stockQuantity > 0);
+    const available = loadedProducts.filter((p) => p.isDispo !== false && p.stockQuantity > 0);
     const selectedIds = new Set(selected.map((p) => p.id));
     const merged = [...selected];
     for (const p of available) {
@@ -36,7 +59,7 @@ export function ProductMultiSelect({ selected, onChange, disabled }: Props) {
         (p.barcode ?? '').includes(q) ||
         p.category?.categoryName?.toLowerCase().includes(q),
     );
-  }, [data?.data, selected, debouncedSearch]);
+  }, [loadedProducts, selected, debouncedSearch]);
 
   const toggle = (product: Product) => {
     const exists = selected.some((p) => p.id === product.id);
@@ -139,6 +162,10 @@ export function ProductMultiSelect({ selected, onChange, disabled }: Props) {
                 );
               })
             )}
+            <div ref={sentinelRef} className="h-4" />
+            {isFetching && pickerProducts.length > 0 ? (
+              <li className="py-2 text-center text-xs text-gray-400">Chargement…</li>
+            ) : null}
           </ul>
         </div>
       ) : null}

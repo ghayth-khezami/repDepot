@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi';
 import { PaginatedResponse } from '../../types';
+import { clampPageSize } from '../../lib/pagination';
 
 export interface SubCategory {
   id: string;
@@ -31,8 +32,7 @@ export const subCategoryApi = baseApi.injectEndpoints({
       { page?: number; limit?: number; search?: string; categoryId?: string }
     >({
       query: ({ page = 1, limit = 10, search, categoryId }) => {
-        const safeLimit = Math.min(Math.max(Number(limit ?? 10), 1), 100);
-        const params = new URLSearchParams({ page: String(page), limit: String(safeLimit) });
+        const params = new URLSearchParams({ page: String(page), limit: String(clampPageSize(limit)) });
         if (search) params.set('search', search);
         if (categoryId) params.set('categoryId', categoryId);
         return `/sub-categories?${params.toString()}`;
