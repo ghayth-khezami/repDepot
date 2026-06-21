@@ -8,7 +8,7 @@ Stack: **NestJS API on Render** · **PostgreSQL on Neon (free, no 30-day expiry)
 |-------|---------|---------------|--------|
 | **Database** | **Neon** | **Yes** | 0.5 GB storage; wakes in ~1–2 s after idle |
 | **API** | Render free web service | Yes | **Sleeps** after ~15 min idle → first request ~30–60 s |
-| **Uploads** (`server/uploads/`) | Render free disk | Ephemeral | **Lost on redeploy/restart** — see §5 |
+| **Uploads** | **Cloudinary** (CDN) | Permanent | Set `CLOUDINARY_*` env vars on Render — see §5 |
 | **Mobile PWA** | Vercel | Yes | HTTPS required for camera + install |
 
 **Do not use Render free PostgreSQL** — it **expires after 30 days** and data is deleted. Neon is the free long-term DB for this setup.
@@ -149,20 +149,35 @@ In [Google Cloud Console](https://console.cloud.google.com) → APIs & Credentia
 
 ---
 
-## Part 5 — Uploads on Render free
+## Part 5 — Images (Cloudinary)
 
-`server/uploads/` is **not** in git (`.gitignore`). On Render free:
+All product, category, mark and deposit photos are stored on **[Cloudinary](https://cloudinary.com)** (free tier: ~25 GB bandwidth/mo, permanent CDN URLs). Nothing is saved on Render disk anymore.
 
-- Disk is **ephemeral** — uploads disappear on redeploy or restart.
-- Existing catalog images on your PC are **not** deployed automatically.
+### Render environment variables
 
-**Options:**
+In Render → **depot-api** → **Environment**, add:
 
-1. **Re-upload** product/brand images via backoffice after deploy.
-2. **Render persistent disk** (~$0.25/GB/mo) — mount at `/app/uploads`.
-3. Later: **Cloudflare R2** (10 GB free tier) for production files.
+| Key | Value |
+|-----|-------|
+| `CLOUDINARY_CLOUD_NAME` | Your cloud name (e.g. `dbuausvwz`) |
+| `CLOUDINARY_API_KEY` | From Cloudinary → API Keys |
+| `CLOUDINARY_API_SECRET` | From Cloudinary → API Keys (click to reveal) |
+| `CLOUDINARY_FOLDER` | `bebe-depot` (optional root folder) |
 
-For admin mobile scanner + orders, DB on Neon is fine; plan for image storage separately.
+Redeploy after saving. New uploads return URLs like `https://res.cloudinary.com/...` — mobile, web and admin display them directly (no `/uploads` on the server).
+
+### Local development
+
+Copy the same keys into `server/.env`:
+
+```env
+CLOUDINARY_CLOUD_NAME=dbuausvwz
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+CLOUDINARY_FOLDER=bebe-depot
+```
+
+Legacy `/uploads/...` paths in the DB still work until you re-upload; new photos always go to Cloudinary.
 
 ---
 

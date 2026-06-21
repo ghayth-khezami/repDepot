@@ -9,6 +9,7 @@ import {
   UploadedFile,
   UploadedFiles,
   UseInterceptors,
+  BadRequestException,
 } from "@nestjs/common";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import {
@@ -23,10 +24,10 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { UserRole } from "@prisma/client";
-import { diskStorage } from "multer";
-import { extname, join } from "path";
-import * as fs from "fs";
-import { compressUploadedFile, compressUploadedFiles } from "../common/image-compress.util";
+import { memoryImageUpload } from "../common/utils/image-upload";
+import { CloudinaryService } from "../cloudinary/cloudinary.service";
+
+const productUpload = memoryImageUpload({ fileSize: 5 * 1024 * 1024 });
 
 @ApiTags("product-photos")
 @ApiBearerAuth()
@@ -34,140 +35,64 @@ import { compressUploadedFile, compressUploadedFiles } from "../common/image-com
 @Roles(UserRole.ADMIN)
 @Controller("product-photos")
 export class ProductPhotoController {
-  constructor(private readonly productPhotoService: ProductPhotoService) {}
-
-  // Ensure uploads directory exists
-  private ensureUploadsDir() {
-    const uploadsDir = join(process.cwd(), "uploads");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-  }
+  constructor(
+    private readonly productPhotoService: ProductPhotoService,
+    private readonly cloudinary: CloudinaryService,
+  ) {}
 
   @Post("upload")
-  @UseInterceptors(
-    FileInterceptor("file", {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const uploadsDir = join(process.cwd(), "uploads");
-          if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
-          }
-          cb(null, uploadsDir);
-        },
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + "-" + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `product-${uniqueSuffix}${ext}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
-          cb(null, true);
-        } else {
-          cb(new Error("Only image files are allowed"), false);
-        }
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("file", productUpload))
   @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {
       type: "object",
       properties: {
-        file: {
-          type: "string",
-          format: "binary",
-        },
-        productId: {
-          type: "string",
-        },
+        file: { type: "string", format: "binary" },
+        productId: { type: "string" },
       },
     },
   })
-  @ApiOperation({ summary: "Upload a photo for a product" })
+  @ApiOperation({ summary: "Upload a photo for a product (Cloudinary)" })
   async uploadPhoto(
     @UploadedFile() file: Express.Multer.File,
     @Body("productId") productId: string,
   ) {
-    if (!file) {
-      throw new Error("No file uploaded");
-    }
-    await compressUploadedFile(file);
-    const filePath = `/uploads/${file.filename}`;
-    return this.productPhotoService.create(productId, filePath);
+    if (!file) throw new BadRequestException("No file uploaded");
+    const url = await this.cloudinary.uploadFile(file, "products");
+    return this.productPhotoService.create(productId, url);
   }
 
   @Post("upload-multiple")
-  @UseInterceptors(
-    FilesInterceptor("files", 20, {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const uploadsDir = join(process.cwd(), "uploads");
-          if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
-          }
-          cb(null, uploadsDir);
-        },
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + "-" + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `product-${uniqueSuffix}${ext}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
-          cb(null, true);
-        } else {
-          cb(new Error("Only image files are allowed"), false);
-        }
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024,
-      },
-    }),
-  )
+  @UseInterceptors(FilesInterceptor("files", 20, productUpload))
   @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {
       type: "object",
       properties: {
-        files: {
-          type: "array",
-          items: {
-            type: "string",
-            format: "binary",
-          },
-        },
-        productId: {
-          type: "string",
-        },
+        files: { type: "array", items: { type: "string", format: "binary" } },
+        productId: { type: "string" },
       },
     },
   })
-  @ApiOperation({ summary: "Upload multiple photos for a product" })
+  @ApiOperation({ summary: "Upload multiple photos for a product (Cloudinary)" })
   async uploadMultiplePhotos(
     @UploadedFiles() files: Express.Multer.File[],
     @Body("productId") productId: string,
   ) {
-    if (!files?.length) {
-      throw new Error("No files uploaded");
-    }
-    await compressUploadedFiles(files);
-    const filePaths = files.map((file) => `/uploads/${file.filename}`);
-    await this.productPhotoService.createMany(productId, filePaths);
+    if (!files?.length) throw new BadRequestException("No files uploaded");
+    const urls = await this.cloudinary.uploadFiles(files, "products");
+    await this.productPhotoService.createMany(productId, urls);
     return this.productPhotoService.findByProduct(productId);
   }
 
   @Post()
-  @ApiOperation({ summary: "Add photos to a product (legacy base64 method)" })
+  @ApiOperation({ summary: "Add photos to a product (legacy URL list)" })
   async create(@Body() body: { productId: string; photoDocs: string[] }) {
-    return this.productPhotoService.createMany(body.productId, body.photoDocs);
+    const urls = (body.photoDocs ?? []).filter((u) => u.startsWith("http"));
+    if (!urls.length) {
+      throw new BadRequestException("photoDocs must be Cloudinary HTTPS URLs");
+    }
+    return this.productPhotoService.createMany(body.productId, urls);
   }
 
   @Get("product/:productId")

@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { extname } from "path";
+import { memoryStorage } from "multer";
 
 const ALLOWED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
 const ALLOWED_IMAGE_MIMES = new Set([
@@ -24,4 +25,16 @@ export function imageFileFilter(
 export function safeImageExtension(originalname: string): string {
   const ext = extname(originalname).toLowerCase();
   return ALLOWED_IMAGE_EXTENSIONS.has(ext) ? ext : ".jpg";
+}
+
+/** Multer memory storage — files go to Cloudinary, not disk. */
+export function memoryImageUpload(limits?: { fileSize?: number; files?: number }) {
+  return {
+    storage: memoryStorage(),
+    limits: {
+      fileSize: limits?.fileSize ?? 6 * 1024 * 1024,
+      files: limits?.files,
+    },
+    fileFilter: imageFileFilter,
+  };
 }

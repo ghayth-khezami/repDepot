@@ -15,34 +15,23 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { UserRole } from "@prisma/client";
-import { diskStorage } from "multer";
-import { extname, join } from "path";
-import * as fs from "fs";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { MarkQueryDto } from "./dto/mark-query.dto";
 import { MarkService } from "./mark.service";
-import { compressUploadedFile } from "../common/image-compress.util";
-import { imageFileFilter, safeImageExtension } from "../common/utils/image-upload";
+import { memoryImageUpload } from "../common/utils/image-upload";
+import { CloudinaryService } from "../cloudinary/cloudinary.service";
 
-const marksDir = join(process.cwd(), "uploads", "marks");
-if (!fs.existsSync(marksDir)) {
-  fs.mkdirSync(marksDir, { recursive: true });
-}
-
-const logoStorage = diskStorage({
-  destination: (_req, _file, cb) => cb(null, marksDir),
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `mark-${unique}${safeImageExtension(file.originalname)}`);
-  },
-});
+const logoUpload = memoryImageUpload({ fileSize: 5 * 1024 * 1024 });
 
 @ApiTags("marks")
 @Controller("marks")
 export class MarkController {
-  constructor(private readonly markService: MarkService) {}
+  constructor(
+    private readonly markService: MarkService,
+    private readonly cloudinary: CloudinaryService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "List marks (paginated)" })
@@ -65,11 +54,9 @@ export class MarkController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @UseInterceptors(
-    FileInterceptor("logo", { storage: logoStorage, fileFilter: imageFileFilter, limits: { fileSize: 5 * 1024 * 1024 } }),
-  )
+  @UseInterceptors(FileInterceptor("logo", logoUpload))
   @ApiConsumes("multipart/form-data")
-  @ApiOperation({ summary: "Create mark with logo (admin)" })
+  @ApiOperation({ summary: "Create mark with logo (admin, Cloudinary)" })
   async create(
     @Body() body: Record<string, string>,
     @UploadedFile() file?: Express.Multer.File,
@@ -77,9 +64,10 @@ export class MarkController {
     const name = body.name?.trim();
     if (!name) throw new BadRequestException("name is required");
     if (!file) throw new BadRequestException("logo file is required");
+    const logoDoc = await this.cloudinary.uploadFile(file, "marks");
     return this.markService.create({
       name,
-      logoDoc: `/uploads/marks/${file.filename}`,
+      logoDoc,
       sortOrder: body.sortOrder ? Number(body.sortOrder) : 0,
     });
   }
@@ -87,11 +75,9 @@ export class MarkController {
   @Patch(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @UseInterceptors(
-    FileInterceptor("logo", { storage: logoStorage, fileFilter: imageFileFilter, limits: { fileSize: 5 * 1024 * 1024 } }),
-  )
+  @UseInterceptors(FileInterceptor("logo", logoUpload))
   @ApiConsumes("multipart/form-data")
-  @ApiOperation({ summary: "Update mark (admin)" })
+  @ApiOperation({ summary: "Update mark (admin, Cloudinary)" })
   async update(
     @Param("id") id: string,
     @Body() body: Record<string, string>,
@@ -101,8 +87,9 @@ export class MarkController {
     if (body.name?.trim()) data.name = body.name.trim();
     if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
     if (file) {
-      await compressUploadedFile(file);
-      data.logoDoc = `/uploads/marks/${file.filename}`;
+      const existing = await this.markService.findOne(id);
+      await this.cloudinary.deleteByUrl(existing.logoDoc);
+      data.logoDoc = await this.cloudinary.uploadFile(file, "marks");
     }
     return this.markService.update(id, data);
   }

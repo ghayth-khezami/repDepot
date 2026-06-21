@@ -45,19 +45,23 @@ import {
   FileInterceptor,
   FilesInterceptor,
 } from "@nestjs/platform-express";
-import { diskStorage } from "multer";
-import { extname } from "path";
-import { compressUploadedFile, compressUploadedFiles } from "../common/image-compress.util";
 import {
   buildProductLabelsPdf,
   buildSingleProductLabelPdf,
 } from "../common/barcode-label.util";
+import { memoryImageUpload } from "../common/utils/image-upload";
+import { CloudinaryService } from "../cloudinary/cloudinary.service";
+
+const productPhotoUpload = memoryImageUpload({ fileSize: 5 * 1024 * 1024 });
 
 @ApiTags("products")
 @ApiBearerAuth()
 @Controller("products")
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly cloudinary: CloudinaryService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -77,43 +81,7 @@ export class ProductController {
         { name: "photos", maxCount: 20 },
         { name: "marque", maxCount: 1 },
       ],
-      {
-        storage: diskStorage({
-          destination: (req, file, cb) => {
-            if (file.fieldname === "marque") {
-              const brandsDir = join(process.cwd(), "uploads", "brands");
-              if (!fs.existsSync(brandsDir)) {
-                fs.mkdirSync(brandsDir, { recursive: true });
-              }
-              cb(null, brandsDir);
-              return;
-            }
-            const uploadsDir = join(process.cwd(), "uploads");
-            if (!fs.existsSync(uploadsDir)) {
-              fs.mkdirSync(uploadsDir, { recursive: true });
-            }
-            cb(null, uploadsDir);
-          },
-          filename: (req, file, cb) => {
-            const uniqueSuffix =
-              Date.now() + "-" + Math.round(Math.random() * 1e9);
-            const ext = extname(file.originalname);
-            const prefix =
-              file.fieldname === "marque" ? "marque-" : "product-";
-            cb(null, `${prefix}${uniqueSuffix}${ext}`);
-          },
-        }),
-        limits: {
-          fileSize: 5 * 1024 * 1024,
-        },
-        fileFilter: (req, file, cb) => {
-          if (file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-            cb(null, true);
-          } else {
-            cb(new Error("Only image files are allowed"), false);
-          }
-        },
-      },
+      productPhotoUpload,
     ),
   )
   @ApiConsumes("multipart/form-data")
@@ -143,7 +111,7 @@ export class ProductController {
         marque: {
           type: "string",
           format: "binary",
-          description: "Optional brand / marque logo (saved under uploads/brands)",
+          description: "Optional brand / marque logo (Cloudinary)",
         },
       },
       required: ["productName", "PrixVente", "stockQuantity", "isDepot", "categoryId"],
@@ -180,15 +148,13 @@ export class ProductController {
       subSubCategory3Id: body.subSubCategory3Id || undefined,
       markId: body.markId || undefined,
     };
-    await compressUploadedFiles(files?.photos);
-    if (files?.marque?.[0]) await compressUploadedFile(files.marque[0]);
-
-    const photoDocs = (files?.photos || []).map(
-      (file) => `/uploads/${file.filename}`,
+    const photoDocs = await this.cloudinary.uploadFiles(
+      files?.photos || [],
+      "products",
     );
     const marqueFile = files?.marque?.[0];
     const marqueDoc = marqueFile
-      ? `/uploads/brands/${marqueFile.filename}`
+      ? await this.cloudinary.uploadFile(marqueFile, "brands")
       : undefined;
     return this.productService.createWithPhotos(dto, photoDocs, marqueDoc);
   }
@@ -487,44 +453,20 @@ export class ProductController {
   @Post(":id/brand-mark")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @UseInterceptors(
-    FileInterceptor("marque", {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const brandsDir = join(process.cwd(), "uploads", "brands");
-          if (!fs.existsSync(brandsDir)) {
-            fs.mkdirSync(brandsDir, { recursive: true });
-          }
-          cb(null, brandsDir);
-        },
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + "-" + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `marque-${uniqueSuffix}${ext}`);
-        },
-      }),
-      limits: { fileSize: 5 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-          cb(null, true);
-        } else {
-          cb(new Error("Only image files are allowed"), false);
-        }
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("marque", productPhotoUpload))
   @ApiConsumes("multipart/form-data")
   @ApiOperation({ summary: "Upload or replace optional marque (brand) logo" })
-  uploadBrandMark(
+  async uploadBrandMark(
     @Param("id") id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
       throw new BadRequestException("marque image file is required");
     }
-    const path = `/uploads/brands/${file.filename}`;
-    return this.productService.setBrandMark(id, path);
+    const product = await this.productService.findOne(id);
+    await this.cloudinary.deleteByUrl(product.marqueDoc);
+    const url = await this.cloudinary.uploadFile(file, "brands");
+    return this.productService.setBrandMark(id, url);
   }
 
   @Delete(":id/brand-mark")
@@ -532,7 +474,9 @@ export class ProductController {
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Remove optional marque (brand) logo" })
-  deleteBrandMark(@Param("id") id: string) {
+  async deleteBrandMark(@Param("id") id: string) {
+    const product = await this.productService.findOne(id);
+    await this.cloudinary.deleteByUrl(product.marqueDoc);
     return this.productService.clearBrandMark(id);
   }
 

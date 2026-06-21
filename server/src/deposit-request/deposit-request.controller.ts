@@ -14,51 +14,34 @@ import {
 } from "@nestjs/common";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { diskStorage } from "multer";
-import { extname, join } from "path";
-import * as fs from "fs";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { UserRole } from "@prisma/client";
 import { Throttle } from "@nestjs/throttler";
-import { imageFileFilter, safeImageExtension } from "../common/utils/image-upload";
+import { memoryImageUpload } from "../common/utils/image-upload";
 import { DepositRequestService } from "./deposit-request.service";
 import { CreateDepositRequestDto } from "./dto/create-deposit-request.dto";
 import { DepositRequestQueryDto } from "./dto/deposit-request-query.dto";
 import { UpdateDepositRequestStatusDto } from "./dto/update-deposit-request-status.dto";
+import { CloudinaryService } from "../cloudinary/cloudinary.service";
 
-const requestsDir = join(process.cwd(), "uploads", "requests");
-const contractsDir = join(process.cwd(), "uploads", "contracts");
-for (const dir of [requestsDir, contractsDir]) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-
-const depositStorage = diskStorage({
-  destination: (_req, file, cb) => {
-    cb(null, file.fieldname === "contract" ? contractsDir : requestsDir);
-  },
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const prefix = file.fieldname === "contract" ? "contract" : "deposit";
-    cb(null, `${prefix}-${unique}${safeImageExtension(file.originalname)}`);
-  },
-});
-
-const publicDepositUpload = AnyFilesInterceptor({
-  storage: depositStorage,
-  limits: { fileSize: 6 * 1024 * 1024, files: 6 },
-  fileFilter: imageFileFilter,
+const depositUpload = memoryImageUpload({
+  fileSize: 10 * 1024 * 1024,
+  files: 12,
 });
 
 @ApiTags("deposit-requests")
 @Controller("deposit-requests")
 export class DepositRequestController {
-  constructor(private readonly depositRequestService: DepositRequestService) {}
+  constructor(
+    private readonly depositRequestService: DepositRequestService,
+    private readonly cloudinary: CloudinaryService,
+  ) {}
 
   @Post()
   @Throttle({ deposit: { limit: 10, ttl: 60_000 } })
-  @UseInterceptors(publicDepositUpload)
+  @UseInterceptors(AnyFilesInterceptor(depositUpload))
   @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {
@@ -77,14 +60,15 @@ export class DepositRequestController {
     },
   })
   @ApiOperation({ summary: "Create a public deposit request" })
-  create(
+  async create(
     @Body() dto: CreateDepositRequestDto,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
     const safeFiles = (files || []).filter((f) => f.fieldname !== "contract");
-    const paths = safeFiles
-      .filter((f) => f.fieldname === "photos" || f.fieldname.startsWith("photos"))
-      .map((file) => `/uploads/requests/${file.filename}`);
+    const photoFiles = safeFiles.filter(
+      (f) => f.fieldname === "photos" || f.fieldname.startsWith("photos"),
+    );
+    const paths = await this.cloudinary.uploadFiles(photoFiles, "deposit-requests");
     return this.depositRequestService.create(
       {
         ...dto,
@@ -97,22 +81,18 @@ export class DepositRequestController {
   @Post("me")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @UseInterceptors(
-    AnyFilesInterceptor({
-      storage: depositStorage,
-      limits: { fileSize: 6 * 1024 * 1024 },
-    }),
-  )
+  @UseInterceptors(AnyFilesInterceptor(depositUpload))
   @ApiConsumes("multipart/form-data")
   @ApiOperation({ summary: "Create a deposit request for current user" })
-  createMine(
+  async createMine(
     @Req() req: any,
     @Body() dto: CreateDepositRequestDto,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
-    const paths = (files || [])
-      .filter((f) => f.fieldname === "photos" || f.fieldname.startsWith("photos"))
-      .map((file) => `/uploads/requests/${file.filename}`);
+    const photoFiles = (files || []).filter(
+      (f) => f.fieldname === "photos" || f.fieldname.startsWith("photos"),
+    );
+    const paths = await this.cloudinary.uploadFiles(photoFiles, "deposit-requests");
     return this.depositRequestService.create(
       {
         ...dto,
@@ -136,15 +116,10 @@ export class DepositRequestController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @UseInterceptors(
-    AnyFilesInterceptor({
-      storage: depositStorage,
-      limits: { fileSize: 10 * 1024 * 1024 },
-    }),
-  )
+  @UseInterceptors(AnyFilesInterceptor(depositUpload))
   @ApiConsumes("multipart/form-data")
   @ApiOperation({ summary: "Admin: create deposit request for a deposant" })
-  createAdmin(
+  async createAdmin(
     @Body() body: Record<string, string>,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
@@ -166,15 +141,21 @@ export class DepositRequestController {
 
     const contractFile = files?.find((f) => f.fieldname === "contract");
     const contractDoc = contractFile
-      ? `/uploads/contracts/${contractFile.filename}`
+      ? await this.cloudinary.uploadFile(contractFile, "deposit-contracts")
       : undefined;
 
-    items = items.map((item, index) => {
-      const itemPhotos = (files || [])
-        .filter((f) => f.fieldname === `itemPhotos_${index}`)
-        .map((f) => `/uploads/requests/${f.filename}`);
-      return { ...item, photos: itemPhotos };
-    });
+    items = await Promise.all(
+      items.map(async (item, index) => {
+        const itemPhotoFiles = (files || []).filter(
+          (f) => f.fieldname === `itemPhotos_${index}`,
+        );
+        const itemPhotos = await this.cloudinary.uploadFiles(
+          itemPhotoFiles,
+          "deposit-requests",
+        );
+        return { ...item, photos: itemPhotos };
+      }),
+    );
 
     return this.depositRequestService.createAdmin({
       coClientId,

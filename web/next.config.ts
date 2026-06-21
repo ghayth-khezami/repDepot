@@ -3,14 +3,21 @@ import type { NextConfig } from "next";
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 function remotePatterns() {
+  const cloudinary = [
+    { protocol: "https" as const, hostname: "res.cloudinary.com", pathname: "/**" },
+  ];
   try {
     const host = new URL(apiUrl).hostname;
     return [
+      ...cloudinary,
       { protocol: "http" as const, hostname: host, pathname: "/uploads/**" },
       { protocol: "https" as const, hostname: host, pathname: "/uploads/**" },
     ];
   } catch {
-    return [{ protocol: "http" as const, hostname: "localhost", pathname: "/uploads/**" }];
+    return [
+      ...cloudinary,
+      { protocol: "http" as const, hostname: "localhost", pathname: "/uploads/**" },
+    ];
   }
 }
 

@@ -22,6 +22,7 @@ import { MarkModule } from "./mark/mark.module";
 import { NewsletterModule } from "./newsletter/newsletter.module";
 import { NotificationModule } from "./notification/notification.module";
 import { HealthModule } from "./health/health.module";
+import { CloudinaryModule } from "./cloudinary/cloudinary.module";
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { HealthModule } from "./health/health.module";
         limit: 10,
       },
     ]),
+    CloudinaryModule,
     PrismaModule,
     UserModule,
     AuthModule,

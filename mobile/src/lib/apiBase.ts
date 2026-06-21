@@ -23,8 +23,14 @@ export function uploadUrl(path: string): string {
     }
   }
 
+  // Legacy /uploads on API — new uploads use full Cloudinary URLs
   if (import.meta.env.DEV) return normalized;
   return `${getApiOrigin()}${normalized}`;
+}
+
+/** True when the asset is served from Cloudinary CDN (not local disk). */
+export function isCloudinaryUrl(url: string): boolean {
+  return url.includes('res.cloudinary.com');
 }
 
 export function formatTnd(value: number): string {

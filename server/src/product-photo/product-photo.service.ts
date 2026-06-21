@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { CloudinaryService } from "../cloudinary/cloudinary.service";
 
 @Injectable()
 export class ProductPhotoService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinary: CloudinaryService,
+  ) {}
 
   async create(productId: string, photoDoc: string) {
     return this.prisma.productPhoto.create({
@@ -37,6 +41,8 @@ export class ProductPhotoService {
     if (!photo) {
       throw new NotFoundException(`Photo with ID ${id} not found`);
     }
+
+    await this.cloudinary.deleteByUrl(photo.photoDoc);
 
     await this.prisma.productPhoto.delete({
       where: { id },

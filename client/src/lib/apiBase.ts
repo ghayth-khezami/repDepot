@@ -8,7 +8,7 @@ export function getApiBaseUrl(): string {
   return import.meta.env.DEV ? '/api' : getApiOrigin();
 }
 
-/** Full URL for uploaded assets (/uploads/...). */
+/** Full URL for uploaded assets (Cloudinary HTTPS or legacy /uploads/...). */
 export function uploadUrl(path: string): string {
   if (!path) return '';
   if (path.startsWith('http://') || path.startsWith('https://')) return path;

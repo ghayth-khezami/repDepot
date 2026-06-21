@@ -43,6 +43,14 @@ export default defineConfig(({ mode }) => {
           importScripts: ['push-sw.js'],
           runtimeCaching: [
             {
+              urlPattern: ({ url }) => url.hostname === 'res.cloudinary.com',
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'cloudinary-images',
+                expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              },
+            },
+            {
               urlPattern: ({ url }) => url.pathname.startsWith('/uploads'),
               handler: 'CacheFirst',
               options: {

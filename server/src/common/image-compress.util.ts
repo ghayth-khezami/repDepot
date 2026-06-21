@@ -83,3 +83,21 @@ export async function compressUploadedFiles(
   if (!files?.length) return;
   await Promise.all(files.map((f) => compressUploadedFile(f)));
 }
+
+/** Compress in-memory before Cloudinary upload. */
+export async function compressImageBuffer(
+  buffer: Buffer,
+  mimetype: string,
+): Promise<Buffer> {
+  const sharp = await getSharp();
+  if (!sharp) return buffer;
+
+  const pipeline = sharp(buffer)
+    .rotate()
+    .resize({ width: MAX_WIDTH, withoutEnlargement: true });
+
+  if (mimetype === "image/png" || mimetype === "image/webp") {
+    return pipeline.webp({ quality: WEBP_QUALITY }).toBuffer();
+  }
+  return pipeline.jpeg({ quality: JPEG_QUALITY, mozjpeg: true }).toBuffer();
+}
