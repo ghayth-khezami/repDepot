@@ -12,6 +12,7 @@ interface InfiniteSelectProps<T> {
   multiple?: boolean;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 function InfiniteSelect<T extends { id: string }>({
@@ -26,6 +27,7 @@ function InfiniteSelect<T extends { id: string }>({
   multiple = false,
   placeholder = 'Sélectionner...',
   className = '',
+  disabled = false,
 }: InfiniteSelectProps<T>) {
   const selectRef = useRef<HTMLSelectElement>(null);
 
@@ -49,6 +51,7 @@ function InfiniteSelect<T extends { id: string }>({
     <select
       ref={selectRef}
       multiple={multiple}
+      disabled={disabled}
       value={value}
       onChange={(e) => {
         if (multiple) {
