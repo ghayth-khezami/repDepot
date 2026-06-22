@@ -1,11 +1,13 @@
 import { getApiOrigin } from './apiBase';
+import { compressImagesForUpload } from './compressImage';
 
 export async function uploadProductPhotos(productId: string, files: File[]): Promise<void> {
   if (!files.length) return;
   const token = localStorage.getItem('token');
+  const optimized = await compressImagesForUpload(files);
   const fd = new FormData();
   fd.append('productId', productId);
-  files.forEach((f) => fd.append('files', f));
+  optimized.forEach((f) => fd.append('files', f));
 
   const res = await fetch(`${getApiOrigin()}/product-photos/upload-multiple`, {
     method: 'POST',

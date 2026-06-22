@@ -6,7 +6,6 @@ import {
   type CreateProductDto,
 } from '../store/api/productApi';
 import { useDeleteProductPhotoMutation } from '../store/api/productPhotoApi';
-import { createProductWithPhotos } from '../lib/uploadProduct';
 import { uploadProductPhotos } from '../lib/uploadProductPhotos';
 import { FormModal } from './FormModal';
 import { ProductPhotoPicker, MAX_PRODUCT_PHOTOS } from './ProductPhotoPicker';
@@ -65,6 +64,7 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
   const [photos, setPhotos] = useState<File[]>([]);
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState('');
 
   const existingPhotos = (product?.photos ?? []).map((p) => ({
     id: p.id,
@@ -150,10 +150,12 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
     setSubmitting(true);
     try {
       if (isEdit && product) {
-        for (const photoId of removedPhotoIds) {
-          await deletePhoto(photoId).unwrap();
+        setSubmitPhase('Mise à jour…');
+        if (removedPhotoIds.length > 0) {
+          await Promise.all(removedPhotoIds.map((id) => deletePhoto(id).unwrap()));
         }
         if (photos.length > 0) {
+          setSubmitPhase('Envoi des photos…');
           await uploadProductPhotos(product.id, photos);
         }
         const data: UpdateProductDto = {
@@ -182,10 +184,11 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
           coclientId: isDepot ? coclientId : undefined,
           ...commonCategory,
         };
+        setSubmitPhase('Création…');
+        const created = await createProduct(payload).unwrap();
         if (photos.length > 0) {
-          await createProductWithPhotos(payload, photos);
-        } else {
-          await createProduct(payload).unwrap();
+          setSubmitPhase('Envoi des photos…');
+          await uploadProductPhotos(created.id, photos);
         }
         showToast('Produit créé', 'success');
       }
@@ -195,6 +198,7 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
       showToast('Erreur lors de l\'enregistrement', 'error');
     } finally {
       setSubmitting(false);
+      setSubmitPhase('');
     }
   };
 
@@ -278,7 +282,7 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
         ) : null}
 
         <PrimaryButton type="submit" loading={submitting}>
-          {submitting ? 'En cours…' : isEdit ? 'Enregistrer' : 'Créer le produit'}
+          {submitting ? (submitPhase || 'En cours…') : isEdit ? 'Enregistrer' : 'Créer le produit'}
         </PrimaryButton>
       </form>
     </FormModal>

@@ -4,7 +4,6 @@ import {
   Logger,
 } from "@nestjs/common";
 import { v2 as cloudinary } from "cloudinary";
-import { compressImageBuffer } from "../common/image-compress.util";
 
 @Injectable()
 export class CloudinaryService {
@@ -52,9 +51,9 @@ export class CloudinaryService {
       throw new InternalServerErrorException("Fichier image vide");
     }
 
-    const compressed = await compressImageBuffer(file.buffer, file.mimetype);
     const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 
+    // Client already resizes; Cloudinary optimizes delivery — skip heavy Sharp on server.
     return new Promise((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
@@ -62,8 +61,8 @@ export class CloudinaryService {
             folder: `${this.rootFolder}/${folder}`,
             public_id: unique,
             resource_type: "image",
-            format: "webp",
-            quality: "auto:good",
+            quality: "auto:eco",
+            fetch_format: "auto",
           },
           (error, result) => {
             if (error || !result?.secure_url) {
@@ -77,7 +76,7 @@ export class CloudinaryService {
             resolve(result.secure_url);
           },
         )
-        .end(compressed);
+        .end(file.buffer);
     });
   }
 

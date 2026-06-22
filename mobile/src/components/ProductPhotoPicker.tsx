@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ImagePlus, Loader2, Star, X } from 'lucide-react';
+import { compressImagesForUpload } from '../lib/compressImage';
 
 export const MAX_PRODUCT_PHOTOS = 4;
 
@@ -34,6 +35,7 @@ export function ProductPhotoPicker({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [preparing, setPreparing] = useState(false);
 
   const visibleExisting = existing.filter((p) => !removedIds.includes(p.id));
 
@@ -59,16 +61,22 @@ export function ProductPhotoPicker({
   }, [slides.length, activeIndex]);
 
   const total = slides.length;
-  const canAdd = total < MAX_PRODUCT_PHOTOS && !disabled && !uploading;
+  const canAdd = total < MAX_PRODUCT_PHOTOS && !disabled && !uploading && !preparing;
   const active = slides[activeIndex];
 
   const pick = (list: FileList | null) => {
     if (!list?.length || !canAdd) return;
     const room = MAX_PRODUCT_PHOTOS - total;
-    const next = [...files, ...Array.from(list).slice(0, room)];
-    onFilesChange(next);
+    const incoming = Array.from(list).slice(0, room);
     if (inputRef.current) inputRef.current.value = '';
-    setActiveIndex(visibleExisting.length + next.length - 1);
+    setPreparing(true);
+    void compressImagesForUpload(incoming)
+      .then((optimized) => {
+        const next = [...files, ...optimized];
+        onFilesChange(next);
+        setActiveIndex(visibleExisting.length + next.length - 1);
+      })
+      .finally(() => setPreparing(false));
   };
 
   const removeNew = (index: number) => {
@@ -92,9 +100,10 @@ export function ProductPhotoPicker({
                 Principale
               </span>
             ) : null}
-            {uploading ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70">
+            {uploading || preparing ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/70 dark:bg-slate-900/70">
                 <Loader2 className="animate-spin text-primary-600" size={32} />
+                <span className="text-xs text-gray-600">{preparing ? 'Optimisation…' : 'Envoi…'}</span>
               </div>
             ) : null}
           </>
