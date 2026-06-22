@@ -79,6 +79,33 @@ export interface CommandLocation {
   client: string;
 }
 
+export interface SoldProductsSummary {
+  totalSold: number;
+  products: Array<{
+    productId: string;
+    productName: string;
+    count: number;
+    PrixVente: number;
+    photo: string | null;
+  }>;
+}
+
+export interface LastDeliveredCommand {
+  id: string;
+  adresseLivraison: string;
+  PrixVente: number;
+  productsNumber: number;
+  dateLivraison?: string;
+  createdAt: string;
+  client: string | null;
+  products: Array<{
+    id: string;
+    productName: string;
+    photo: string | null;
+    PrixVente: number;
+  }>;
+}
+
 export const statsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getKPIs: builder.query<KPIs, StatsQueryParams>({
@@ -158,6 +185,20 @@ export const statsApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Product'],
     }),
+    getSoldProducts: builder.query<SoldProductsSummary, StatsQueryParams>({
+      query: (params) => ({
+        url: '/stats/sold-products',
+        params: { ...params, limit: params.limit || 20 },
+      }),
+      providesTags: ['Command', 'Product'],
+    }),
+    getLastDelivered: builder.query<LastDeliveredCommand | null, StatsQueryParams>({
+      query: (params) => ({
+        url: '/stats/last-delivered',
+        params,
+      }),
+      providesTags: ['Command'],
+    }),
   }),
 });
 
@@ -173,4 +214,6 @@ export const {
   useGetDepotVsBuyingQuery,
   useGetCommandLocationsQuery,
   useGetTotalSurchargeQuery,
+  useGetSoldProductsQuery,
+  useGetLastDeliveredQuery,
 } = statsApi;

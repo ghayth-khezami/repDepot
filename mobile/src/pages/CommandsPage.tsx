@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   useGetCommandsQuery,
+  useGetCommandQuery,
   useUpdateCommandMutation,
   useDeleteCommandMutation,
   useCreateCommandMutation,
@@ -14,7 +15,7 @@ import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../components/ConfirmDialog';
 import { FieldLabel, TextInput, SelectInput, PrimaryButton, ItemActions } from '../components/mobile-forms';
 import { FormModal } from '../components/FormModal';
-import { formatTnd } from '../lib/apiBase';
+import { formatTnd, uploadUrl } from '../lib/apiBase';
 import type { Command, Product } from '../types';
 import { PAGE_SIZE } from '../lib/pagination';
 
@@ -24,6 +25,7 @@ export default function CommandsPage() {
   const [status, setStatus] = useState('');
   const [items, setItems] = useState<Command[]>([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [editCmd, setEditCmd] = useState<Command | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const { showToast } = useToast();
@@ -36,6 +38,8 @@ export default function CommandsPage() {
   const [clientId, setClientId] = useState('');
   const [adresse, setAdresse] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+
+  const { data: detail } = useGetCommandQuery(detailId!, { skip: !detailId });
 
   const filterKey = `${debouncedSearch}|${status}`;
   useEffect(() => { setPage(1); setItems([]); }, [filterKey]);
@@ -160,25 +164,73 @@ export default function CommandsPage() {
         <ul className="mt-4 space-y-2 px-4">
           {items.map((cmd) => (
             <li key={cmd.id} className="rounded-2xl border border-primary-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{formatTnd(cmd.PrixVente)}</p>
-                  <p className="text-xs text-gray-500">{cmd.productsNumber} article(s)</p>
-                  <p className="mt-1 line-clamp-2 text-sm text-gray-600">{cmd.adresseLivraison}</p>
+              <button
+                type="button"
+                className="w-full text-left"
+                onClick={() => setDetailId(cmd.id)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{formatTnd(cmd.PrixVente)}</p>
+                    <p className="text-xs text-gray-500">{cmd.productsNumber} article(s)</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-600">{cmd.adresseLivraison}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${cmd.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>
+                    {cmd.status === 'DELIVERED' ? 'Livré' : 'En attente'}
+                  </span>
                 </div>
-                <ItemActions onEdit={() => openEdit(cmd)} onDelete={() => void remove(cmd)} />
-              </div>
-              <span className={`mt-2 inline-block rounded-full px-2 py-1 text-[10px] font-bold uppercase ${cmd.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>
-                {cmd.status === 'DELIVERED' ? 'Livré' : 'En attente'}
-              </span>
-              <button type="button" onClick={() => void toggleDelivered(cmd)} className="mt-3 w-full rounded-xl border border-primary-200 py-2 text-sm font-semibold text-primary-700">
-                {cmd.status === 'DELIVERED' ? 'Marquer non livré' : 'Marquer livré'}
               </button>
+              <div className="mt-3 flex gap-2">
+                <ItemActions onEdit={() => openEdit(cmd)} onDelete={() => void remove(cmd)} />
+                <button type="button" onClick={() => void toggleDelivered(cmd)} className="flex-1 rounded-xl border border-primary-200 py-2 text-sm font-semibold text-primary-700">
+                  {cmd.status === 'DELIVERED' ? 'Non livré' : 'Livré'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
       <div ref={sentinelRef} className="h-8" />
+      {detailId && detail ? (
+        <FormModal title="Détail commande" onClose={() => setDetailId(null)}>
+          <div className="space-y-4">
+            <div>
+              <p className="text-lg font-bold">{formatTnd(detail.PrixVente)}</p>
+              <p className="text-xs text-gray-500">{detail.productsNumber} article(s)</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3 dark:bg-slate-800">
+              <p className="text-xs font-semibold uppercase text-gray-500">Adresse livraison</p>
+              <p className="mt-1 text-sm">{detail.adresseLivraison}</p>
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Produits</p>
+              <ul className="space-y-2">
+                {(detail.commandDetails ?? []).map((d: {
+                  id: string;
+                  product?: { id: string; productName: string; PrixVente: number; photos?: Array<{ photoDoc: string }> };
+                }) => {
+                  const p = d.product;
+                  if (!p) return null;
+                  const photo = p.photos?.[0]?.photoDoc;
+                  return (
+                    <li key={d.id} className="flex items-center gap-3 rounded-xl border border-primary-100 p-2 dark:border-slate-700">
+                      {photo ? (
+                        <img src={uploadUrl(photo)} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                      ) : (
+                        <div className="h-14 w-14 rounded-lg bg-primary-50" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{p.productName}</p>
+                        <p className="text-xs text-gray-500">{formatTnd(p.PrixVente)}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </FormModal>
+      ) : null}
       {formOpen ? (
         <FormModal title={editCmd ? 'Modifier commande' : 'Nouvelle commande'} onClose={() => setFormOpen(false)} busy={creating}>
           <form onSubmit={(e) => void submit(e)} className="space-y-4">

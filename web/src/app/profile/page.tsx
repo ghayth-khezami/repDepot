@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const { token, user, authHydrated } = useShop();
   const [depositRequests, setDepositRequests] = useState<Array<Record<string, unknown>>>([]);
   const [loadingDeposits, setLoadingDeposits] = useState(false);
+  const [expandedDepositId, setExpandedDepositId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authHydrated) return;
@@ -134,10 +135,14 @@ export default function ProfilePage() {
               <div className="space-y-3">
                 {depositRequests.map((r) => {
                   const badge = getDepositStatusBadge(String(r.status));
+                  const id = String(r.id);
+                  const expanded = expandedDepositId === id;
                   return (
-                  <div
-                    key={String(r.id)}
-                    className="rounded-2xl border border-border/80 bg-background/80 p-4 md:p-5"
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setExpandedDepositId(expanded ? null : id)}
+                    className="w-full rounded-2xl border border-border/80 bg-background/80 p-4 text-left transition hover:border-primary/30 md:p-5"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -153,6 +158,15 @@ export default function ProfilePage() {
                         {badge.label}
                       </span>
                     </div>
+                    {expanded ? (
+                      <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-sm text-muted-foreground">
+                        {r.description ? <p>{String(r.description)}</p> : null}
+                        {r.email ? <p>Email: {String(r.email)}</p> : null}
+                        {r.address ? <p>Adresse: {String(r.address)}</p> : null}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-primary">Appuyez pour voir le détail</p>
+                    )}
                     {Array.isArray(r.photos) && r.photos.length > 0 ? (
                       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
                         {(r.photos as string[]).slice(0, 6).map((p) => (
@@ -166,7 +180,7 @@ export default function ProfilePage() {
                         ))}
                       </div>
                     ) : null}
-                  </div>
+                  </button>
                   );
                 })}
               </div>

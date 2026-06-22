@@ -75,6 +75,18 @@ export class StatsController {
     return this.statsService.getCommandLocations(query);
   }
 
+  @Get("sold-products")
+  @ApiOperation({ summary: "Get sold products with photos for period" })
+  async getSoldProducts(@Query() query: StatsQueryDto & { limit?: number }) {
+    return this.statsService.getSoldProducts(query, query.limit || 20);
+  }
+
+  @Get("last-delivered")
+  @ApiOperation({ summary: "Get last delivered command" })
+  async getLastDelivered(@Query() query: StatsQueryDto) {
+    return this.statsService.getLastDeliveredCommand(query);
+  }
+
   @Get("total-surcharge")
   @ApiOperation({ summary: "Get total surcharge amount" })
   async getTotalSurcharge(@Query() query: StatsQueryDto) {

@@ -11,7 +11,6 @@ import {
   LogOut,
   MapPin,
   Menu,
-  PackagePlus,
   ShoppingBag,
   User,
   X,
@@ -31,12 +30,6 @@ const NAV = [
     label: fr.navProducts,
     icon: ShoppingBag,
     match: (p: string) => p.startsWith("/produits"),
-  },
-  {
-    href: "/deposer/request",
-    label: fr.navDeposit,
-    icon: PackagePlus,
-    match: (p: string) => p.startsWith("/deposer"),
   },
   { href: "/magasin", label: fr.navStore, icon: MapPin, match: (p: string) => p === "/magasin" },
 ] as const;

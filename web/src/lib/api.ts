@@ -6,6 +6,7 @@ import {
   CheckoutCommandPayload,
   Product,
   SubCategory,
+  SubSubCategory1,
   ClientFeedback,
   Mark,
 } from "@/types";
@@ -67,6 +68,14 @@ export const api = {
     if (opts?.categoryId) params.set("categoryId", opts.categoryId);
     return request<ApiPaginated<SubCategory>>(`/sub-categories?${params.toString()}`);
   },
+  getSubSubCategories1: (opts?: { page?: number; limit?: number; subCategoryId?: string }) => {
+    const params = new URLSearchParams({
+      page: String(opts?.page ?? 1),
+      limit: String(Math.min(Math.max(Number(opts?.limit ?? 10), 1), 10)),
+    });
+    if (opts?.subCategoryId) params.set("subCategoryId", opts.subCategoryId);
+    return request<ApiPaginated<SubSubCategory1>>(`/sub-sub-categories-1?${params.toString()}`);
+  },
   getCategory: (id: string) =>
     request<
       Category & {
@@ -79,12 +88,10 @@ export const api = {
       limit?: number;
       categoryId?: string;
       subCategoryId?: string;
-      markId?: string;
+      subSubCategory1Id?: string;
       search?: string;
       minPrice?: number;
       maxPrice?: number;
-      isDispo?: boolean;
-      isDepot?: boolean;
       sort?: "newest" | "price_asc" | "price_desc" | "name_asc";
     },
     token?: string | null,
@@ -96,12 +103,10 @@ export const api = {
     });
     if (opts?.categoryId) params.set("categoryId", opts.categoryId);
     if (opts?.subCategoryId) params.set("subCategoryId", opts.subCategoryId);
-    if (opts?.markId) params.set("markId", opts.markId);
+    if (opts?.subSubCategory1Id) params.set("subSubCategory1Id", opts.subSubCategory1Id);
     if (opts?.search) params.set("search", opts.search);
     if (opts?.minPrice !== undefined) params.set("minPrice", String(opts.minPrice));
     if (opts?.maxPrice !== undefined) params.set("maxPrice", String(opts.maxPrice));
-    if (opts?.isDispo !== undefined) params.set("isDispo", String(opts.isDispo));
-    if (opts?.isDepot !== undefined) params.set("isDepot", String(opts.isDepot));
     if (opts?.sort) params.set("sort", opts.sort);
     return request<ApiPaginated<Product>>(`/products?${params.toString()}`, "GET", undefined, token);
   },

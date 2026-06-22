@@ -7,12 +7,10 @@ import { Product } from "@/types";
 export type ProductCatalogFilters = {
   categoryId?: string;
   subCategoryId?: string;
-  markId?: string;
+  subSubCategory1Id?: string;
   search?: string;
   minPrice?: number;
   maxPrice?: number;
-  isDispo?: boolean;
-  isDepot?: boolean;
   sort?: "newest" | "price_asc" | "price_desc" | "name_asc";
 };
 

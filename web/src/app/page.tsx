@@ -1,18 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  ArrowUpRight,
-} from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductGridSkeletons } from "@/components/ProductCardSkeleton";
 import { ClientFeedbacksCarousel } from "@/components/ClientFeedbacksCarousel";
-import { DepositBannerSection } from "@/components/DepositBannerSection";
 import { FloatingStickersBackground } from "@/components/FloatingStickersBackground";
 import { HeroVideoCarousel } from "@/components/HeroVideoCarousel";
-import { MarksCarousel } from "@/components/MarksCarousel";
 import { ScrollReveal } from "@/components/ScrollReveal";
 import { useShop } from "@/context/ShopContext";
 import { api } from "@/lib/api";
@@ -21,8 +16,7 @@ import { fr, WANTED_IMG } from "@/lib/fr";
 import { Category, Product } from "@/types";
 
 export default function Home() {
-  const router = useRouter();
-  const { categories, token, user, syncLikesForProducts } = useShop();
+  const { categories, syncLikesForProducts } = useShop();
   const [featured, setFeatured] = useState<Product[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
@@ -71,13 +65,7 @@ export default function Home() {
 
   return (
     <div className="home-scroll-shell">
-      <HeroVideoCarousel
-        onDeposit={() =>
-          user
-            ? router.push("/deposer/request")
-            : router.push("/login?intent=deposer&redirect=/deposer/request")
-        }
-      />
+      <HeroVideoCarousel />
 
       <div className="home-scroll-body space-y-20 md:space-y-28 pb-16 pt-6 md:pt-10">
         {showFeatured && (
@@ -144,20 +132,6 @@ export default function Home() {
               </section>
               </ScrollReveal>
             )}
-
-            <ScrollReveal delay={0.05}>
-              <MarksCarousel />
-            </ScrollReveal>
-
-            <ScrollReveal delay={0.08}>
-              <DepositBannerSection
-              onDeposit={() =>
-                user
-                  ? router.push("/deposer/request")
-                  : router.push("/login?intent=deposer&redirect=/deposer/request")
-              }
-              />
-            </ScrollReveal>
 
             <ScrollReveal delay={0.1}>
               <ClientFeedbacksCarousel />

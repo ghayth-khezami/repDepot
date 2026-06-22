@@ -59,6 +59,7 @@ export const fr = {
   filterSearch: "Rechercher un produit…",
   filterCategory: "Catégorie",
   filterSubCategory: "Sous-catégorie",
+  filterSubSubCategory: "Sous sous-catégorie",
   filterMark: "Marque",
   filterPrice: "Prix (TND)",
   filterMinPrice: "Min",

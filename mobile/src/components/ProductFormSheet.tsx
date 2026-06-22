@@ -6,9 +6,9 @@ import {
   type CreateProductDto,
 } from '../store/api/productApi';
 import { useDeleteProductPhotoMutation } from '../store/api/productPhotoApi';
-import { uploadProductPhotos } from '../lib/uploadProductPhotos';
+import { attachProductPhotos } from '../lib/attachProductPhotos';
 import { FormModal } from './FormModal';
-import { ProductPhotoPicker, MAX_PRODUCT_PHOTOS } from './ProductPhotoPicker';
+import { ProductPhotoPicker, MAX_PRODUCT_PHOTOS, type StagedPhoto } from './ProductPhotoPicker';
 import { ProductCategoryCascade, type CategorySelection } from './ProductCategoryCascade';
 import {
   FieldLabel,
@@ -61,7 +61,7 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
   const [mode, setMode] = useState<'achat' | 'depot'>(product?.isDepot ? 'depot' : 'achat');
   const [depotPercentage, setDepotPercentage] = useState(String(product?.depotPercentage ?? ''));
   const [isDispo, setIsDispo] = useState(product?.isDispo !== false);
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [stagedPhotos, setStagedPhotos] = useState<StagedPhoto[]>([]);
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitPhase, setSubmitPhase] = useState('');
@@ -72,7 +72,8 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
   }));
 
   const keptExisting = existingPhotos.filter((p) => !removedPhotoIds.includes(p.id)).length;
-  const totalPhotos = keptExisting + photos.length;
+  const readyStagedUrls = stagedPhotos.filter((p) => !p.uploading && !p.error && p.url.startsWith('http')).map((p) => p.url);
+  const totalPhotos = keptExisting + readyStagedUrls.length;
 
   const selectedDeposant = useMemo(
     () => (coClients?.data ?? []).find((c) => c.id === coclientId),
@@ -101,7 +102,7 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
       setMode(product.isDepot ? 'depot' : 'achat');
       setDepotPercentage(String(product.depotPercentage ?? ''));
       setIsDispo(product.isDispo !== false);
-      setPhotos([]);
+      setStagedPhotos([]);
       setRemovedPhotoIds([]);
     }
   }, [product]);
@@ -133,6 +134,10 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
         return;
       }
     }
+    if (stagedPhotos.some((p) => p.uploading)) {
+      showToast('Photos en cours d\'envoi…', 'error');
+      return;
+    }
     if (totalPhotos > MAX_PRODUCT_PHOTOS) {
       showToast(`Maximum ${MAX_PRODUCT_PHOTOS} photos`, 'error');
       return;
@@ -154,9 +159,9 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
         if (removedPhotoIds.length > 0) {
           await Promise.all(removedPhotoIds.map((id) => deletePhoto(id).unwrap()));
         }
-        if (photos.length > 0) {
-          setSubmitPhase('Envoi des photos…');
-          await uploadProductPhotos(product.id, photos);
+        if (readyStagedUrls.length > 0) {
+          setSubmitPhase('Association des photos…');
+          await attachProductPhotos(product.id, readyStagedUrls);
         }
         const data: UpdateProductDto = {
           productName: productName.trim(),
@@ -186,9 +191,9 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
         };
         setSubmitPhase('Création…');
         const created = await createProduct(payload).unwrap();
-        if (photos.length > 0) {
-          setSubmitPhase('Envoi des photos…');
-          await uploadProductPhotos(created.id, photos);
+        if (readyStagedUrls.length > 0) {
+          setSubmitPhase('Association des photos…');
+          await attachProductPhotos(created.id, readyStagedUrls);
         }
         showToast('Produit créé', 'success');
       }
@@ -216,12 +221,11 @@ export function ProductFormSheet({ product, onClose, onSaved }: Props) {
         <ProductPhotoPicker
           existing={existingPhotos}
           removedIds={removedPhotoIds}
-          files={photos}
-          onFilesChange={setPhotos}
+          staged={stagedPhotos}
+          onStagedChange={setStagedPhotos}
           onRemoveExisting={(id) => setRemovedPhotoIds((prev) => [...prev, id])}
           onRestoreExisting={(id) => setRemovedPhotoIds((prev) => prev.filter((x) => x !== id))}
           disabled={submitting}
-          uploading={submitting}
         />
 
         <FieldLabel label="Nom *">

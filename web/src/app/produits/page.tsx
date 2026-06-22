@@ -19,15 +19,13 @@ export default function ProduitsPage() {
     if (filters.search) o.search = filters.search;
     if (filters.categoryId) o.categoryId = filters.categoryId;
     if (filters.subCategoryId) o.subCategoryId = filters.subCategoryId;
-    if (filters.markId) o.markId = filters.markId;
+    if (filters.subSubCategory1Id) o.subSubCategory1Id = filters.subSubCategory1Id;
     if (filters.minPrice !== undefined && !Number.isNaN(filters.minPrice)) {
       o.minPrice = filters.minPrice;
     }
     if (filters.maxPrice !== undefined && !Number.isNaN(filters.maxPrice)) {
       o.maxPrice = filters.maxPrice;
     }
-    if (filters.isDispo) o.isDispo = true;
-    if (filters.isDepot) o.isDepot = true;
     return o;
   }, [filters]);
 

@@ -452,6 +452,62 @@ h4 {
   box-shadow: var(--shadow-glow);
 }
 
+.hero-trust-section {
+  margin-top: calc(-1 * var(--site-header-height));
+  background: linear-gradient(
+    145deg,
+    var(--plum-deep) 0%,
+    color-mix(in oklab, var(--plum-deep) 85%, var(--lilac)) 55%,
+    color-mix(in oklab, var(--plum) 70%, var(--cream)) 100%
+  );
+}
+
+.hero-trust-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 20% 20%, oklch(0.72 0.12 300 / 0.35), transparent 45%),
+    radial-gradient(circle at 80% 70%, oklch(0.55 0.14 295 / 0.4), transparent 50%);
+}
+
+.price-range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.price-range-input::-webkit-slider-thumb {
+  appearance: none;
+  pointer-events: auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 9999px;
+  border: 2px solid white;
+  background: var(--plum-deep);
+  box-shadow: 0 1px 4px oklch(0.34 0.14 295 / 0.25);
+  cursor: grab;
+}
+
+.price-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 9999px;
+  border: 2px solid white;
+  background: var(--plum-deep);
+  cursor: grab;
+}
+
+.price-range-input--max {
+  z-index: 2;
+}
+
 .hero-video-section {
   margin-top: calc(-1 * var(--site-header-height));
   padding-top: 0;

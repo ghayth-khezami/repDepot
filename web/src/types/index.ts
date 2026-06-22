@@ -31,6 +31,13 @@ export interface SubCategory {
   category?: { id: string; categoryName: string };
 }
 
+export interface SubSubCategory1 {
+  id: string;
+  title: string;
+  description?: string | null;
+  subCategoryId: string;
+}
+
 export interface Product {
   id: string;
   productName: string;

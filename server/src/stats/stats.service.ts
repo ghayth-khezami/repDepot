@@ -36,37 +36,28 @@ export class StatsService {
       where: where.coClient,
     });
 
-    // 5. Total Revenue (sum of PrixVente from commands)
+    // 5–7. Revenue / cost / profit from delivered commands only
+    const deliveredWhere = { ...where.command, status: "DELIVERED" as const };
+
     const revenueResult = await this.prisma.command.aggregate({
-      where: where.command,
-      _sum: {
-        PrixVente: true,
-      },
+      where: deliveredWhere,
+      _sum: { PrixVente: true },
     });
     const totalRevenue = revenueResult._sum.PrixVente || 0;
 
-    // 6. Total Purchase Cost (sum of PrixAchat from commands)
     const purchaseResult = await this.prisma.command.aggregate({
-      where: where.command,
-      _sum: {
-        PrixAchat: true,
-      },
+      where: deliveredWhere,
+      _sum: { PrixAchat: true },
     });
     const totalPurchaseCost = purchaseResult._sum.PrixAchat || 0;
-
-    // 7. Total Profit (Revenue - Purchase costs)
     const totalProfit = totalRevenue - totalPurchaseCost;
 
-    // 8. Delivered Commands Count
     const deliveredCommands = await this.prisma.command.count({
-      where: {
-        ...where.command,
-        status: "DELIVERED",
-      },
+      where: deliveredWhere,
     });
 
-    // 9. Average Order Value
-    const avgOrderValue = totalCommands > 0 ? totalRevenue / totalCommands : 0;
+    const avgOrderValue =
+      deliveredCommands > 0 ? totalRevenue / deliveredCommands : 0;
 
     return {
       totalProducts,
@@ -219,7 +210,7 @@ export class StatsService {
     });
 
     return Object.values(productData)
-      .sort((a, b) => b.totalValue - a.totalValue) // Sort by total TND value
+      .sort((a, b) => b.count - a.count)
       .slice(0, limit)
       .map((item, index) => ({
         rank: index + 1,
@@ -285,52 +276,122 @@ export class StatsService {
   async getRevenueBreakdown(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
 
-    let totalRevenue = 0;
+    const commandDetails = await this.prisma.commandDetail.findMany({
+      where: {
+        command: { ...where.command, status: "DELIVERED" },
+      },
+      include: {
+        product: {
+          select: {
+            isDepot: true,
+            PrixVente: true,
+            PrixAchat: true,
+            depotPercentage: true,
+          },
+        },
+      },
+    });
+
     let buyingRevenue = 0;
     let depotRevenue = 0;
 
-    // Buying revenue: sum of profit (PrixVente - PrixAchat) for non-depot products
-    const buyingProducts = await this.prisma.product.findMany({
-      where: {
-        ...where.product,
-        isDepot: false,
-      },
-      select: {
-        PrixVente: true,
-        PrixAchat: true,
-      },
-    });
-
-    buyingProducts.forEach((product) => {
-      const prixVente = product.PrixVente || 0;
-      const prixAchat = product.PrixAchat || 0;
-      const profit = prixVente - prixAchat;
-      buyingRevenue += profit;
-      totalRevenue += profit;
-    });
-
-    // Depot revenue: sum of gain for depot products
-    const depotProducts = await this.prisma.product.findMany({
-      where: {
-        ...where.product,
-        isDepot: true,
-      },
-      select: {
-        gain: true,
-      },
-    });
-
-    depotProducts.forEach((product) => {
-      const gain = product.gain || 0;
-      depotRevenue += gain;
-      totalRevenue += gain;
+    commandDetails.forEach((detail) => {
+      const p = detail.product;
+      if (p.isDepot) {
+        depotRevenue += p.PrixVente * ((p.depotPercentage || 0) / 100);
+      } else {
+        buyingRevenue += (p.PrixVente || 0) - (p.PrixAchat || 0);
+      }
     });
 
     return {
-      totalRevenue,
+      totalRevenue: buyingRevenue + depotRevenue,
       buyingRevenue,
       depotRevenue,
     };
+  }
+
+  async getLastDeliveredCommand(query: StatsQueryDto) {
+    const where = this.buildWhereClause(query);
+    const command = await this.prisma.command.findFirst({
+      where: { ...where.command, status: "DELIVERED" },
+      orderBy: [{ dateLivraison: "desc" }, { updatedAt: "desc" }],
+      include: {
+        commandDetails: {
+          include: {
+            product: {
+              include: {
+                photos: { take: 1, orderBy: { createdAt: "asc" } },
+              },
+            },
+            client: {
+              select: { firstName: true, lastName: true, phoneNumber: true },
+            },
+          },
+        },
+      },
+    });
+    if (!command) return null;
+    return {
+      id: command.id,
+      adresseLivraison: command.adresseLivraison,
+      PrixVente: command.PrixVente,
+      productsNumber: command.productsNumber,
+      dateLivraison: command.dateLivraison,
+      createdAt: command.createdAt,
+      client: command.commandDetails[0]?.client
+        ? `${command.commandDetails[0].client.firstName} ${command.commandDetails[0].client.lastName}`
+        : null,
+      products: command.commandDetails.map((d) => ({
+        id: d.product.id,
+        productName: d.product.productName,
+        photo: d.product.photos?.[0]?.photoDoc ?? null,
+        PrixVente: d.product.PrixVente,
+      })),
+    };
+  }
+
+  async getSoldProducts(query: StatsQueryDto, limit = 20) {
+    const where = this.buildWhereClause(query);
+    const commandDetails = await this.prisma.commandDetail.findMany({
+      where: {
+        command: { ...where.command, status: "DELIVERED" },
+      },
+      include: {
+        product: {
+          include: {
+            photos: { take: 1, orderBy: { createdAt: "asc" } },
+          },
+        },
+      },
+    });
+
+    const productData: {
+      [key: string]: { product: any; count: number };
+    } = {};
+
+    commandDetails.forEach((detail) => {
+      const productId = detail.productId;
+      if (!productData[productId]) {
+        productData[productId] = { product: detail.product, count: 0 };
+      }
+      productData[productId].count += 1;
+    });
+
+    const products = Object.values(productData)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit)
+      .map((item) => ({
+        productId: item.product.id,
+        productName: item.product.productName,
+        count: item.count,
+        PrixVente: item.product.PrixVente,
+        photo: item.product.photos?.[0]?.photoDoc ?? null,
+      }));
+
+    const totalSold = commandDetails.length;
+
+    return { totalSold, products };
   }
 
   async getMonthlySoldProducts(query: StatsQueryDto) {
@@ -345,6 +406,7 @@ export class StatsService {
     const commands = await this.prisma.command.findMany({
       where: {
         ...where.command,
+        status: "DELIVERED",
         createdAt: {
           gte: new Date(currentYear, 0, 1),
           lte: now,

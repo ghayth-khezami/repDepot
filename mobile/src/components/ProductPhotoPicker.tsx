@@ -1,59 +1,53 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImagePlus, Loader2, Star, X } from 'lucide-react';
 import { compressImagesForUpload } from '../lib/compressImage';
+import { uploadStagingPhoto } from '../lib/uploadStagingPhoto';
 
 export const MAX_PRODUCT_PHOTOS = 4;
 
 export type ExistingPhoto = { id: string; url: string };
 
+export type StagedPhoto = {
+  id: string;
+  url: string;
+  uploading?: boolean;
+  error?: string;
+};
+
 type Slide =
   | { kind: 'existing'; id: string; url: string }
-  | { kind: 'new'; file: File; url: string; index: number };
+  | { kind: 'staged'; id: string; url: string; uploading?: boolean };
 
 type Props = {
   label?: string;
   existing: ExistingPhoto[];
   removedIds: string[];
-  files: File[];
-  onFilesChange: (files: File[]) => void;
+  staged: StagedPhoto[];
+  onStagedChange: (next: StagedPhoto[]) => void;
   onRemoveExisting: (id: string) => void;
   onRestoreExisting?: (id: string) => void;
   disabled?: boolean;
-  uploading?: boolean;
 };
 
 export function ProductPhotoPicker({
   label = 'Photos',
   existing,
   removedIds,
-  files,
-  onFilesChange,
+  staged,
+  onStagedChange,
   onRemoveExisting,
   onRestoreExisting,
   disabled = false,
-  uploading = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [preparing, setPreparing] = useState(false);
 
   const visibleExisting = existing.filter((p) => !removedIds.includes(p.id));
-
-  const newPreviews = useMemo(
-    () => files.map((file, index) => ({ file, index, url: URL.createObjectURL(file) })),
-    [files],
-  );
-
-  useEffect(
-    () => () => {
-      newPreviews.forEach((p) => URL.revokeObjectURL(p.url));
-    },
-    [newPreviews],
-  );
+  const uploadingCount = staged.filter((p) => p.uploading).length;
 
   const slides: Slide[] = [
     ...visibleExisting.map((p) => ({ kind: 'existing' as const, id: p.id, url: p.url })),
-    ...newPreviews.map((p) => ({ kind: 'new' as const, file: p.file, url: p.url, index: p.index })),
+    ...staged.map((p) => ({ kind: 'staged' as const, id: p.id, url: p.url, uploading: p.uploading })),
   ];
 
   useEffect(() => {
@@ -61,27 +55,46 @@ export function ProductPhotoPicker({
   }, [slides.length, activeIndex]);
 
   const total = slides.length;
-  const canAdd = total < MAX_PRODUCT_PHOTOS && !disabled && !uploading && !preparing;
+  const canAdd = total < MAX_PRODUCT_PHOTOS && !disabled && uploadingCount === 0;
   const active = slides[activeIndex];
+
+  const stagedRef = useRef(staged);
+  stagedRef.current = staged;
 
   const pick = (list: FileList | null) => {
     if (!list?.length || !canAdd) return;
     const room = MAX_PRODUCT_PHOTOS - total;
     const incoming = Array.from(list).slice(0, room);
     if (inputRef.current) inputRef.current.value = '';
-    setPreparing(true);
-    void compressImagesForUpload(incoming)
-      .then((optimized) => {
-        const next = [...files, ...optimized];
-        onFilesChange(next);
-        setActiveIndex(visibleExisting.length + next.length - 1);
-      })
-      .finally(() => setPreparing(false));
+
+    void compressImagesForUpload(incoming).then(async (optimized) => {
+      let nextStaged = [...stagedRef.current];
+      for (const file of optimized) {
+        const tempId = `staged-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const preview = URL.createObjectURL(file);
+        nextStaged = [...nextStaged, { id: tempId, url: preview, uploading: true }];
+        onStagedChange(nextStaged);
+        try {
+          const url = await uploadStagingPhoto(file);
+          URL.revokeObjectURL(preview);
+          nextStaged = nextStaged.map((p) => (p.id === tempId ? { id: tempId, url } : p));
+          onStagedChange(nextStaged);
+        } catch {
+          nextStaged = nextStaged.map((p) =>
+            p.id === tempId ? { ...p, uploading: false, error: 'Échec envoi' } : p,
+          );
+          onStagedChange(nextStaged);
+        }
+      }
+      setActiveIndex(visibleExisting.length + nextStaged.length - 1);
+    });
   };
 
-  const removeNew = (index: number) => {
-    onFilesChange(files.filter((_, i) => i !== index));
+  const removeStaged = (id: string) => {
+    onStagedChange(staged.filter((p) => p.id !== id));
   };
+
+  const busy = uploadingCount > 0;
 
   return (
     <div>
@@ -100,10 +113,10 @@ export function ProductPhotoPicker({
                 Principale
               </span>
             ) : null}
-            {uploading || preparing ? (
+            {active.kind === 'staged' && active.uploading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/70 dark:bg-slate-900/70">
                 <Loader2 className="animate-spin text-primary-600" size={32} />
-                <span className="text-xs text-gray-600">{preparing ? 'Optimisation…' : 'Envoi…'}</span>
+                <span className="text-xs text-gray-600">Envoi Cloudinary…</span>
               </div>
             ) : null}
           </>
@@ -117,10 +130,10 @@ export function ProductPhotoPicker({
       {slides.length > 0 ? (
         <ul className="mt-2 flex gap-2 overflow-x-auto pb-1">
           {slides.map((slide, index) => (
-            <li key={slide.kind === 'existing' ? slide.id : `new-${slide.index}`} className="relative shrink-0">
+            <li key={slide.id} className="relative shrink-0">
               <button
                 type="button"
-                disabled={disabled || uploading}
+                disabled={disabled || busy}
                 onClick={() => setActiveIndex(index)}
                 className={`block h-16 w-16 overflow-hidden rounded-xl border-2 ${
                   index === activeIndex ? 'border-primary-600' : 'border-gray-200 dark:border-slate-600'
@@ -128,12 +141,12 @@ export function ProductPhotoPicker({
               >
                 <img src={slide.url} alt="" className="h-full w-full object-cover" />
               </button>
-              {!disabled && !uploading ? (
+              {!disabled && !busy ? (
                 <button
                   type="button"
                   onClick={() => {
                     if (slide.kind === 'existing') onRemoveExisting(slide.id);
-                    else removeNew(slide.index);
+                    else removeStaged(slide.id);
                   }}
                   className="absolute -right-1 -top-1 rounded-full bg-red-500 p-0.5 text-white"
                   aria-label="Retirer"
@@ -155,7 +168,7 @@ export function ProductPhotoPicker({
               <button
                 key={id}
                 type="button"
-                disabled={disabled || uploading || total >= MAX_PRODUCT_PHOTOS}
+                disabled={disabled || busy || total >= MAX_PRODUCT_PHOTOS}
                 onClick={() => onRestoreExisting(id)}
                 className="rounded-lg border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-600"
               >
@@ -187,7 +200,9 @@ export function ProductPhotoPicker({
         </>
       ) : null}
 
-      <p className="mt-1 text-xs text-gray-500">La 1ère photo est la principale. Max {MAX_PRODUCT_PHOTOS} photos.</p>
+      <p className="mt-1 text-xs text-gray-500">
+        Photos envoyées immédiatement. La 1ère est la principale. Max {MAX_PRODUCT_PHOTOS}.
+      </p>
     </div>
   );
 }

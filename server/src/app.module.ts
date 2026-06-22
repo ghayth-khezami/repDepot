@@ -23,6 +23,7 @@ import { NewsletterModule } from "./newsletter/newsletter.module";
 import { NotificationModule } from "./notification/notification.module";
 import { HealthModule } from "./health/health.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.module";
+import { MediaModule } from "./media/media.module";
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { CloudinaryModule } from "./cloudinary/cloudinary.module";
       },
     ]),
     CloudinaryModule,
+    MediaModule,
     PrismaModule,
     UserModule,
     AuthModule,

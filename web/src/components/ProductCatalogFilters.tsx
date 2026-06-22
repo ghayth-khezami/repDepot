@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { createPortal } from "react-dom";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -8,18 +7,21 @@ import { api } from "@/lib/api";
 import { fr } from "@/lib/fr";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import type { ProductCatalogFilters as Filters } from "@/hooks/useInfiniteProducts";
-import { Category, Mark, SubCategory } from "@/types";
+import { PriceRangeSlider } from "@/components/PriceRangeSlider";
+import { Category, SubCategory, SubSubCategory1 } from "@/types";
 
 export type CatalogFilterState = Filters & {
   categoryId?: string;
   subCategoryId?: string;
+  subSubCategory1Id?: string;
 };
 
+const PRICE_MIN = 0;
+const PRICE_MAX = 500;
+
 const SORT_OPTIONS: Array<{ value: NonNullable<Filters["sort"]>; label: string }> = [
-  { value: "newest", label: fr.sortNewest },
   { value: "price_asc", label: fr.sortPriceAsc },
   { value: "price_desc", label: fr.sortPriceDesc },
-  { value: "name_asc", label: fr.sortNameAsc },
 ];
 
 type Props = {
@@ -35,11 +37,9 @@ function countActive(f: CatalogFilterState) {
   if (f.search?.trim()) n += 1;
   if (f.categoryId) n += 1;
   if (f.subCategoryId) n += 1;
-  if (f.markId) n += 1;
-  if (f.minPrice !== undefined && f.minPrice > 0) n += 1;
-  if (f.maxPrice !== undefined && f.maxPrice > 0) n += 1;
-  if (f.isDispo) n += 1;
-  if (f.isDepot) n += 1;
+  if (f.subSubCategory1Id) n += 1;
+  if (f.minPrice !== undefined && f.minPrice > PRICE_MIN) n += 1;
+  if (f.maxPrice !== undefined && f.maxPrice < PRICE_MAX) n += 1;
   if (f.sort && f.sort !== "newest") n += 1;
   return n;
 }
@@ -51,19 +51,17 @@ export function ProductCatalogFilters({
   resultCount,
   variant = "standalone",
 }: Props) {
-  const [marks, setMarks] = useState<Mark[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [subSubCategories, setSubSubCategories] = useState<SubSubCategory1[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [searchInput, setSearchInput] = useState(value.search ?? "");
+  const [priceMin, setPriceMin] = useState(value.minPrice ?? PRICE_MIN);
+  const [priceMax, setPriceMax] = useState(value.maxPrice ?? PRICE_MAX);
   const debouncedSearch = useDebouncedValue(searchInput, 350);
   const activeCount = countActive(value);
 
   useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    api.getMarks().then(setMarks).catch(() => setMarks([]));
-  }, []);
 
   useEffect(() => {
     if (!value.categoryId) {
@@ -75,6 +73,17 @@ export function ProductCatalogFilters({
       .then((res) => setSubCategories(res.data))
       .catch(() => setSubCategories([]));
   }, [value.categoryId]);
+
+  useEffect(() => {
+    if (!value.subCategoryId) {
+      setSubSubCategories([]);
+      return;
+    }
+    api
+      .getSubSubCategories1({ subCategoryId: value.subCategoryId, limit: 10, page: 1 })
+      .then((res) => setSubSubCategories(res.data))
+      .catch(() => setSubSubCategories([]));
+  }, [value.subCategoryId]);
 
   useEffect(() => {
     const next = debouncedSearch.trim() || undefined;
@@ -96,13 +105,28 @@ export function ProductCatalogFilters({
     const next = { ...value, ...partial };
     if (partial.categoryId !== undefined && partial.categoryId !== value.categoryId) {
       next.subCategoryId = undefined;
+      next.subSubCategory1Id = undefined;
+    }
+    if (partial.subCategoryId !== undefined && partial.subCategoryId !== value.subCategoryId) {
+      next.subSubCategory1Id = undefined;
     }
     onChange(next);
   };
 
   const reset = () => {
     setSearchInput("");
-    onChange({ sort: "newest" });
+    setPriceMin(PRICE_MIN);
+    setPriceMax(PRICE_MAX);
+    onChange({ sort: "newest", minPrice: undefined, maxPrice: undefined });
+  };
+
+  const handlePriceChange = (min: number, max: number) => {
+    setPriceMin(min);
+    setPriceMax(max);
+    patch({
+      minPrice: min > PRICE_MIN ? min : undefined,
+      maxPrice: max < PRICE_MAX ? max : undefined,
+    });
   };
 
   const panel = (
@@ -130,136 +154,68 @@ export function ProductCatalogFilters({
         <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {fr.filterCategory}
         </span>
-        <div className="no-scrollbar flex flex-wrap gap-2">
-          <FilterChip active={!value.categoryId} onClick={() => patch({ categoryId: undefined })}>
-            {fr.filterAll}
-          </FilterChip>
+        <select
+          value={value.categoryId ?? ""}
+          onChange={(e) => patch({ categoryId: e.target.value || undefined })}
+          className="field-input !cursor-pointer !rounded-2xl"
+        >
+          <option value="">{fr.filterAll}</option>
           {categories.map((c) => (
-            <FilterChip
-              key={c.id}
-              active={value.categoryId === c.id}
-              onClick={() => patch({ categoryId: c.id })}
-            >
-              {c.categoryName}
-            </FilterChip>
+            <option key={c.id} value={c.id}>{c.categoryName}</option>
           ))}
-        </div>
+        </select>
       </div>
 
-      {value.categoryId && subCategories.length > 0 && (
+      {value.categoryId ? (
         <div>
           <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {fr.filterSubCategory}
           </span>
-          <div className="no-scrollbar flex flex-wrap gap-2">
-            <FilterChip
-              active={!value.subCategoryId}
-              onClick={() => patch({ subCategoryId: undefined })}
-            >
-              {fr.filterAll}
-            </FilterChip>
+          <select
+            value={value.subCategoryId ?? ""}
+            onChange={(e) => patch({ subCategoryId: e.target.value || undefined })}
+            className="field-input !cursor-pointer !rounded-2xl"
+            disabled={!subCategories.length}
+          >
+            <option value="">{fr.filterAll}</option>
             {subCategories.map((s) => (
-              <FilterChip
-                key={s.id}
-                active={value.subCategoryId === s.id}
-                onClick={() => patch({ subCategoryId: s.id })}
-              >
-                {s.title}
-              </FilterChip>
+              <option key={s.id} value={s.id}>{s.title}</option>
             ))}
-          </div>
+          </select>
         </div>
-      )}
+      ) : null}
 
-      {marks.length > 0 && (
+      {value.subCategoryId ? (
         <div>
           <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {fr.filterMark}
+            {fr.filterSubSubCategory}
           </span>
-          <div className="no-scrollbar flex flex-wrap gap-2">
-            <FilterChip active={!value.markId} onClick={() => patch({ markId: undefined })}>
-              {fr.filterAll}
-            </FilterChip>
-            {marks.map((m) => (
-              <FilterChip
-                key={m.id}
-                active={value.markId === m.id}
-                onClick={() => patch({ markId: m.id })}
-              >
-                {m.logoDoc ? (
-                  <Image
-                    src={api.normalizePhotoUrl(m.logoDoc) ?? ""}
-                    alt=""
-                    width={20}
-                    height={20}
-                    className="h-5 w-5 rounded object-contain"
-                  />
-                ) : null}
-                {m.name}
-              </FilterChip>
+          <select
+            value={value.subSubCategory1Id ?? ""}
+            onChange={(e) => patch({ subSubCategory1Id: e.target.value || undefined })}
+            className="field-input !cursor-pointer !rounded-2xl"
+            disabled={!subSubCategories.length}
+          >
+            <option value="">{fr.filterAll}</option>
+            {subSubCategories.map((s) => (
+              <option key={s.id} value={s.id}>{s.title}</option>
             ))}
-          </div>
+          </select>
         </div>
-      )}
+      ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-        <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {fr.filterMinPrice}
-          </span>
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={value.minPrice ?? ""}
-            onChange={(e) =>
-              patch({
-                minPrice: e.target.value === "" ? undefined : Number(e.target.value),
-              })
-            }
-            className="field-input !rounded-2xl"
-            placeholder="0"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {fr.filterMaxPrice}
-          </span>
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={value.maxPrice ?? ""}
-            onChange={(e) =>
-              patch({
-                maxPrice: e.target.value === "" ? undefined : Number(e.target.value),
-              })
-            }
-            className="field-input !rounded-2xl"
-            placeholder="—"
-          />
-        </label>
+      <div>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Prix (TND)
+        </span>
+        <PriceRangeSlider
+          min={PRICE_MIN}
+          max={PRICE_MAX}
+          valueMin={priceMin}
+          valueMax={priceMax}
+          onChange={handlePriceChange}
+        />
       </div>
-
-      <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
-        <input
-          type="checkbox"
-          checked={!!value.isDispo}
-          onChange={(e) => patch({ isDispo: e.target.checked || undefined })}
-          className="h-4 w-4 rounded border-border accent-[var(--plum)]"
-        />
-        <span className="text-sm font-medium text-foreground">{fr.filterStock}</span>
-      </label>
-
-      <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
-        <input
-          type="checkbox"
-          checked={!!value.isDepot}
-          onChange={(e) => patch({ isDepot: e.target.checked || undefined })}
-          className="h-4 w-4 rounded border-border accent-[var(--plum)]"
-        />
-        <span className="text-sm font-medium text-foreground">{fr.filterDepot}</span>
-      </label>
 
       <label className="block">
         <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -270,20 +226,19 @@ export function ProductCatalogFilters({
           onChange={(e) => patch({ sort: e.target.value as NonNullable<Filters["sort"]> })}
           className="field-input !cursor-pointer !rounded-2xl"
         >
+          <option value="newest">{fr.sortNewest}</option>
           {SORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
+            <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
       </label>
 
-      {activeCount > 0 && (
+      {activeCount > 0 ? (
         <button type="button" onClick={reset} className="btn-ghost w-full justify-center">
           <X size={16} />
           {fr.clearFilters}
         </button>
-      )}
+      ) : null}
     </div>
   );
 
@@ -382,30 +337,5 @@ export function ProductCatalogFilters({
       {mobileSheet}
       {mobileFab}
     </div>
-  );
-}
-
-function FilterChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition ${
-        active
-          ? "text-cream shadow-[var(--shadow-glow)]"
-          : "border border-border bg-background text-foreground/85 hover:border-primary/30"
-      }`}
-      style={active ? { background: "var(--gradient-brand)" } : undefined}
-    >
-      {children}
-    </button>
   );
 }
