@@ -81,6 +81,10 @@ body {
   min-height: 100vh;
 }
 
+.home-app-root {
+  background: var(--plum-deep);
+}
+
 .home-app-root .home-scroll-body {
   background: var(--cream);
 }
@@ -517,6 +521,7 @@ h4 {
 .home-app-root .site-header-shell {
   padding-top: env(safe-area-inset-top, 0px);
   --site-header-height: calc(env(safe-area-inset-top, 0px) + var(--site-header-bar-height));
+  background: transparent;
 }
 
 .hero-video-backdrop {
