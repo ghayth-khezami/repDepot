@@ -17,33 +17,47 @@ Create a **separate** Vercel project from the mobile PWA (do not reuse mobile se
 ### Environment variables
 
 ```env
-NEXT_PUBLIC_API_URL=https://YOUR-RENDER-API.onrender.com
+NEXT_PUBLIC_API_URL=https://repdepot-qgek.onrender.com
 ```
 
-No trailing slash. Redeploy after changing env vars.
+No trailing slash. **Do not** add `/api` — Nest routes are `/products`, `/categories`, etc. (`/api` is Swagger docs only in dev).
 
-### Common error: `output directory "dist" was not found`
+Redeploy after changing env vars.
 
-This happens when Vercel **Output Directory** is set to `dist` but Next.js builds to `.next` by default.
+## VPS deploy (PM2)
 
-**Fix (already in this repo):** `web/next.config.ts` sets `distDir: "dist"` on Vercel, and `web/vercel.json` declares `"outputDirectory": "dist"`.
+On the server, after `git pull`:
 
-In **Vercel → Project → Settings → General** also confirm:
+```bash
+cd ~/apps/depot/web
+chmod +x deploy-vps.sh
+./deploy-vps.sh
+```
 
-1. Root Directory = `web`
-2. Framework = **Next.js** (not Vite)
-3. Output Directory = `dist` (or leave blank if you remove `distDir` from next.config)
-4. Redeploy
+Or manually:
 
-This repo includes `web/vercel.json` with the correct Next.js settings.
+```bash
+cd ~/apps/depot/web
+pnpm install --frozen-lockfile   # required after every pull (new deps like @phosphor-icons/react)
+pnpm build                       # must succeed before starting
+pm2 delete bebedepot-web 2>/dev/null || true
+pm2 start ecosystem.config.cjs
+pm2 save
+```
 
-## Render API (CORS)
+**Do not** run `pm2 start node_modules/next/dist/bin/next` without `build` first — PM2 will show "online" but the site will be broken.
 
-After deploy, set on Render:
+Nginx should proxy your domain to `http://127.0.0.1:3001`.
+
+### Render API (CORS)
+
+Set on Render (required if frontend is NOT on `*.vercel.app`):
 
 ```env
-WEB_URL=https://your-web-store.vercel.app
+WEB_URL=https://YOUR-VPS-DOMAIN.com
 ```
+
+Without this, the browser blocks API calls from your VPS site to Render.
 
 ## Local dev
 
