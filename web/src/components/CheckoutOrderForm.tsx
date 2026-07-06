@@ -8,6 +8,17 @@ import { fr } from "@/lib/fr";
 import { HOME_COLORS } from "@/lib/home";
 import { Product } from "@/types";
 
+function BilingualLabel({ frLabel, arLabel }: { frLabel: string; arLabel: string }) {
+  return (
+    <span className="mb-2 flex items-baseline justify-between gap-3">
+      <span className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#E04672]">
+        {frLabel}
+      </span>
+      <span className="font-arabic-display text-sm text-[#E04672]/75">{arLabel}</span>
+    </span>
+  );
+}
+
 type CheckoutOrderFormProps = {
   productIds?: string[];
   singleProduct?: Product;
@@ -107,9 +118,7 @@ export function CheckoutOrderForm({
     <form onSubmit={submit} className={`space-y-4 ${className}`}>
       <div className={`grid gap-4 ${compact ? "" : "sm:grid-cols-2"}`}>
         <div>
-          <label className="mb-2 block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#E04672]">
-            {fr.lastName}
-          </label>
+          <BilingualLabel frLabel={fr.lastName} arLabel="اللقب" />
           <input
             className={inputClass}
             value={lastName}
@@ -118,9 +127,7 @@ export function CheckoutOrderForm({
           />
         </div>
         <div>
-          <label className="mb-2 block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#E04672]">
-            {fr.firstName}
-          </label>
+          <BilingualLabel frLabel={fr.firstName} arLabel="الاسم" />
           <input
             className={inputClass}
             value={firstName}
@@ -130,9 +137,7 @@ export function CheckoutOrderForm({
         </div>
       </div>
       <div>
-        <label className="mb-2 block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#E04672]">
-          {fr.phone}
-        </label>
+        <BilingualLabel frLabel={fr.phone} arLabel="الهاتف" />
         <input
           className={inputClass}
           type="tel"
@@ -145,9 +150,7 @@ export function CheckoutOrderForm({
         />
       </div>
       <div>
-        <label className="mb-2 block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#E04672]">
-          {fr.address}
-        </label>
+        <BilingualLabel frLabel={fr.address} arLabel="العنوان" />
         <textarea
           className={`${inputClass} min-h-[100px] resize-y`}
           value={address}
@@ -157,7 +160,10 @@ export function CheckoutOrderForm({
       </div>
 
       <div className="flex items-baseline justify-between border-t border-[#E04672]/10 pt-4">
-        <span className="text-sm text-[#2D2346]/60">{fr.total}</span>
+        <span className="flex items-baseline justify-between gap-3 text-sm text-[#2D2346]/60">
+          <span>{fr.total}</span>
+          <span className="font-arabic-display text-[#E04672]/70">المجموع</span>
+        </span>
         <span className="font-display text-2xl text-[#2D2346] md:text-3xl">
           {totalVente.toFixed(2)}{" "}
           <span className="text-sm font-sans text-[#2D2346]/50">TND</span>

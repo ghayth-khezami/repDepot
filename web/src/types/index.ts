@@ -52,35 +52,29 @@ export interface SubSubCategory3 {
   subSubCategory2Id: string;
 }
 
-export type CategoryHierarchySub3 = Pick<SubSubCategory3, "id" | "title" | "description">;
-
-export type CategoryHierarchySub2 = Pick<SubSubCategory2, "id" | "title" | "description"> & {
-  subSubCategories3: CategoryHierarchySub3[];
-};
-
-export type CategoryHierarchySub1 = Pick<SubSubCategory1, "id" | "title" | "description"> & {
-  subSubCategories2: CategoryHierarchySub2[];
-};
-
-export type CategoryHierarchySub = Pick<SubCategory, "id" | "title" | "description"> & {
-  subSubCategories1: CategoryHierarchySub1[];
-};
-
-export type CategoryHierarchy = Category & {
-  subCategories: CategoryHierarchySub[];
-};
-
-export type CategoryTreeLevel = "category" | "sub" | "ss1" | "ss2" | "ss3";
+export interface CategoryHierarchyNode extends Category {
+  subCategories: Array<
+    SubCategory & {
+      subSubCategories1: Array<
+        SubSubCategory1 & {
+          subSubCategories2: Array<
+            SubSubCategory2 & {
+              subSubCategories3: SubSubCategory3[];
+            }
+          >;
+        }
+      >;
+    }
+  >;
+}
 
 export type CategoryTreeSelection = {
-  level: CategoryTreeLevel;
-  id: string;
-  title: string;
   categoryId: string;
   subCategoryId?: string;
   subSubCategory1Id?: string;
   subSubCategory2Id?: string;
   subSubCategory3Id?: string;
+  label: string;
 };
 
 export interface Product {

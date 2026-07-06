@@ -22,10 +22,15 @@ export function ProduitsPageClient() {
     const categoryId = searchParams.get("categoryId");
     const subCategoryId = searchParams.get("subCategoryId");
     const subSubCategory1Id = searchParams.get("subSubCategory1Id");
+    const subSubCategory2Id = searchParams.get("subSubCategory2Id");
+    const subSubCategory3Id = searchParams.get("subSubCategory3Id");
     if (categoryId) next.categoryId = categoryId;
     if (subCategoryId) next.subCategoryId = subCategoryId;
     if (subSubCategory1Id) next.subSubCategory1Id = subSubCategory1Id;
-    if (categoryId || subCategoryId || subSubCategory1Id) setFilters(next);
+    if (subSubCategory2Id) next.subSubCategory2Id = subSubCategory2Id;
+    if (subSubCategory3Id) next.subSubCategory3Id = subSubCategory3Id;
+    if (categoryId || subCategoryId || subSubCategory1Id || subSubCategory2Id || subSubCategory3Id)
+      setFilters(next);
   }, [searchParams]);
 
   const queryOpts = useMemo(() => {
@@ -34,6 +39,8 @@ export function ProduitsPageClient() {
     if (filters.categoryId) o.categoryId = filters.categoryId;
     if (filters.subCategoryId) o.subCategoryId = filters.subCategoryId;
     if (filters.subSubCategory1Id) o.subSubCategory1Id = filters.subSubCategory1Id;
+    if (filters.subSubCategory2Id) o.subSubCategory2Id = filters.subSubCategory2Id;
+    if (filters.subSubCategory3Id) o.subSubCategory3Id = filters.subSubCategory3Id;
     if (filters.minPrice !== undefined && !Number.isNaN(filters.minPrice)) {
       o.minPrice = filters.minPrice;
     }

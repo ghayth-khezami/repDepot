@@ -2,7 +2,7 @@ import {
   ApiPaginated,
   AuthUser,
   Category,
-  CategoryHierarchy,
+  CategoryHierarchyNode,
   ClientProfile,
   CheckoutCommandPayload,
   Product,
@@ -63,7 +63,7 @@ export const api = {
     }
     return all;
   },
-  getCategoryHierarchy: () => request<import("@/types").CategoryHierarchy[]>("/categories/hierarchy"),
+  getCategoryHierarchy: () => request<CategoryHierarchyNode[]>("/categories/hierarchy"),
   getSubCategories: (opts?: { page?: number; limit?: number; categoryId?: string }) => {
     const params = new URLSearchParams({
       page: String(opts?.page ?? 1),

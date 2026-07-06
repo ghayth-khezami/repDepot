@@ -1,223 +1,333 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  CaretRight,
-  House,
-  TreeStructure,
-} from "@phosphor-icons/react";
+import Link from "next/link";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductGridSkeletons } from "@/components/ProductCardSkeleton";
 import { useInfiniteProducts } from "@/hooks/useInfiniteProducts";
 import { api } from "@/lib/api";
-import { getCategoryCardImage, getCategoryCoverImage } from "@/lib/category-images";
+import { getCategoryCardImage } from "@/lib/category-images";
 import { HOME_COLORS, STORE_CONTAINER } from "@/lib/home";
 import { fr } from "@/lib/fr";
-import type { CategoryHierarchy, CategoryTreeLevel } from "@/types";
-
-type StackItem = {
-  level: CategoryTreeLevel;
-  id: string;
-  title: string;
-};
-
-type TreeNode = {
-  id: string;
-  title: string;
-  level: CategoryTreeLevel;
-  image: string;
-  hasChildren: boolean;
-};
-
-function getChildren(
-  tree: CategoryHierarchy[],
-  stack: StackItem[],
-): TreeNode[] {
-  if (!stack.length) {
-    return tree.map((cat) => ({
-      id: cat.id,
-      title: cat.categoryName,
-      level: "category" as const,
-      image: getCategoryCardImage(cat),
-      hasChildren: cat.subCategories.length > 0,
-    }));
-  }
-
-  const cat = tree.find((c) => c.id === stack[0].id);
-  if (!cat) return [];
-
-  if (stack.length === 1) {
-    return cat.subCategories.map((sub) => ({
-      id: sub.id,
-      title: sub.title,
-      level: "sub" as const,
-      image: getCategoryCardImage(cat),
-      hasChildren: sub.subSubCategories1.length > 0,
-    }));
-  }
-
-  const sub = cat.subCategories.find((s) => s.id === stack[1].id);
-  if (!sub || stack.length === 2) {
-    if (!sub) return [];
-    return sub.subSubCategories1.map((ss1) => ({
-      id: ss1.id,
-      title: ss1.title,
-      level: "ss1" as const,
-      image: getCategoryCardImage(cat),
-      hasChildren: ss1.subSubCategories2.length > 0,
-    }));
-  }
-
-  const ss1 = sub.subSubCategories1.find((s) => s.id === stack[2].id);
-  if (!ss1 || stack.length === 3) {
-    if (!ss1) return [];
-    return ss1.subSubCategories2.map((ss2) => ({
-      id: ss2.id,
-      title: ss2.title,
-      level: "ss2" as const,
-      image: getCategoryCardImage(cat),
-      hasChildren: ss2.subSubCategories3.length > 0,
-    }));
-  }
-
-  const ss2 = ss1.subSubCategories2.find((s) => s.id === stack[3].id);
-  if (!ss2 || stack.length === 4) {
-    if (!ss2) return [];
-    return ss2.subSubCategories3.map((ss3) => ({
-      id: ss3.id,
-      title: ss3.title,
-      level: "ss3" as const,
-      image: getCategoryCardImage(cat),
-      hasChildren: false,
-    }));
-  }
-
-  return [];
-}
-
-function productFilters(tree: CategoryHierarchy[], stack: StackItem[]) {
-  if (!stack.length) return {};
-  const filters: Record<string, string> = { categoryId: stack[0].id };
-  for (const item of stack.slice(1)) {
-    if (item.level === "sub") filters.subCategoryId = item.id;
-    if (item.level === "ss1") filters.subSubCategory1Id = item.id;
-    if (item.level === "ss2") filters.subSubCategory2Id = item.id;
-    if (item.level === "ss3") filters.subSubCategory3Id = item.id;
-  }
-  return filters;
-}
+import type { CategoryHierarchyNode, CategoryTreeSelection } from "@/types";
 
 function TreeNodeCard({
-  node,
-  active,
-  onSelect,
-  onDrill,
+  title,
+  image,
+  selected,
+  onClick,
+  compact = false,
 }: {
-  node: TreeNode;
-  active: boolean;
-  onSelect: () => void;
-  onDrill: () => void;
+  title: string;
+  image: string;
+  selected: boolean;
+  onClick: () => void;
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={() => {
-        onSelect();
-        if (node.hasChildren) onDrill();
-      }}
-      className={`group flex w-full flex-col overflow-hidden rounded-[1.5rem] border-2 bg-white text-left shadow-[0_8px_28px_rgba(45,35,70,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(224,70,114,0.12)] ${
-        active
+      onClick={onClick}
+      className={`group overflow-hidden rounded-[1.25rem] border-2 bg-white text-left shadow-[0_6px_24px_rgba(45,35,70,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(224,70,114,0.12)] ${
+        selected
           ? "border-[#E04672] ring-2 ring-[#E04672]/20"
-          : "border-[#E04672]/12 hover:border-[#E04672]/35"
-      }`}
+          : "border-[#E04672]/15 hover:border-[#E04672]/40"
+      } ${compact ? "w-[7.5rem] sm:w-[8.5rem]" : "w-full max-w-[11rem] sm:max-w-[12rem]"}`}
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden">
+      <div className={`relative overflow-hidden ${compact ? "h-16" : "h-20 sm:h-24"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={node.image}
-          alt={node.title}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-        />
-        {node.hasChildren && (
-          <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#E04672] shadow-sm">
-            <CaretRight size={14} weight="bold" />
+        <img src={image} alt="" className="h-full w-full object-cover" />
+        <div className="absolute inset-x-0 bottom-0 h-7 bg-gradient-to-t from-[#2D2346]/55 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 px-2 pb-1.5">
+          <span className="line-clamp-2 text-[10px] font-semibold leading-tight text-white sm:text-[11px]">
+            {title}
           </span>
-        )}
+        </div>
       </div>
-      <div className="flex items-center justify-between gap-2 px-3 py-3">
-        <span className="line-clamp-2 text-sm font-semibold leading-snug text-[#2D2346]">
-          {node.title}
-        </span>
-      </div>
+      <div className="h-1.5" style={{ backgroundColor: selected ? HOME_COLORS.primary : `${HOME_COLORS.primary}33` }} />
     </button>
   );
 }
 
+function VerticalConnector() {
+  return <div className="mx-auto h-6 w-0.5 rounded-full bg-[#E04672]/25" aria-hidden />;
+}
+
+function HorizontalRail({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative flex flex-wrap items-start justify-center gap-3 sm:gap-4">
+      <div
+        className="pointer-events-none absolute left-[12%] right-[12%] top-0 h-0.5 rounded-full bg-[#E04672]/20"
+        aria-hidden
+      />
+      {children}
+    </div>
+  );
+}
+
+function SubSub3Row({
+  nodes,
+  image,
+  selection,
+  base,
+  onSelect,
+}: {
+  nodes: { id: string; title: string }[];
+  image: string;
+  selection: CategoryTreeSelection | null;
+  base: Omit<CategoryTreeSelection, "label" | "subSubCategory3Id">;
+  onSelect: (s: CategoryTreeSelection) => void;
+}) {
+  if (!nodes.length) return null;
+  return (
+    <div className="mt-2 flex flex-col items-center">
+      <VerticalConnector />
+      <HorizontalRail>
+        {nodes.map((n) => (
+          <div key={n.id} className="pt-3">
+            <TreeNodeCard
+              title={n.title}
+              image={image}
+              compact
+              selected={selection?.subSubCategory3Id === n.id}
+              onClick={() =>
+                onSelect({
+                  ...base,
+                  subSubCategory3Id: n.id,
+                  label: n.title,
+                })
+              }
+            />
+          </div>
+        ))}
+      </HorizontalRail>
+    </div>
+  );
+}
+
+function SubSub2Column({
+  node,
+  image,
+  selection,
+  base,
+  onSelect,
+}: {
+  node: {
+    id: string;
+    title: string;
+    subSubCategories3: { id: string; title: string }[];
+  };
+  image: string;
+  selection: CategoryTreeSelection | null;
+  base: Omit<CategoryTreeSelection, "label" | "subSubCategory2Id" | "subSubCategory3Id">;
+  onSelect: (s: CategoryTreeSelection) => void;
+}) {
+  const base2 = { ...base, subSubCategory2Id: node.id };
+  return (
+    <div className="flex flex-col items-center">
+      <TreeNodeCard
+        title={node.title}
+        image={image}
+        compact
+        selected={
+          selection?.subSubCategory2Id === node.id && !selection?.subSubCategory3Id
+        }
+        onClick={() => onSelect({ ...base2, label: node.title })}
+      />
+      <SubSub3Row
+        nodes={node.subSubCategories3}
+        image={image}
+        selection={selection}
+        base={base2}
+        onSelect={onSelect}
+      />
+    </div>
+  );
+}
+
+function SubSub1Column({
+  node,
+  image,
+  selection,
+  base,
+  onSelect,
+}: {
+  node: {
+    id: string;
+    title: string;
+    subSubCategories2: Array<{
+      id: string;
+      title: string;
+      subSubCategories3: { id: string; title: string }[];
+    }>;
+  };
+  image: string;
+  selection: CategoryTreeSelection | null;
+  base: Omit<CategoryTreeSelection, "label" | "subSubCategory1Id" | "subSubCategory2Id" | "subSubCategory3Id">;
+  onSelect: (s: CategoryTreeSelection) => void;
+}) {
+  const base1 = { ...base, subSubCategory1Id: node.id };
+  return (
+    <div className="flex flex-col items-center">
+      <TreeNodeCard
+        title={node.title}
+        image={image}
+        compact
+        selected={
+          selection?.subSubCategory1Id === node.id &&
+          !selection?.subSubCategory2Id &&
+          !selection?.subSubCategory3Id
+        }
+        onClick={() => onSelect({ ...base1, label: node.title })}
+      />
+      {node.subSubCategories2.length > 0 && (
+        <div className="flex flex-col items-center">
+          <VerticalConnector />
+          <HorizontalRail>
+            {node.subSubCategories2.map((ss2) => (
+              <div key={ss2.id} className="pt-3">
+                <SubSub2Column
+                  node={ss2}
+                  image={image}
+                  selection={selection}
+                  base={base1}
+                  onSelect={onSelect}
+                />
+              </div>
+            ))}
+          </HorizontalRail>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryTreeDiagram({
+  category,
+  selection,
+  onSelect,
+}: {
+  category: CategoryHierarchyNode;
+  selection: CategoryTreeSelection | null;
+  onSelect: (s: CategoryTreeSelection) => void;
+}) {
+  const image = getCategoryCardImage(category);
+  const subs = category.subCategories ?? [];
+
+  return (
+    <div className="cat-hierarchy-tree overflow-x-auto rounded-[1.75rem] border border-[#E04672]/10 bg-gradient-to-b from-[#FFFDFB] to-[#FFF0F4]/40 p-5 sm:p-8">
+      <div className="flex min-w-[min(100%,20rem)] flex-col items-center">
+        <TreeNodeCard
+          title={category.categoryName}
+          image={image}
+          selected={
+            selection?.categoryId === category.id &&
+            !selection?.subCategoryId &&
+            !selection?.subSubCategory1Id
+          }
+          onClick={() =>
+            onSelect({
+              categoryId: category.id,
+              label: category.categoryName,
+            })
+          }
+        />
+
+        {subs.length > 0 && (
+          <>
+            <VerticalConnector />
+            <HorizontalRail>
+              {subs.map((sub) => (
+                <div key={sub.id} className="flex flex-col items-center pt-3">
+                  <TreeNodeCard
+                    title={sub.title}
+                    image={image}
+                    compact
+                    selected={
+                      selection?.subCategoryId === sub.id &&
+                      !selection?.subSubCategory1Id
+                    }
+                    onClick={() =>
+                      onSelect({
+                        categoryId: category.id,
+                        subCategoryId: sub.id,
+                        label: sub.title,
+                      })
+                    }
+                  />
+                  {(sub.subSubCategories1?.length ?? 0) > 0 && (
+                    <div className="flex flex-col items-center">
+                      <VerticalConnector />
+                      <HorizontalRail>
+                        {sub.subSubCategories1.map((ss1) => (
+                          <div key={ss1.id} className="pt-3">
+                            <SubSub1Column
+                              node={ss1}
+                              image={image}
+                              selection={selection}
+                              base={{
+                                categoryId: category.id,
+                                subCategoryId: sub.id,
+                              }}
+                              onSelect={onSelect}
+                            />
+                          </div>
+                        ))}
+                      </HorizontalRail>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </HorizontalRail>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CategoriesPageClient() {
-  const [tree, setTree] = useState<CategoryHierarchy[]>([]);
-  const [loadingTree, setLoadingTree] = useState(true);
-  const [stack, setStack] = useState<StackItem[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [tree, setTree] = useState<CategoryHierarchyNode[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<CategoryTreeSelection | null>(null);
 
   useEffect(() => {
     api
       .getCategoryHierarchy()
-      .then(setTree)
+      .then((data) => {
+        setTree(data);
+        if (data[0]) {
+          setActiveCategoryId(data[0].id);
+          setSelection({ categoryId: data[0].id, label: data[0].categoryName });
+        }
+      })
       .catch(() => setTree([]))
-      .finally(() => setLoadingTree(false));
+      .finally(() => setLoading(false));
   }, []);
 
-  const children = useMemo(() => getChildren(tree, stack), [tree, stack]);
-  const filters = useMemo(() => productFilters(tree, stack), [tree, stack]);
-  const { items, loading, sentinelRef } = useInfiniteProducts(
-    stack.length ? filters : undefined,
+  const activeCategory = useMemo(
+    () => tree.find((c) => c.id === activeCategoryId) ?? null,
+    [tree, activeCategoryId],
   );
 
-  const parentTitle = stack.length ? stack[stack.length - 1].title : null;
+  const productFilters = useMemo(() => {
+    if (!selection) return {};
+    return {
+      categoryId: selection.categoryId,
+      subCategoryId: selection.subCategoryId,
+      subSubCategory1Id: selection.subSubCategory1Id,
+      subSubCategory2Id: selection.subSubCategory2Id,
+      subSubCategory3Id: selection.subSubCategory3Id,
+    };
+  }, [selection]);
 
-  const onNodeClick = (node: TreeNode) => {
-    setActiveId(node.id);
-    const item: StackItem = { level: node.level, id: node.id, title: node.title };
-    if (node.level === "category") {
-      setStack([item]);
-      return;
-    }
-    if (node.level === "sub") {
-      setStack((prev) => [prev[0], item]);
-      return;
-    }
-    if (node.level === "ss1") {
-      setStack((prev) => [prev[0], prev[1], item]);
-      return;
-    }
-    if (node.level === "ss2") {
-      setStack((prev) => [prev[0], prev[1], prev[2], item]);
-      return;
-    }
-    if (node.level === "ss3") {
-      setStack((prev) => [...prev.slice(0, 4), item]);
-    }
-  };
+  const { items, loading: productsLoading, sentinelRef } = useInfiniteProducts(productFilters);
 
-  const onDrill = (node: TreeNode) => {
-    if (!node.hasChildren) return;
-    const item: StackItem = { level: node.level, id: node.id, title: node.title };
-    if (node.level === "category") setStack([item]);
-    else if (node.level === "sub") setStack((prev) => [prev[0], item]);
-    else if (node.level === "ss1") setStack((prev) => [prev[0], prev[1], item]);
-    else if (node.level === "ss2") setStack((prev) => [prev[0], prev[1], prev[2], item]);
-  };
-
-  const goToCrumb = (index: number) => {
-    if (index < 0) {
-      setStack([]);
-      setActiveId(null);
-      return;
-    }
-    setStack((prev) => prev.slice(0, index + 1));
-    setActiveId(stack[index]?.id ?? null);
+  const pickCategory = (cat: CategoryHierarchyNode) => {
+    setActiveCategoryId(cat.id);
+    setSelection({ categoryId: cat.id, label: cat.categoryName });
   };
 
   return (
@@ -230,126 +340,104 @@ export function CategoriesPageClient() {
         Retour à l&apos;accueil
       </Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p
-            className="font-arabic-display text-2xl font-bold md:text-3xl"
-            style={{ color: HOME_COLORS.primary }}
-          >
-            التصنيفات
-          </p>
-          <p
-            className="mt-1 text-xs font-semibold uppercase tracking-[0.24em]"
-            style={{ color: HOME_COLORS.primary }}
-          >
-            {fr.navCategories}
-          </p>
-          <h1 className="mt-2 font-display text-3xl text-[#2D2346] md:text-4xl">
-            Arbre des catégories
-          </h1>
-        </div>
-        <TreeStructure size={36} weight="duotone" className="text-[#E04672]/40" />
-      </div>
-
-      {/* Breadcrumb tree path */}
-      <nav className="flex flex-wrap items-center gap-1.5 text-sm">
-        <button
-          type="button"
-          onClick={() => goToCrumb(-1)}
-          className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition ${
-            !stack.length
-              ? "bg-[#E04672] text-white"
-              : "bg-[#FFF0F4] text-[#2D2346]/70 hover:text-[#E04672]"
-          }`}
+      <div>
+        <p
+          className="text-xs font-semibold uppercase tracking-[0.24em]"
+          style={{ color: HOME_COLORS.primary }}
         >
-          <House size={14} weight="bold" />
-          Toutes
-        </button>
-        {stack.map((item, i) => (
-          <span key={item.id} className="flex items-center gap-1.5">
-            <CaretRight size={12} className="text-[#E04672]/50" />
-            <button
-              type="button"
-              onClick={() => goToCrumb(i)}
-              className={`max-w-[9rem] truncate rounded-full px-3 py-1.5 font-medium transition ${
-                i === stack.length - 1
-                  ? "bg-[#E04672] text-white"
-                  : "bg-[#FFF0F4] text-[#2D2346]/70 hover:text-[#E04672]"
-              }`}
-            >
-              {item.title}
-            </button>
-          </span>
-        ))}
-      </nav>
-
-      {/* Tree connector + current level */}
-      <div className="relative">
-        {parentTitle && stack.length > 0 && (
-          <div className="mb-4 flex flex-col items-center">
-            <div className="rounded-[1.25rem] border-2 border-[#E04672]/25 bg-[#FFF0F4] px-5 py-2.5 text-sm font-semibold text-[#E04672]">
-              {parentTitle}
-            </div>
-            <div className="h-6 w-0.5 bg-[#E04672]/25" aria-hidden />
-            <div className="h-0.5 w-full max-w-md bg-[#E04672]/15" aria-hidden />
-          </div>
-        )}
-
-        {loadingTree ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="aspect-[4/5] animate-pulse rounded-[1.5rem] bg-[#FFF0F4]" />
-            ))}
-          </div>
-        ) : children.length === 0 ? (
-          <p className="text-sm text-[#2D2346]/60">Aucune sous-catégorie ici.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
-            {children.map((node) => (
-              <TreeNodeCard
-                key={node.id}
-                node={node}
-                active={activeId === node.id}
-                onSelect={() => onNodeClick(node)}
-                onDrill={() => onDrill(node)}
-              />
-            ))}
-          </div>
-        )}
+          {fr.navCategories}
+        </p>
+        <h1 className="mt-2 font-display text-3xl text-[#2D2346] md:text-4xl">
+          Parcourez nos catégories
+        </h1>
+        <p className="mt-2 max-w-lg text-sm text-[#2D2346]/65">
+          Choisissez une catégorie, explorez l&apos;arborescence, puis consultez les produits
+          associés.
+        </p>
       </div>
 
-      {/* Products for selected branch */}
-      {stack.length > 0 && (
-        <section className="space-y-6 border-t border-[#E04672]/10 pt-8">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#E04672]">
-              Produits
-            </p>
-            <h2 className="mt-1 font-display text-2xl text-[#2D2346] md:text-3xl">
-              {stack.map((s) => s.title).join(" › ")}
-            </h2>
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="aspect-[4/5] animate-pulse rounded-[1.5rem] bg-[#FFF0F4]" />
+          ))}
+        </div>
+      ) : !tree.length ? (
+        <p className="text-sm text-[#2D2346]/60">Aucune catégorie disponible.</p>
+      ) : (
+        <>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {tree.map((cat) => {
+              const image = getCategoryCardImage(cat);
+              const active = activeCategoryId === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => pickCategory(cat)}
+                  className={`shrink-0 overflow-hidden rounded-[1.35rem] border-2 transition ${
+                    active
+                      ? "border-[#E04672] shadow-[0_8px_24px_rgba(224,70,114,0.15)]"
+                      : "border-[#E04672]/12 opacity-80 hover:opacity-100"
+                  }`}
+                >
+                  <div className="relative h-20 w-24 sm:h-24 sm:w-28">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={image} alt="" className="h-full w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#2D2346]/70 to-transparent px-2 pb-2 pt-6">
+                      <span className="line-clamp-2 text-left text-[10px] font-semibold leading-tight text-white sm:text-xs">
+                        {cat.categoryName}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
-          {loading && items.length === 0 ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              <ProductGridSkeletons count={4} />
-            </div>
-          ) : null}
-
-          {!loading && items.length === 0 && (
-            <p className="text-sm text-[#2D2346]/60">Aucun produit dans cette sélection.</p>
+          {activeCategory && (
+            <CategoryTreeDiagram
+              category={activeCategory}
+              selection={selection}
+              onSelect={setSelection}
+            />
           )}
 
-          {items.length > 0 && (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {items.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          )}
+          {selection && (
+            <section className="space-y-5">
+              <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#E04672]/10 pb-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#E04672]">
+                    Produits
+                  </p>
+                  <h2 className="mt-1 font-display text-2xl text-[#2D2346] md:text-3xl">
+                    {selection.label}
+                  </h2>
+                </div>
+                <Link
+                  href={`/produits?${new URLSearchParams(
+                    Object.entries(productFilters).filter(([, v]) => v) as [string, string][],
+                  ).toString()}`}
+                  className="text-sm font-semibold text-[#E04672] hover:underline"
+                >
+                  Voir tout →
+                </Link>
+              </div>
 
-          <div ref={sentinelRef} className="h-8" />
-        </section>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+                {items.map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+                {productsLoading && items.length === 0 && <ProductGridSkeletons count={6} />}
+              </div>
+
+              {!productsLoading && items.length === 0 && (
+                <p className="py-10 text-center text-sm text-[#2D2346]/55">{fr.noProducts}</p>
+              )}
+              <div ref={sentinelRef} className="h-8" />
+            </section>
+          )}
+        </>
       )}
     </div>
   );
