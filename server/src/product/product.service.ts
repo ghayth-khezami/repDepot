@@ -135,6 +135,8 @@ export class ProductService {
       categoryId,
       subCategoryId,
       subSubCategory1Id,
+      subSubCategory2Id,
+      subSubCategory3Id,
       markId,
       coclientId,
       isDepot,
@@ -165,6 +167,14 @@ export class ProductService {
 
     if (subSubCategory1Id) {
       where.subSubCategory1Id = subSubCategory1Id;
+    }
+
+    if (subSubCategory2Id) {
+      where.subSubCategory2Id = subSubCategory2Id;
+    }
+
+    if (subSubCategory3Id) {
+      where.subSubCategory3Id = subSubCategory3Id;
     }
 
     if (markId) {

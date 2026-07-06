@@ -24,6 +24,16 @@ export class ProductQueryDto extends PaginationDto {
   @IsString()
   subSubCategory1Id?: string;
 
+  @ApiPropertyOptional({ description: "Filter by sub-sub-category level 2 ID" })
+  @IsOptional()
+  @IsString()
+  subSubCategory2Id?: string;
+
+  @ApiPropertyOptional({ description: "Filter by sub-sub-category level 3 ID" })
+  @IsOptional()
+  @IsString()
+  subSubCategory3Id?: string;
+
   @ApiPropertyOptional({ description: "Filter by catalog mark ID" })
   @IsOptional()
   @IsString()

@@ -8,6 +8,8 @@ export type ProductCatalogFilters = {
   categoryId?: string;
   subCategoryId?: string;
   subSubCategory1Id?: string;
+  subSubCategory2Id?: string;
+  subSubCategory3Id?: string;
   search?: string;
   minPrice?: number;
   maxPrice?: number;

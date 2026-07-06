@@ -8,6 +8,9 @@ import type { HeroSlideData } from "@/lib/home";
 import { HOME_COLORS } from "@/lib/home";
 import { PhoneButton } from "./PhoneButton";
 
+const MOBILE_TEXT_GLOW =
+  "0 2px 16px rgba(255,253,251,0.95), 0 0 28px rgba(255,253,251,0.82), 0 1px 3px rgba(255,253,251,0.9)";
+
 export function HeroSlide({
   slide,
   isActive,
@@ -30,24 +33,23 @@ export function HeroSlide({
           fill
           priority={slide.id === "welcome"}
           sizes="(max-width: 1280px) 100vw, 1280px"
-          className="object-cover object-[80%_center] md:object-[76%_center]"
+          className="object-cover object-[center_30%] md:object-[76%_center]"
         />
       </motion.div>
 
-      {/* Mobile: soft bottom scrim only — photo stays fully visible above */}
+      {/* Mobile: light bottom scrim — photo stays clear above */}
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[52%] bg-[linear-gradient(to_top,rgba(255,253,251,0.88)_0%,rgba(255,253,251,0.52)_38%,rgba(255,253,251,0.18)_62%,transparent_100%)] md:hidden"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[42%] bg-[linear-gradient(to_top,rgba(255,253,251,0.72)_0%,rgba(255,253,251,0.38)_42%,rgba(255,253,251,0.1)_68%,transparent_100%)] md:hidden"
         aria-hidden
       />
-      {/* Desktop: left-side fade */}
       <div
-        className="pointer-events-none absolute inset-0 hidden bg-[linear-gradient(to_right,rgba(255,253,251,0.88)_0%,rgba(255,253,251,0.62)_22%,rgba(255,253,251,0.22)_36%,rgba(255,253,251,0.06)_46%,transparent_60%)] md:block"
+        className="pointer-events-none absolute inset-0 z-[1] hidden bg-[linear-gradient(to_right,rgba(255,253,251,0.88)_0%,rgba(255,253,251,0.62)_22%,rgba(255,253,251,0.22)_36%,rgba(255,253,251,0.06)_46%,transparent_60%)] md:block"
         aria-hidden
       />
 
-      <div className="relative z-10 flex h-full min-h-[360px] items-end px-5 pb-12 pt-8 md:min-h-[420px] md:items-center md:px-10 md:py-12 lg:min-h-[460px] lg:px-14">
+      <div className="relative z-10 flex h-full min-h-[360px] items-end px-5 pb-12 pt-6 md:min-h-[420px] md:items-center md:px-10 md:py-12 lg:min-h-[460px] lg:px-14">
         <motion.div
-          className={`hero-slide-copy w-full max-w-xl md:max-w-[48%] lg:max-w-[44%] ${
+          className={`w-full max-w-xl md:max-w-[48%] lg:max-w-[44%] ${
             alignCenter ? "mx-auto text-center md:mx-0 md:text-left" : "text-left"
           }`}
           initial={false}
@@ -60,7 +62,7 @@ export function HeroSlide({
           {slide.arabicWelcome && (
             <p
               className="font-arabic-display text-[1.5rem] font-bold leading-tight tracking-wide md:text-[2.15rem] lg:text-[2.5rem]"
-              style={{ color: HOME_COLORS.primary }}
+              style={{ color: HOME_COLORS.primary, textShadow: MOBILE_TEXT_GLOW }}
             >
               {slide.arabicWelcome}
             </p>
@@ -69,11 +71,12 @@ export function HeroSlide({
           <h1
             className={
               slide.titleClassName ??
-              "mt-1.5 font-display text-[2.4rem] font-semibold leading-[1.02] text-[#2D2346] md:mt-2 md:text-[3.65rem] md:leading-[0.98] lg:text-[4.35rem]"
+              "mt-1.5 font-display text-[2.4rem] font-semibold leading-[1.02] text-[#2D2346] md:mt-2 md:text-[3.65rem] md:leading-[0.98] md:[text-shadow:none] lg:text-[4.35rem]"
             }
+            style={{ textShadow: MOBILE_TEXT_GLOW }}
           >
             {slide.title.split("\n").map((line, i) => (
-              <span key={i} className="block">
+              <span key={i} className="block md:[text-shadow:none]">
                 {line}
               </span>
             ))}
@@ -81,17 +84,18 @@ export function HeroSlide({
 
           {slide.subtitle && (
             <p
-              className="mt-1.5 font-script text-[1.4rem] md:mt-2 md:text-[2.15rem] lg:text-[2.65rem]"
-              style={{ color: HOME_COLORS.accent }}
+              className="mt-1.5 font-script text-[1.4rem] md:mt-2 md:text-[2.15rem] md:[text-shadow:none] lg:text-[2.65rem]"
+              style={{ color: HOME_COLORS.accent, textShadow: MOBILE_TEXT_GLOW }}
             >
               {slide.subtitle}
             </p>
           )}
 
           <p
-            className={`mt-3 max-w-md text-[13px] leading-relaxed text-[#2D2346]/75 md:mt-4 md:text-[15px] md:text-[#2D2346]/68 ${
+            className={`mt-3 max-w-md text-[13px] leading-relaxed text-[#2D2346]/82 md:mt-4 md:text-[15px] md:text-[#2D2346]/68 md:[text-shadow:none] ${
               slide.titleClassName ? "font-arabic-display text-sm md:text-lg" : ""
             } ${alignCenter ? "mx-auto md:mx-0" : ""}`}
+            style={{ textShadow: MOBILE_TEXT_GLOW }}
           >
             {slide.description}
           </p>

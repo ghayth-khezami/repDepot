@@ -74,6 +74,13 @@ export class CategoryController {
     return this.categoryService.findAll(query);
   }
 
+  @Get("hierarchy")
+  @ApiOperation({ summary: "Get full category tree for storefront navigation" })
+  @ApiResponse({ status: 200, description: "Category hierarchy" })
+  findHierarchy() {
+    return this.categoryService.getFullHierarchy();
+  }
+
   @Get("export/hierarchy/pdf")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

@@ -2,6 +2,7 @@ import {
   ApiPaginated,
   AuthUser,
   Category,
+  CategoryHierarchy,
   ClientProfile,
   CheckoutCommandPayload,
   Product,
@@ -62,6 +63,7 @@ export const api = {
     }
     return all;
   },
+  getCategoryHierarchy: () => request<import("@/types").CategoryHierarchy[]>("/categories/hierarchy"),
   getSubCategories: (opts?: { page?: number; limit?: number; categoryId?: string }) => {
     const params = new URLSearchParams({
       page: String(opts?.page ?? 1),
@@ -107,6 +109,8 @@ export const api = {
       categoryId?: string;
       subCategoryId?: string;
       subSubCategory1Id?: string;
+      subSubCategory2Id?: string;
+      subSubCategory3Id?: string;
       search?: string;
       minPrice?: number;
       maxPrice?: number;
@@ -122,6 +126,8 @@ export const api = {
     if (opts?.categoryId) params.set("categoryId", opts.categoryId);
     if (opts?.subCategoryId) params.set("subCategoryId", opts.subCategoryId);
     if (opts?.subSubCategory1Id) params.set("subSubCategory1Id", opts.subSubCategory1Id);
+    if (opts?.subSubCategory2Id) params.set("subSubCategory2Id", opts.subSubCategory2Id);
+    if (opts?.subSubCategory3Id) params.set("subSubCategory3Id", opts.subSubCategory3Id);
     if (opts?.search) params.set("search", opts.search);
     if (opts?.minPrice !== undefined) params.set("minPrice", String(opts.minPrice));
     if (opts?.maxPrice !== undefined) params.set("maxPrice", String(opts.maxPrice));
