@@ -34,14 +34,20 @@ export function HeroSlide({
         />
       </motion.div>
 
+      {/* Mobile: soft bottom scrim only — photo stays fully visible above */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(255,253,251,0.98)_0%,rgba(255,253,251,0.94)_18%,rgba(255,253,251,0.78)_32%,rgba(255,253,251,0.35)_48%,transparent_62%)] md:bg-[linear-gradient(to_right,rgba(255,253,251,0.88)_0%,rgba(255,253,251,0.62)_22%,rgba(255,253,251,0.22)_36%,rgba(255,253,251,0.06)_46%,transparent_60%)]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[52%] bg-[linear-gradient(to_top,rgba(255,253,251,0.88)_0%,rgba(255,253,251,0.52)_38%,rgba(255,253,251,0.18)_62%,transparent_100%)] md:hidden"
+        aria-hidden
+      />
+      {/* Desktop: left-side fade */}
+      <div
+        className="pointer-events-none absolute inset-0 hidden bg-[linear-gradient(to_right,rgba(255,253,251,0.88)_0%,rgba(255,253,251,0.62)_22%,rgba(255,253,251,0.22)_36%,rgba(255,253,251,0.06)_46%,transparent_60%)] md:block"
         aria-hidden
       />
 
-      <div className="relative z-10 flex h-full min-h-[360px] items-end px-4 pb-10 pt-12 md:min-h-[420px] md:items-center md:px-10 md:py-12 lg:min-h-[460px] lg:px-14">
+      <div className="relative z-10 flex h-full min-h-[360px] items-end px-5 pb-12 pt-8 md:min-h-[420px] md:items-center md:px-10 md:py-12 lg:min-h-[460px] lg:px-14">
         <motion.div
-          className={`w-full max-w-xl md:max-w-[48%] lg:max-w-[44%] ${
+          className={`hero-slide-copy w-full max-w-xl md:max-w-[48%] lg:max-w-[44%] ${
             alignCenter ? "mx-auto text-center md:mx-0 md:text-left" : "text-left"
           }`}
           initial={false}
@@ -51,10 +57,9 @@ export function HeroSlide({
               : { opacity: 0, x: -16 }
           }
         >
-          <div className="inline-block max-w-full rounded-[1.35rem] border border-white/60 bg-[#FFFDFB]/92 px-4 py-4 shadow-[0_8px_32px_rgba(45,35,70,0.12)] backdrop-blur-md md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none md:backdrop-blur-none">
           {slide.arabicWelcome && (
             <p
-              className="font-arabic-display text-[1.45rem] font-bold leading-tight tracking-wide drop-shadow-[0_1px_2px_rgba(255,253,251,0.9)] md:text-[2.15rem] lg:text-[2.5rem]"
+              className="font-arabic-display text-[1.5rem] font-bold leading-tight tracking-wide md:text-[2.15rem] lg:text-[2.5rem]"
               style={{ color: HOME_COLORS.primary }}
             >
               {slide.arabicWelcome}
@@ -64,7 +69,7 @@ export function HeroSlide({
           <h1
             className={
               slide.titleClassName ??
-              "mt-1.5 font-display text-[2.35rem] font-semibold leading-[1.02] text-[#2D2346] drop-shadow-[0_1px_2px_rgba(255,253,251,0.85)] md:mt-2 md:text-[3.65rem] md:leading-[0.98] lg:text-[4.35rem]"
+              "mt-1.5 font-display text-[2.4rem] font-semibold leading-[1.02] text-[#2D2346] md:mt-2 md:text-[3.65rem] md:leading-[0.98] lg:text-[4.35rem]"
             }
           >
             {slide.title.split("\n").map((line, i) => (
@@ -76,7 +81,7 @@ export function HeroSlide({
 
           {slide.subtitle && (
             <p
-              className="mt-1.5 font-script text-[1.35rem] drop-shadow-[0_1px_2px_rgba(255,253,251,0.85)] md:mt-2 md:text-[2.15rem] lg:text-[2.65rem]"
+              className="mt-1.5 font-script text-[1.4rem] md:mt-2 md:text-[2.15rem] lg:text-[2.65rem]"
               style={{ color: HOME_COLORS.accent }}
             >
               {slide.subtitle}
@@ -84,7 +89,7 @@ export function HeroSlide({
           )}
 
           <p
-            className={`mt-3 max-w-md text-[13px] leading-relaxed text-[#2D2346]/80 md:mt-4 md:text-[15px] md:text-[#2D2346]/68 ${
+            className={`mt-3 max-w-md text-[13px] leading-relaxed text-[#2D2346]/75 md:mt-4 md:text-[15px] md:text-[#2D2346]/68 ${
               slide.titleClassName ? "font-arabic-display text-sm md:text-lg" : ""
             } ${alignCenter ? "mx-auto md:mx-0" : ""}`}
           >
@@ -92,7 +97,7 @@ export function HeroSlide({
           </p>
 
           <div
-            className={`mt-6 flex flex-wrap items-center gap-3 ${
+            className={`mt-5 flex flex-wrap items-center gap-3 md:mt-6 ${
               alignCenter ? "justify-center md:justify-start" : ""
             }`}
           >
@@ -110,7 +115,6 @@ export function HeroSlide({
             ) : (
               <PhoneButton label={slide.cta.label} />
             )}
-          </div>
           </div>
         </motion.div>
       </div>

@@ -200,10 +200,14 @@ export function ProductDetailsClient({
                 {product.PrixVente.toFixed(2)}{" "}
                 <span className="text-sm font-sans text-[#2D2346]/50">TND</span>
               </p>
-              {!outOfStock && (
+              {!outOfStock ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-500/20">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
                   {fr.inStock}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#2D2346]/8 px-3 py-1 text-xs font-semibold text-[#2D2346]/70 ring-1 ring-[#2D2346]/12">
+                  {fr.outOfStock}
                 </span>
               )}
             </div>
@@ -256,22 +260,24 @@ export function ProductDetailsClient({
           </motion.div>
         </div>
 
-        <section className="overflow-hidden rounded-[2rem] border border-[#E04672]/10 bg-white p-6 shadow-[0_8px_32px_rgba(45,35,70,0.06)] md:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: PINK }}>
-            {fr.payment}
-          </p>
-          <h2 className="mt-2 font-display text-2xl text-[#2D2346] md:text-3xl">J&apos;achète</h2>
-          <p className="mt-1 text-sm text-[#2D2346]/60">
-            Passez commande directement pour ce produit — livraison partout en Tunisie.
-          </p>
-          <div className="mt-6">
-            <CheckoutOrderForm
-              singleProduct={product}
-              compact
-              onSuccess={() => setOrderSuccess(true)}
-            />
-          </div>
-        </section>
+        {!outOfStock && (
+          <section className="overflow-hidden rounded-[2rem] border border-[#E04672]/10 bg-white p-6 shadow-[0_8px_32px_rgba(45,35,70,0.06)] md:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: PINK }}>
+              {fr.payment}
+            </p>
+            <h2 className="mt-2 font-display text-2xl text-[#2D2346] md:text-3xl">J&apos;achète</h2>
+            <p className="mt-1 text-sm text-[#2D2346]/60">
+              Passez commande directement pour ce produit — livraison partout en Tunisie.
+            </p>
+            <div className="mt-6">
+              <CheckoutOrderForm
+                singleProduct={product}
+                compact
+                onSuccess={() => setOrderSuccess(true)}
+              />
+            </div>
+          </section>
+        )}
 
         {similar.length > 0 && (
           <section>
