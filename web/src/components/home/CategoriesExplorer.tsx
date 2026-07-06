@@ -9,8 +9,6 @@ import { HOME_COLORS } from "@/lib/home";
 import { FadeUp } from "./FadeUp";
 import { FloatingStickers } from "./FloatingStickers";
 
-const PASTEL_BG = ["#FFF5F8", "#FFF0F4", "#FFF8F5", "#FFF5F0", "#FFF0F8", "#FFF8F0"];
-
 export function CategoriesExplorer({
   categories,
   counts,
@@ -26,16 +24,24 @@ export function CategoriesExplorer({
         <FloatingStickers seed={2} />
 
         <div className="home-stickers-content space-y-8">
-          <div>
-            <p
-              className="text-xs font-semibold uppercase tracking-[0.24em]"
-              style={{ color: HOME_COLORS.primary }}
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.24em]"
+                style={{ color: HOME_COLORS.primary }}
+              >
+                Catégories
+              </p>
+              <h2 className="mt-2 font-display text-3xl text-[#2D2346] md:text-4xl">
+                Parcourez nos catégories
+              </h2>
+            </div>
+            <Link
+              href="/categories"
+              className="text-sm font-semibold text-[#E04672] underline-offset-4 hover:underline"
             >
-              Catégories
-            </p>
-            <h2 className="mt-2 font-display text-3xl text-[#2D2346] md:text-4xl">
-              Parcourez nos catégories
-            </h2>
+              Voir tout →
+            </Link>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-6">
@@ -44,7 +50,6 @@ export function CategoriesExplorer({
               const image = getCategoryCardImage(cat);
               const label =
                 count === 1 ? `1 ${fr.article}` : `${count} ${fr.articles}`;
-              const bg = PASTEL_BG[cat.categoryName.charCodeAt(0) % PASTEL_BG.length];
 
               return (
                 <motion.div
@@ -55,20 +60,17 @@ export function CategoriesExplorer({
                 >
                   <Link
                     href={`/categories/${cat.id}`}
-                    className="group flex h-full min-h-[200px] flex-col overflow-hidden rounded-[1.75rem] bg-white p-3 shadow-[0_8px_32px_rgba(45,35,70,0.07)] transition hover:shadow-[0_12px_36px_rgba(45,35,70,0.1)] md:min-h-[220px] md:p-4"
+                    className="group flex h-full min-h-[200px] flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-[0_8px_32px_rgba(45,35,70,0.07)] transition hover:shadow-[0_12px_36px_rgba(45,35,70,0.1)] md:min-h-[220px]"
                   >
-                    <div
-                      className="relative flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden rounded-[1.25rem] p-4"
-                      style={{ backgroundColor: bg }}
-                    >
+                    <div className="relative aspect-square w-full shrink-0 overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={image}
                         alt={cat.categoryName}
-                        className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-500 group-hover:scale-110"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
-                    <div className="flex flex-1 flex-col justify-center px-1 py-3">
+                    <div className="flex flex-1 flex-col justify-center px-3 py-3 md:px-4">
                       <h3 className="line-clamp-2 min-h-[2.5rem] font-display text-sm leading-snug text-[#2D2346] md:text-base">
                         {cat.categoryName}
                       </h3>

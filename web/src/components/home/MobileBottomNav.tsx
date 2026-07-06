@@ -14,7 +14,7 @@ const TABS = [
     match: (p: string) => p.startsWith("/produits"),
   },
   {
-    href: "/#categories",
+    href: "/categories",
     label: "Catégories",
     icon: Grid3X3,
     match: () => false,

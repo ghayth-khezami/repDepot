@@ -8,7 +8,7 @@ import { useShop } from "@/context/ShopContext";
 import { api } from "@/lib/api";
 import { fr, LOGO_SRC } from "@/lib/fr";
 import { FOOTER_LINKS, STORE_CONTAINER } from "@/lib/home";
-import { getGoogleMapsOpenUrl, SOCIAL, STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/social";
+import { getGoogleMapsEmbedSrc, getGoogleMapsOpenUrl, SOCIAL, STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/social";
 
 export function Footer() {
   const { categories } = useShop();
@@ -163,6 +163,19 @@ export function Footer() {
 
         <div className="mt-12 border-t border-[#E04672]/10 pt-6 text-center text-xs text-[#2D2346]/50">
           © {year} {fr.brand} — {fr.rights}
+        </div>
+      </div>
+
+      <div className="w-full px-4 pb-0 md:px-6">
+        <div className="mx-auto max-w-6xl overflow-hidden rounded-t-[1.75rem] border border-[#E04672]/10 shadow-[0_-8px_32px_rgba(45,35,70,0.06)]">
+          <iframe
+            title="Bébé Dépôt — Manouba"
+            src={getGoogleMapsEmbedSrc()}
+            className="aspect-[16/9] w-full border-0 sm:aspect-[21/9]"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+          />
         </div>
       </div>
     </footer>

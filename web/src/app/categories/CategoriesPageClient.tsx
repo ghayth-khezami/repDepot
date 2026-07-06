@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { CaretDown, CaretRight } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, ArrowLeft } from "@phosphor-icons/react";
 import { Category } from "@/types";
 import { api } from "@/lib/api";
 import { getCategoryCardImage } from "@/lib/category-images";
-import { HOME_COLORS } from "@/lib/home";
+import { HOME_COLORS, STORE_CONTAINER } from "@/lib/home";
+import { fr } from "@/lib/fr";
+import { useShop } from "@/context/ShopContext";
 
 type Path = { sub?: string; ss1?: string; ss2?: string; ss3?: string };
 
@@ -36,6 +38,7 @@ function TreeBranch({
   const [children, setChildren] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const href = buildHref(categoryId, path);
+  const canExpand = depth < 4;
 
   const loadChildren = useCallback(async () => {
     if (children.length || loading) return;
@@ -59,47 +62,42 @@ function TreeBranch({
   }, [children.length, depth, id, loading]);
 
   const toggle = () => {
-    if (!open && depth < 4) void loadChildren();
+    if (!open && canExpand) void loadChildren();
     setOpen((v) => !v);
   };
 
   const childDepth = (depth + 1) as 2 | 3 | 4 | 5;
-  const canExpand = depth < 4;
 
   return (
-    <div className="relative pl-3">
-      <div
-        className="absolute bottom-0 left-1.5 top-0 w-px bg-white/18"
-        aria-hidden
-      />
-      <div className="relative flex items-center gap-1 py-0.5">
+    <div className="ml-3 border-l-2 border-[#E04672]/12 pl-3">
+      <div className="flex items-center gap-2 py-1">
         {canExpand ? (
           <button
             type="button"
             onClick={toggle}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white/65 transition hover:bg-white/10"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#E04672]/70 transition hover:bg-[#FFF0F4]"
           >
             {loading ? (
-              <span className="h-2 w-2 animate-pulse rounded-full bg-white/40" />
+              <span className="h-2 w-2 animate-pulse rounded-full bg-[#E04672]/40" />
             ) : open ? (
-              <CaretDown size={12} weight="bold" />
+              <CaretDown size={14} weight="bold" />
             ) : (
-              <CaretRight size={12} weight="bold" />
+              <CaretRight size={14} weight="bold" />
             )}
           </button>
         ) : (
-          <span className="w-6 shrink-0" />
+          <span className="w-7 shrink-0" />
         )}
         <Link
           href={href}
-          className="min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-sm text-white/88 transition hover:bg-white/10"
+          className="min-w-0 flex-1 truncate rounded-xl px-3 py-2.5 text-sm font-medium text-[#2D2346]/85 transition hover:bg-[#FFF0F4] hover:text-[#E04672]"
         >
           {title}
         </Link>
       </div>
 
-      {open && children.length > 0 && depth < 4 && (
-        <div className="ml-3 border-l border-white/12 pl-1">
+      {open && children.length > 0 && canExpand && (
+        <div className="space-y-0.5 pb-1">
           {children.map((child) => {
             const nextPath: Path = { ...path };
             if (depth === 1) nextPath.ss1 = child.id;
@@ -123,7 +121,7 @@ function TreeBranch({
   );
 }
 
-function CategoryTreeItem({ category }: { category: Category }) {
+function CategoryAccordion({ category }: { category: Category }) {
   const [open, setOpen] = useState(false);
   const [subs, setSubs] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -140,43 +138,49 @@ function CategoryTreeItem({ category }: { category: Category }) {
   }, [open, category.id, subs.length]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/12 bg-white/8">
+    <article className="overflow-hidden rounded-[1.75rem] border border-[#E04672]/10 bg-white shadow-[0_8px_32px_rgba(45,35,70,0.06)]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-white/8"
+        className="flex w-full items-center gap-4 p-4 text-left transition hover:bg-[#FFFDFB] md:p-5"
       >
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/15 p-1.5">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl md:h-20 md:w-20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image} alt="" className="h-full w-full object-contain" />
+          <img src={image} alt="" className="h-full w-full object-cover" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-white">{category.categoryName}</p>
-          <p className="text-xs text-white/55">Voir les sous-catégories</p>
+          <p className="font-arabic-display text-lg font-semibold text-[#2D2346] md:text-xl">
+            {category.categoryName}
+          </p>
+          <p className="mt-0.5 text-xs text-[#2D2346]/55">
+            {open ? "Masquer les sous-catégories" : "Voir toutes les sous-catégories"}
+          </p>
         </div>
         <CaretDown
-          size={18}
+          size={20}
           weight="bold"
-          className={`shrink-0 text-white/60 transition ${open ? "rotate-180" : ""}`}
+          className={`shrink-0 text-[#E04672]/60 transition ${open ? "rotate-180" : ""}`}
         />
       </button>
 
       {open && (
-        <div className="border-t border-white/10 px-3 pb-3 pt-2">
+        <div className="border-t border-[#E04672]/8 px-4 pb-5 pt-3 md:px-5">
           <Link
             href={`/produits?categoryId=${category.id}`}
-            className="mb-2 block rounded-xl px-2 py-2 text-xs font-semibold uppercase tracking-wider transition hover:bg-white/10"
-            style={{ color: HOME_COLORS.accent }}
+            className="mb-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition hover:brightness-105"
+            style={{ backgroundColor: HOME_COLORS.primary }}
           >
             Tous les produits →
           </Link>
+
           {loading && (
             <div className="space-y-2 py-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-8 animate-pulse rounded-lg bg-white/10" />
+                <div key={i} className="h-10 animate-pulse rounded-xl bg-[#FFF0F4]" />
               ))}
             </div>
           )}
+
           {!loading &&
             subs.map((sub) => (
               <TreeBranch
@@ -188,30 +192,65 @@ function CategoryTreeItem({ category }: { category: Category }) {
                 path={{ sub: sub.id }}
               />
             ))}
+
           {!loading && subs.length === 0 && (
             <Link
               href={`/categories/${category.id}`}
-              className="block py-2 text-sm text-white/70 hover:text-white"
+              className="block py-2 text-sm text-[#E04672] hover:underline"
             >
               Parcourir la catégorie →
             </Link>
           )}
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
-export function CategoryTreeNav({ categories }: { categories: Category[] }) {
-  if (!categories.length) {
-    return <p className="px-3 py-4 text-sm text-white/60">Aucune catégorie.</p>;
-  }
+export function CategoriesPageClient() {
+  const { categories } = useShop();
 
   return (
-    <div className="space-y-3">
-      {categories.map((cat) => (
-        <CategoryTreeItem key={cat.id} category={cat} />
-      ))}
+    <div className={`space-y-8 py-6 md:py-10 ${STORE_CONTAINER}`}>
+      <Link
+        href="/"
+        className="inline-flex items-center gap-2 text-sm font-medium text-[#2D2346]/60 transition hover:text-[#E04672]"
+      >
+        <ArrowLeft size={16} />
+        Retour à l&apos;accueil
+      </Link>
+
+      <div>
+        <p
+          className="font-arabic-display text-2xl font-bold md:text-3xl"
+          style={{ color: HOME_COLORS.primary }}
+        >
+          التصنيفات
+        </p>
+        <p
+          className="mt-1 text-xs font-semibold uppercase tracking-[0.24em]"
+          style={{ color: HOME_COLORS.primary }}
+        >
+          {fr.navCategories}
+        </p>
+        <h1 className="mt-2 font-display text-3xl text-[#2D2346] md:text-4xl">
+          Parcourez toutes nos catégories
+        </h1>
+        <p className="mt-2 max-w-lg text-sm text-[#2D2346]/65">
+          De la catégorie principale jusqu&apos;aux sous-niveaux — trouvez rapidement ce qu&apos;il
+          vous faut pour bébé.
+        </p>
+      </div>
+
+      {!categories.length ? (
+        <p className="text-sm text-[#2D2346]/60">Aucune catégorie disponible.</p>
+      ) : (
+        <div className="space-y-4">
+          {categories.map((cat) => (
+            <CategoryAccordion key={cat.id} category={cat} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

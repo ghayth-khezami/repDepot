@@ -16,7 +16,7 @@ import { AnnouncementBar } from "./AnnouncementBar";
 const NAV = [
   { href: "/", label: "Accueil", match: (p: string) => p === "/" },
   { href: "/produits", label: "Produits", match: (p: string) => p.startsWith("/produits") },
-  { href: "/#categories", label: "Catégories", match: () => false },
+  { href: "/categories", label: "Catégories", match: (p: string) => p.startsWith("/categories") },
   { href: "/magasin", label: "Magasin", match: (p: string) => p === "/magasin" },
   { href: "/#trust", label: "À propos", match: () => false },
 ] as const;

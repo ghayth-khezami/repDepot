@@ -32,12 +32,7 @@ export function ProductCard({ product }: { product: Product }) {
       className="group flex h-full flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-[0_8px_32px_rgba(45,35,70,0.07)]"
     >
       <div className="relative aspect-[4/5] overflow-hidden">
-        <ProductPhotoGallery
-          photos={product.photos}
-          alt={product.productName}
-          className="h-full"
-          autoPlayMs={2000}
-        />
+        <ProductPhotoGallery photos={product.photos} alt={product.productName} className="h-full" />
 
         <button
           type="button"
@@ -76,7 +71,6 @@ export function ProductCard({ product }: { product: Product }) {
           disabled={outOfStock || inCart}
           inCart={inCart}
           outOfStock={outOfStock}
-          compact
         />
       </div>
     </motion.article>

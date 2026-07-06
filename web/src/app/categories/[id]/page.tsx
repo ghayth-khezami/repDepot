@@ -58,7 +58,7 @@ export default function CategoryPage() {
   return (
     <div className="page-container space-y-10 py-4">
       <Link
-        href="/#categories"
+        href="/categories"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
       >
         <ArrowLeft size={16} />

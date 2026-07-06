@@ -38,7 +38,7 @@ export default function LoginPage() {
   }, [authHydrated, user, redirectTo, router]);
 
   useEffect(() => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
     if (!clientId || !googleBtnRef.current) return;
 
     const scriptId = "google-identity-services";
@@ -248,8 +248,8 @@ export default function LoginPage() {
               <button type="submit" disabled={loading} className="btn-primary w-full">
                 {mode === "signin" ? "Se connecter" : "S'inscrire"}
               </button>
-              <div ref={googleBtnRef} className="flex justify-center" />
-              {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && !googleReady ? (
+              <div ref={googleBtnRef} className="flex justify-center empty:hidden" />
+              {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() && !googleReady ? (
                 <p className="text-center text-xs text-muted-foreground">Chargement Google…</p>
               ) : null}
             </form>

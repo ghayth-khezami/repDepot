@@ -848,6 +848,12 @@ h4 {
   user-select: none;
 }
 
+@media (max-width: 1023px) {
+  .floating-sticker {
+    opacity: 0.35;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .floating-sticker {
     animation: none;

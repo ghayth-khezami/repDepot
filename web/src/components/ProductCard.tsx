@@ -88,7 +88,6 @@ export function ProductCard({
             disabled={outOfStock || inCart}
             inCart={inCart}
             outOfStock={outOfStock}
-            compact
             className="mt-3"
           />
         </div>
