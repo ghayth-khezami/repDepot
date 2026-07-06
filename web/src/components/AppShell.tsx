@@ -39,23 +39,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isHomePage = pathname === "/";
 
   return (
-    <div className={`relative flex min-h-dvh flex-col ${isHomePage ? "home-app-root" : ""}`}>
+    <div className="relative flex min-h-dvh flex-col">
       <LogoLoader visible={routeLoading} />
       <SiteHeader />
-      {isHomePage ? (
-        <div className="home-ambient-shell flex flex-1 flex-col">
-          <div className="home-ambient-bg" aria-hidden>
-            <div className="home-ambient-gradient" />
-          </div>
-          <main className="home-main-layer relative flex-1 pb-0 pt-0">{children}</main>
-          {!isMagasinPage && <Footer connected />}
-        </div>
-      ) : (
-        <>
-          <main className="flex-1 pb-16 pt-4">{children}</main>
-          {!isMagasinPage && <Footer />}
-        </>
-      )}
+      <main className={isHomePage ? "flex-1" : "flex-1 pb-16 pt-4"}>{children}</main>
+      {!isHomePage && !isMagasinPage && <Footer />}
     </div>
   );
 }

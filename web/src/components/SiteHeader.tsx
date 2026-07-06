@@ -12,6 +12,7 @@ import {
   MapPin,
   Menu,
   ShoppingBag,
+  Grid3X3,
   User,
   X,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { useShop } from "@/context/ShopContext";
 import { useAddToCartFx } from "@/components/AddToCartFxProvider";
 import { UserMenuDropdown } from "@/components/UserMenuDropdown";
+import { CategoryTreeNav } from "@/components/CategoryTreeNav";
 import { fr, LOGO_SRC } from "@/lib/fr";
 import { EASE_PRIMARY, logoSpring } from "@/lib/motion";
 
@@ -32,6 +34,7 @@ const NAV = [
     match: (p: string) => p.startsWith("/produits"),
   },
   { href: "/magasin", label: fr.navStore, icon: MapPin, match: (p: string) => p === "/magasin" },
+  { href: "/#categories", label: fr.navCategories, icon: Grid3X3, match: () => false },
 ] as const;
 
 const MOBILE_ACCOUNT = [
@@ -44,7 +47,7 @@ const MOBILE_ACCOUNT = [
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { cart, token, user, logout } = useShop();
+  const { cart, token, user, logout, categories } = useShop();
   const cartCount = cart.length;
   const fx = useAddToCartFx();
   const cartRef = useRef<HTMLAnchorElement | null>(null);
@@ -147,6 +150,12 @@ export function SiteHeader() {
                       </Link>
                     );
                   })}
+
+                  <div className="my-4 h-px bg-white/12" />
+                  <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/50">
+                    {fr.navCategories}
+                  </p>
+                  <CategoryTreeNav categories={categories} />
 
                   {token ? (
                     <>

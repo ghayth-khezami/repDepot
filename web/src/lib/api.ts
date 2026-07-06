@@ -7,6 +7,8 @@ import {
   Product,
   SubCategory,
   SubSubCategory1,
+  SubSubCategory2,
+  SubSubCategory3,
   ClientFeedback,
   Mark,
 } from "@/types";
@@ -63,7 +65,7 @@ export const api = {
   getSubCategories: (opts?: { page?: number; limit?: number; categoryId?: string }) => {
     const params = new URLSearchParams({
       page: String(opts?.page ?? 1),
-      limit: String(Math.min(Math.max(Number(opts?.limit ?? 10), 1), 10)),
+      limit: String(Math.min(Math.max(Number(opts?.limit ?? 10), 1), 50)),
     });
     if (opts?.categoryId) params.set("categoryId", opts.categoryId);
     return request<ApiPaginated<SubCategory>>(`/sub-categories?${params.toString()}`);
@@ -71,10 +73,26 @@ export const api = {
   getSubSubCategories1: (opts?: { page?: number; limit?: number; subCategoryId?: string }) => {
     const params = new URLSearchParams({
       page: String(opts?.page ?? 1),
-      limit: String(Math.min(Math.max(Number(opts?.limit ?? 10), 1), 10)),
+      limit: String(Math.min(Math.max(Number(opts?.limit ?? 10), 1), 50)),
     });
     if (opts?.subCategoryId) params.set("subCategoryId", opts.subCategoryId);
     return request<ApiPaginated<SubSubCategory1>>(`/sub-sub-categories-1?${params.toString()}`);
+  },
+  getSubSubCategories2: (opts?: { page?: number; limit?: number; subSubCategory1Id?: string }) => {
+    const params = new URLSearchParams({
+      page: String(opts?.page ?? 1),
+      limit: String(Math.min(Math.max(Number(opts?.limit ?? 10), 1), 50)),
+    });
+    if (opts?.subSubCategory1Id) params.set("subSubCategory1Id", opts.subSubCategory1Id);
+    return request<ApiPaginated<SubSubCategory2>>(`/sub-sub-categories-2?${params.toString()}`);
+  },
+  getSubSubCategories3: (opts?: { page?: number; limit?: number; subSubCategory2Id?: string }) => {
+    const params = new URLSearchParams({
+      page: String(opts?.page ?? 1),
+      limit: String(Math.min(Math.max(Number(opts?.limit ?? 10), 1), 50)),
+    });
+    if (opts?.subSubCategory2Id) params.set("subSubCategory2Id", opts.subSubCategory2Id);
+    return request<ApiPaginated<SubSubCategory3>>(`/sub-sub-categories-3?${params.toString()}`);
   },
   getCategory: (id: string) =>
     request<

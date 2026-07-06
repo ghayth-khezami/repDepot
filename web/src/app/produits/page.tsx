@@ -1,18 +1,32 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductGridSkeletons } from "@/components/ProductCardSkeleton";
 import { ProductCatalogFilters, CatalogFilterState } from "@/components/ProductCatalogFilters";
 import { useShop } from "@/context/ShopContext";
 import { useInfiniteProducts } from "@/hooks/useInfiniteProducts";
+import { STORE_CONTAINER } from "@/lib/home";
 import { fr } from "@/lib/fr";
 
 const DEFAULT_FILTERS: CatalogFilterState = { sort: "newest" };
 
 export default function ProduitsPage() {
+  const searchParams = useSearchParams();
   const { categories, token, syncLikesForProducts } = useShop();
   const [filters, setFilters] = useState<CatalogFilterState>(DEFAULT_FILTERS);
+
+  useEffect(() => {
+    const next: CatalogFilterState = { sort: "newest" };
+    const categoryId = searchParams.get("categoryId");
+    const subCategoryId = searchParams.get("subCategoryId");
+    const subSubCategory1Id = searchParams.get("subSubCategory1Id");
+    if (categoryId) next.categoryId = categoryId;
+    if (subCategoryId) next.subCategoryId = subCategoryId;
+    if (subSubCategory1Id) next.subSubCategory1Id = subSubCategory1Id;
+    if (categoryId || subCategoryId || subSubCategory1Id) setFilters(next);
+  }, [searchParams]);
 
   const queryOpts = useMemo(() => {
     const o: CatalogFilterState = { sort: filters.sort ?? "newest" };
@@ -41,11 +55,15 @@ export default function ProduitsPage() {
   }, [token, productIdsKey, syncLikesForProducts]);
 
   return (
-    <div className="page-container produits-page py-6 md:py-10">
-      <header className="produits-page-header mb-6 md:mb-8">
-        <p className="tag-eyebrow">{fr.shopEyebrow}</p>
-        <h1 className="display mt-2 text-4xl text-plum-deep md:text-5xl">{fr.productsPageTitle}</h1>
-        <p className="mt-3 max-w-2xl text-base text-muted-foreground">{fr.productsPageSub}</p>
+    <div className={`w-full bg-[#FFFDFB] py-6 text-[#2D2346] md:py-10 ${STORE_CONTAINER}`}>
+      <header className="mb-6 md:mb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#E04672]">
+          {fr.shopEyebrow}
+        </p>
+        <h1 className="mt-2 font-display text-4xl text-[#2D2346] md:text-5xl">
+          {fr.productsPageTitle}
+        </h1>
+        <p className="mt-3 max-w-2xl text-base text-[#2D2346]/65">{fr.productsPageSub}</p>
       </header>
 
       <div className="produits-shell">
@@ -69,7 +87,7 @@ export default function ProduitsPage() {
           </div>
 
           {!loading && items.length === 0 && (
-            <p className="py-16 text-center text-sm text-muted-foreground">{fr.noProducts}</p>
+            <p className="py-16 text-center text-sm text-[#2D2346]/60">{fr.noProducts}</p>
           )}
           <div ref={sentinelRef} className="h-6" />
         </div>

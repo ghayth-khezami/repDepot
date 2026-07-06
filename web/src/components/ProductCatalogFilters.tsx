@@ -130,34 +130,30 @@ export function ProductCatalogFilters({
   };
 
   const panel = (
-    <div className="space-y-6">
+    <div className="catalog-filter-panel space-y-5">
       <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {fr.filterSearch}
-        </span>
+        <span className="catalog-filter-label">{fr.filterSearch}</span>
         <span className="relative flex">
           <Search
             size={18}
-            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#E04672]/50"
           />
           <input
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder={fr.filterSearch}
-            className="field-input !rounded-2xl !py-3 !pl-11"
+            className="catalog-filter-input !pl-11"
           />
         </span>
       </label>
 
       <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {fr.filterCategory}
-        </span>
+        <span className="catalog-filter-label">{fr.filterCategory}</span>
         <select
           value={value.categoryId ?? ""}
           onChange={(e) => patch({ categoryId: e.target.value || undefined })}
-          className="field-input !cursor-pointer !rounded-2xl"
+          className="catalog-filter-input !cursor-pointer"
         >
           <option value="">{fr.filterAll}</option>
           {categories.map((c) => (
@@ -168,13 +164,11 @@ export function ProductCatalogFilters({
 
       {value.categoryId ? (
         <div>
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {fr.filterSubCategory}
-          </span>
+          <span className="catalog-filter-label">{fr.filterSubCategory}</span>
           <select
             value={value.subCategoryId ?? ""}
             onChange={(e) => patch({ subCategoryId: e.target.value || undefined })}
-            className="field-input !cursor-pointer !rounded-2xl"
+            className="catalog-filter-input !cursor-pointer"
             disabled={!subCategories.length}
           >
             <option value="">{fr.filterAll}</option>
@@ -187,13 +181,11 @@ export function ProductCatalogFilters({
 
       {value.subCategoryId ? (
         <div>
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {fr.filterSubSubCategory}
-          </span>
+          <span className="catalog-filter-label">{fr.filterSubSubCategory}</span>
           <select
             value={value.subSubCategory1Id ?? ""}
             onChange={(e) => patch({ subSubCategory1Id: e.target.value || undefined })}
-            className="field-input !cursor-pointer !rounded-2xl"
+            className="catalog-filter-input !cursor-pointer"
             disabled={!subSubCategories.length}
           >
             <option value="">{fr.filterAll}</option>
@@ -205,9 +197,7 @@ export function ProductCatalogFilters({
       ) : null}
 
       <div>
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Prix (TND)
-        </span>
+        <span className="catalog-filter-label">Prix (TND)</span>
         <PriceRangeSlider
           min={PRICE_MIN}
           max={PRICE_MAX}
@@ -218,13 +208,11 @@ export function ProductCatalogFilters({
       </div>
 
       <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {fr.filterSort}
-        </span>
+        <span className="catalog-filter-label">{fr.filterSort}</span>
         <select
           value={value.sort ?? "newest"}
           onChange={(e) => patch({ sort: e.target.value as NonNullable<Filters["sort"]> })}
-          className="field-input !cursor-pointer !rounded-2xl"
+          className="catalog-filter-input !cursor-pointer"
         >
           <option value="newest">{fr.sortNewest}</option>
           {SORT_OPTIONS.map((o) => (
@@ -234,7 +222,11 @@ export function ProductCatalogFilters({
       </label>
 
       {activeCount > 0 ? (
-        <button type="button" onClick={reset} className="btn-ghost w-full justify-center">
+        <button
+          type="button"
+          onClick={reset}
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-[#E04672]/20 bg-[#FFF0F4] py-3 text-sm font-semibold text-[#E04672] transition hover:bg-[#FFE8EE]"
+        >
           <X size={16} />
           {fr.clearFilters}
         </button>
@@ -296,7 +288,7 @@ export function ProductCatalogFilters({
   if (variant === "sidebar") {
     return (
       <>
-        <div className="produits-filters-card hidden rounded-2xl border border-primary/10 bg-card/95 p-4 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:block lg:p-5">
+        <div className="produits-filters-card hidden p-4 lg:block lg:p-5">
           {panel}
         </div>
         {mobileSheet}

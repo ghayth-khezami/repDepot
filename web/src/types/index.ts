@@ -38,6 +38,20 @@ export interface SubSubCategory1 {
   subCategoryId: string;
 }
 
+export interface SubSubCategory2 {
+  id: string;
+  title: string;
+  description?: string | null;
+  subSubCategory1Id: string;
+}
+
+export interface SubSubCategory3 {
+  id: string;
+  title: string;
+  description?: string | null;
+  subSubCategory2Id: string;
+}
+
 export interface Product {
   id: string;
   productName: string;
@@ -49,6 +63,7 @@ export interface Product {
   PrixVente: number;
   PrixAchat?: number | null;
   stockQuantity: number;
+  isDepot?: boolean;
   isDispo?: boolean;
   createdAt: string;
   updatedAt?: string;

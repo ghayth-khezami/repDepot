@@ -20,7 +20,8 @@ import { Product } from "@/types";
 import { useAddToCartFx } from "@/components/AddToCartFxProvider";
 import { ProductCard } from "@/components/ProductCard";
 import { fadeUp } from "@/lib/motion";
-import { fr, WANTED_IMG } from "@/lib/fr";
+import { STORE_CONTAINER } from "@/lib/home";
+import { fr } from "@/lib/fr";
 import { safeExternalUrl } from "@/lib/safe-url";
 
 export function ProductDetailsClient({
@@ -87,13 +88,13 @@ export function ProductDetailsClient({
 
   if (loading) {
     return (
-      <div className="page-container py-16 text-center text-muted-foreground">{fr.loading}</div>
+      <div className={`py-16 text-center text-[#2D2346]/60 ${STORE_CONTAINER}`}>{fr.loading}</div>
     );
   }
 
   if (!product) {
     return (
-      <div className="page-container py-16 text-center text-muted-foreground">
+      <div className={`py-16 text-center text-[#2D2346]/60 ${STORE_CONTAINER}`}>
         Produit introuvable.
       </div>
     );
@@ -106,20 +107,20 @@ export function ProductDetailsClient({
     fr.shopCategory;
 
   return (
-    <div className="page-container space-y-16 pb-16">
+    <div className={`w-full space-y-16 bg-[#FFFDFB] pb-16 text-[#2D2346] ${STORE_CONTAINER}`}>
       <Link
         href="/produits"
-        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-primary"
+        className="inline-flex items-center gap-2 text-sm font-medium text-[#2D2346]/60 transition hover:text-[#8D6BFF]"
       >
         <ArrowLeft size={16} />
         {fr.backToShopLink}
       </Link>
 
-      <div className="grid gap-12 md:grid-cols-2">
-        <div className="overflow-hidden rounded-3xl bg-card shadow-[var(--shadow-soft)]">
+      <div className="grid gap-12 lg:grid-cols-2">
+        <div className="overflow-hidden rounded-[2rem] bg-white shadow-[0_8px_32px_rgba(45,35,70,0.07)]">
           {photos.length > 0 ? (
             <div className="relative">
-              <div className="aspect-[4/5] w-full overflow-hidden bg-muted">
+              <div className="aspect-[4/5] w-full overflow-hidden bg-[#F7F2FF]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={activePhotoUrl}
@@ -133,7 +134,7 @@ export function ProductDetailsClient({
                   <button
                     type="button"
                     onClick={() => setActivePhoto((v) => (v - 1 + photos.length) % photos.length)}
-                    className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-card p-2 shadow-sm hover:bg-muted"
+                    className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-[#8D6BFF]/15 bg-white p-2.5 shadow-sm hover:bg-[#F7F2FF]"
                     aria-label="Photo précédente"
                   >
                     <ChevronLeft size={18} />
@@ -141,7 +142,7 @@ export function ProductDetailsClient({
                   <button
                     type="button"
                     onClick={() => setActivePhoto((v) => (v + 1) % photos.length)}
-                    className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-card p-2 shadow-sm hover:bg-muted"
+                    className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-[#8D6BFF]/15 bg-white p-2.5 shadow-sm hover:bg-[#F7F2FF]"
                     aria-label="Photo suivante"
                   >
                     <ChevronRight size={18} />
@@ -150,7 +151,7 @@ export function ProductDetailsClient({
               )}
             </div>
           ) : (
-            <div className="flex aspect-[4/5] items-center justify-center text-muted-foreground">
+            <div className="flex aspect-[4/5] items-center justify-center text-[#2D2346]/50">
               {fr.noImage}
             </div>
           )}
@@ -159,7 +160,7 @@ export function ProductDetailsClient({
         <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-6">
           <div className="flex flex-wrap items-center gap-3">
             {product.mark?.logoDoc ? (
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card p-1.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#8D6BFF]/10 bg-white p-1.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={api.normalizePhotoUrl(product.mark.logoDoc)}
@@ -168,64 +169,66 @@ export function ProductDetailsClient({
                 />
               </div>
             ) : null}
-            <p className="tag-eyebrow">{categoryLabel}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8D6BFF]">
+              {categoryLabel}
+            </p>
           </div>
-          <h1 className="display text-4xl text-plum-deep md:text-5xl">{product.productName}</h1>
+
+          <h1 className="font-display text-4xl text-[#2D2346] md:text-5xl">
+            {product.productName}
+          </h1>
+
           <div className="flex flex-wrap items-center gap-4">
-            <p className="display text-4xl text-foreground">
+            <p className="font-display text-4xl text-[#2D2346]">
               {product.PrixVente.toFixed(2)}{" "}
-              <span className="text-sm font-sans text-muted-foreground">TND</span>
+              <span className="text-sm font-sans text-[#2D2346]/50">TND</span>
             </p>
             {!outOfStock && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-500/30">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-500/20">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
                 {fr.inStock}
               </span>
             )}
           </div>
-          <p className="max-w-md text-base leading-relaxed text-muted-foreground">
+
+          <p className="max-w-md text-base leading-relaxed text-[#2D2346]/65">
             {product.description || "Produit disponible à la commande avec livraison rapide."}
           </p>
-          <div className="flex flex-wrap items-end gap-3">
+
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              className="btn-primary"
+              className="inline-flex items-center gap-2 rounded-full bg-[#8D6BFF] px-8 py-4 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(141,107,255,0.22)] transition hover:brightness-105 disabled:opacity-50"
               onClick={(e) => onAdd(e.currentTarget)}
               disabled={outOfStock || inCart}
             >
               <ShoppingBag size={18} />
               {inCart ? fr.alreadyInCart : outOfStock ? fr.outOfStock : fr.addToCart}
             </button>
-            <div className="flex items-end gap-2">
-              <Link
-                href="/checkout"
-                className={`btn-ghost ${cart.length === 0 ? "pointer-events-none opacity-50" : ""}`}
-              >
-                {fr.buyNow}
-              </Link>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={WANTED_IMG}
-                alt=""
-                className="h-14 w-auto object-contain sm:h-16"
-                aria-hidden
-              />
-            </div>
+            <Link
+              href="/checkout"
+              className={`inline-flex items-center rounded-full border border-[#8D6BFF]/25 bg-white px-6 py-3.5 text-sm font-semibold text-[#8D6BFF] transition hover:bg-[#F7F2FF] ${
+                cart.length === 0 ? "pointer-events-none opacity-50" : ""
+              }`}
+            >
+              {fr.buyNow}
+            </Link>
           </div>
-          <ul className="space-y-2 text-sm text-muted-foreground">
+
+          <ul className="space-y-2 text-sm text-[#2D2346]/65">
             <li className="flex items-center gap-2">
-              <ShieldCheck size={16} className="text-primary" />
+              <ShieldCheck size={16} className="text-[#8D6BFF]" />
               {fr.verifiedBy}
             </li>
             <li className="flex items-center gap-2">
-              <Truck size={16} className="text-primary" />
+              <Truck size={16} className="text-[#8D6BFF]" />
               {fr.deliveryTime}
             </li>
           </ul>
 
           {photos.length > 1 && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#2D2346]/50">
                 Autres photos
               </p>
               <div className="flex flex-wrap gap-2">
@@ -234,13 +237,12 @@ export function ProductDetailsClient({
                     key={url}
                     type="button"
                     onClick={() => setActivePhoto(i)}
-                    className={`overflow-hidden rounded-xl border-2 transition hover:opacity-90 ${
+                    className={`overflow-hidden rounded-xl border-2 transition ${
                       i === activePhoto
-                        ? "border-primary ring-2 ring-primary/25"
-                        : "border-border hover:border-primary/50"
+                        ? "border-[#8D6BFF] ring-2 ring-[#8D6BFF]/20"
+                        : "border-[#8D6BFF]/10 hover:border-[#8D6BFF]/40"
                     }`}
                     aria-label={`Voir photo ${i + 1}`}
-                    aria-current={i === activePhoto ? "true" : undefined}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -262,7 +264,7 @@ export function ProductDetailsClient({
                   href={link.href!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#8D6BFF]/15 bg-white px-3 py-1.5 text-xs font-medium text-[#2D2346]/70 hover:border-[#8D6BFF]/35 hover:text-[#8D6BFF]"
                 >
                   {link.icon ? <link.icon size={14} /> : null}
                   {link.label}
@@ -276,8 +278,10 @@ export function ProductDetailsClient({
 
       {similar.length > 0 && (
         <section>
-          <p className="tag-eyebrow">{fr.selectionEyebrow}</p>
-          <h2 className="display mt-2 text-4xl text-plum-deep md:text-5xl">{fr.youMayLike}</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8D6BFF]">
+            {fr.selectionEyebrow}
+          </p>
+          <h2 className="mt-2 font-display text-4xl text-[#2D2346] md:text-5xl">{fr.youMayLike}</h2>
           <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4">
             {similar.map((p) => (
               <ProductCard key={p.id} product={p} />

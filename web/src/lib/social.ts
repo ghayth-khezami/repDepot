@@ -1,3 +1,6 @@
+export const STORE_PHONE_DISPLAY = "55 863 578";
+export const STORE_PHONE_TEL = "+21655863578";
+
 export const SOCIAL = {
   instagram: {
     href: "https://www.instagram.com/bebe_depot_by_mme_khezami/",

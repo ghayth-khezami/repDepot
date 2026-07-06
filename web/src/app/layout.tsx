@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
+import { Cairo, Dancing_Script, Noto_Naskh_Arabic, Playfair_Display, Poppins } from "next/font/google";
 import "./globals.css";
 import { ShopProvider } from "@/context/ShopContext";
 import { AddToCartFxProvider } from "@/components/AddToCartFxProvider";
@@ -8,14 +8,34 @@ import { AppToaster } from "@/components/AppToaster";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { defaultOpenGraph } from "@/lib/seo";
 
-const fraunces = Fraunces({
+const playfair = Playfair_Display({
   variable: "--font-display",
   subsets: ["latin"],
   display: "swap",
 });
 
-const plusJakarta = Plus_Jakarta_Sans({
+const poppins = Poppins({
   variable: "--font-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const notoNaskh = Noto_Naskh_Arabic({
+  variable: "--font-arabic-display",
+  subsets: ["arabic"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
+
+const cairo = Cairo({
+  variable: "--font-arabic",
+  subsets: ["arabic", "latin"],
+  display: "swap",
+});
+
+const script = Dancing_Script({
+  variable: "--font-script",
   subsets: ["latin"],
   display: "swap",
 });
@@ -41,7 +61,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${fraunces.variable} ${plusJakarta.variable} h-full antialiased`}
+      className={`${playfair.variable} ${poppins.variable} ${cairo.variable} ${notoNaskh.variable} ${script.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full bg-background text-foreground">
