@@ -21,7 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { useShop } from "@/context/ShopContext";
 import { useAddToCartFx } from "@/components/AddToCartFxProvider";
 import { UserMenuDropdown } from "@/components/UserMenuDropdown";
-import { CategoryTreeNav } from "@/components/CategoryTreeNav";
+import { CategoriesPanel } from "@/components/CategoriesPanel";
 import { fr, LOGO_SRC } from "@/lib/fr";
 import { EASE_PRIMARY, logoSpring } from "@/lib/motion";
 
@@ -34,7 +34,7 @@ const NAV = [
     match: (p: string) => p.startsWith("/produits"),
   },
   { href: "/magasin", label: fr.navStore, icon: MapPin, match: (p: string) => p === "/magasin" },
-  { href: "/#categories", label: fr.navCategories, icon: Grid3X3, match: () => false },
+  { href: "__categories__", label: fr.navCategories, icon: Grid3X3, match: () => false },
 ] as const;
 
 const MOBILE_ACCOUNT = [
@@ -52,7 +52,13 @@ export function SiteHeader() {
   const fx = useAddToCartFx();
   const cartRef = useRef<HTMLAnchorElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const openCategories = () => {
+    setMenuOpen(false);
+    setCategoriesOpen(true);
+  };
 
   useEffect(() => {
     fx.setCartEl(cartRef.current);
@@ -139,6 +145,19 @@ export function SiteHeader() {
                 <nav className="flex-1 overflow-y-auto px-3 py-4">
                   {NAV.map((item) => {
                     const active = pathname ? item.match(pathname) : false;
+                    if (item.href === "__categories__") {
+                      return (
+                        <button
+                          key={item.href}
+                          type="button"
+                          className="mobile-drawer-link w-full text-left"
+                          onClick={openCategories}
+                        >
+                          <item.icon size={20} strokeWidth={1.75} />
+                          {item.label}
+                        </button>
+                      );
+                    }
                     return (
                       <Link
                         key={item.href}
@@ -150,12 +169,6 @@ export function SiteHeader() {
                       </Link>
                     );
                   })}
-
-                  <div className="my-4 h-px bg-white/12" />
-                  <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/50">
-                    {fr.navCategories}
-                  </p>
-                  <CategoryTreeNav categories={categories} />
 
                   {token ? (
                     <>
@@ -239,18 +252,30 @@ export function SiteHeader() {
           </div>
 
           <nav className="site-header-nav hidden lg:flex" aria-label="Navigation principale">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`site-header-nav-link ${
-                  pathname && item.match(pathname) ? "site-header-nav-link--active" : ""
-                }`}
-              >
-                <item.icon size={16} strokeWidth={1.75} />
-                {item.label}
-              </Link>
-            ))}
+            {NAV.map((item) =>
+              item.href === "__categories__" ? (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={openCategories}
+                  className="site-header-nav-link"
+                >
+                  <item.icon size={16} strokeWidth={1.75} />
+                  {item.label}
+                </button>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`site-header-nav-link ${
+                    pathname && item.match(pathname) ? "site-header-nav-link--active" : ""
+                  }`}
+                >
+                  <item.icon size={16} strokeWidth={1.75} />
+                  {item.label}
+                </Link>
+              ),
+            )}
           </nav>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -273,6 +298,11 @@ export function SiteHeader() {
         </motion.header>
       </div>
       {mobileMenu}
+      <CategoriesPanel
+        open={categoriesOpen}
+        onClose={() => setCategoriesOpen(false)}
+        categories={categories}
+      />
     </>
   );
 }

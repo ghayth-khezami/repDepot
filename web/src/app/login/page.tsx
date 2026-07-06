@@ -249,11 +249,7 @@ export default function LoginPage() {
                 {mode === "signin" ? "Se connecter" : "S'inscrire"}
               </button>
               <div ref={googleBtnRef} className="flex justify-center" />
-              {!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? (
-                <p className="text-center text-xs text-muted-foreground">
-                  Configurez NEXT_PUBLIC_GOOGLE_CLIENT_ID pour Google.
-                </p>
-              ) : !googleReady ? (
+              {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && !googleReady ? (
                 <p className="text-center text-xs text-muted-foreground">Chargement Google…</p>
               ) : null}
             </form>

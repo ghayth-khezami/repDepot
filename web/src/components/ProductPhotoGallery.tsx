@@ -2,22 +2,29 @@
 
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import Autoplay from "embla-carousel-autoplay";
 import { api } from "@/lib/api";
 
 export function ProductPhotoGallery({
   photos,
   alt,
   className = "",
+  autoPlayMs,
 }: {
   photos: Array<{ photoDoc: string }> | undefined;
   alt: string;
   className?: string;
+  autoPlayMs?: number;
 }) {
   const urls = (photos ?? [])
     .map((p) => api.normalizePhotoUrl(p.photoDoc))
     .filter(Boolean) as string[];
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: "start" });
+  const plugins = autoPlayMs && urls.length > 1
+    ? [Autoplay({ delay: autoPlayMs, stopOnInteraction: false, stopOnMouseEnter: true })]
+    : [];
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: urls.length > 1, align: "start" }, plugins);
   const [index, setIndex] = useState(0);
 
   const onSelect = useCallback(() => {

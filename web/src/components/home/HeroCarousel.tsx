@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { HERO_RADIUS, HERO_SLIDES, STORE_CONTAINER } from "@/lib/home";
 import { FeatureStrip } from "./FeatureStrip";
+import { HeroMapStrip } from "./HeroMapStrip";
 import { HeroSlide } from "./HeroSlide";
 
 const AUTO_DELAY = 4000;
@@ -106,6 +107,7 @@ export function HeroCarousel() {
         </div>
       </div>
 
+      <HeroMapStrip />
       <FeatureStrip />
     </section>
   );
