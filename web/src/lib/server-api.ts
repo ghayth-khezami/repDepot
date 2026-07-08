@@ -1,7 +1,8 @@
 import type { ApiPaginated, Category, Mark, Product } from "@/types";
 import { getSiteUrl } from "@/lib/site";
+import { getServerApiUrl } from "@/lib/api-url";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = getServerApiUrl();
 
 async function serverFetch<T>(path: string, revalidate = 300): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {

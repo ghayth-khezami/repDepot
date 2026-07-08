@@ -51,7 +51,7 @@ export function HeroCarousel() {
         <div
           className={`relative overflow-hidden border border-[#E8E4F0]/80 bg-white shadow-[0_8px_40px_rgba(45,35,70,0.08)] ${HERO_RADIUS}`}
         >
-          <div className="relative min-h-[360px] md:min-h-[420px] lg:min-h-[460px]">
+          <div className="relative md:min-h-[420px] lg:min-h-[460px]">
             <AnimatePresence mode="wait">
               <motion.div
                 key={HERO_SLIDES[index].id}
@@ -59,15 +59,15 @@ export function HeroCarousel() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute inset-0"
+                className="md:absolute md:inset-0"
               >
                 <HeroSlide slide={HERO_SLIDES[index]} isActive />
               </motion.div>
             </AnimatePresence>
           </div>
 
-          {/* Dots — bottom center inside card */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center">
+          {/* Dots — below content on mobile, on image on desktop */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center md:bottom-5">
             <div className="pointer-events-auto flex items-center gap-2">
               {HERO_SLIDES.map((slide, i) => (
                 <button
@@ -78,8 +78,8 @@ export function HeroCarousel() {
                   onClick={() => goTo(i)}
                   className={`rounded-full transition-all duration-300 ${
                     i === index
-                      ? "h-2 w-6 bg-white shadow-sm"
-                      : "h-2 w-2 bg-white/55 hover:bg-white/80"
+                      ? "h-2 w-6 bg-[#E04672] shadow-sm md:bg-white"
+                      : "h-2 w-2 bg-[#E04672]/30 md:bg-white/55"
                   }`}
                 />
               ))}

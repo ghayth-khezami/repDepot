@@ -13,8 +13,10 @@ import {
   ClientFeedback,
   Mark,
 } from "@/types";
+import { getClientApiUrl, getRemoteApiUrl } from "@/lib/api-url";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = getClientApiUrl();
+const REMOTE_API_URL = getRemoteApiUrl();
 
 type HttpMethod = "GET" | "POST" | "DELETE";
 
@@ -232,6 +234,8 @@ export const api = {
     >("/store-hours"),
   normalizePhotoUrl: (photo?: string | null) => {
     if (!photo) return "";
-    return photo.startsWith("http") ? photo : `${API_URL}${photo}`;
+    if (photo.startsWith("http")) return photo;
+    const base = API_URL === "/api-proxy" ? REMOTE_API_URL : API_URL;
+    return `${base}${photo.startsWith("/") ? photo : `/${photo}`}`;
   },
 };

@@ -51,13 +51,15 @@ Nginx should proxy your domain to `http://127.0.0.1:3001`.
 
 ### Render API (CORS)
 
-Set on Render (required if frontend is NOT on `*.vercel.app`):
+Set on Render when the shop is **not** on `*.vercel.app`:
 
 ```env
-WEB_URL=https://YOUR-VPS-DOMAIN.com
+WEB_URL=https://bebedepot.tn,http://localhost:3001
 ```
 
-Without this, the browser blocks API calls from your VPS site to Render.
+Comma-separated origins are supported. Without `http://localhost:3001`, local dev against Render will be blocked by CORS.
+
+**Local dev tip:** With `pnpm dev -p 3001` and a remote `NEXT_PUBLIC_API_URL`, Next.js proxies API calls through `/api-proxy` automatically — no Render change required. Restart dev after pulling.
 
 ## Local dev
 

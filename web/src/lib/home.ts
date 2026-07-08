@@ -60,19 +60,20 @@ export type HeroSlideData = {
   id: string;
   image: string;
   imageAlt: string;
+  imageOnly?: boolean;
   arabicWelcome?: string;
-  title: string;
+  title?: string;
   subtitle?: string;
   titleClassName?: string;
-  description: string;
-  cta: { type: "link" | "phone"; label: string; href?: string };
+  description?: string;
+  cta?: { type: "link" | "phone"; label: string; href?: string };
   align?: "start" | "center";
 };
 
 export const HERO_SLIDES: HeroSlideData[] = [
   {
     id: "welcome",
-    image: "/header.png",
+    image: "/car1.png",
     imageAlt: "Mme Khezami avec bébé dans la boutique Bébé Dépôt",
     arabicWelcome: "مرحبا بكم في",
     title: "Bébé Dépôt",
@@ -82,14 +83,28 @@ export const HERO_SLIDES: HeroSlideData[] = [
     cta: { type: "link", label: "Découvrir la boutique", href: "/produits" },
   },
   {
-    id: "sell-ar",
-    image: "/header2.png",
-    imageAlt: "Façade de la boutique Bébé Dépôt",
-    title: "كان عندك حوايج متع صغار\nوتحب تبيعهم ؟",
-    titleClassName: "font-arabic-display text-3xl font-semibold leading-snug md:text-4xl lg:text-[2.75rem]",
-    description: "إتصل بينا و أحنا نتكفلوا بالباقي.",
-    cta: { type: "phone", label: "55 863 578" },
-    align: "center",
+    id: "car-2",
+    image: "/car2.png",
+    imageAlt: "Bébé Dépôt — sélection produits",
+    imageOnly: true,
+  },
+  {
+    id: "car-3",
+    image: "/car3.png",
+    imageAlt: "Bébé Dépôt — sélection produits",
+    imageOnly: true,
+  },
+  {
+    id: "car-4",
+    image: "/car4.png",
+    imageAlt: "Bébé Dépôt — sélection produits",
+    imageOnly: true,
+  },
+  {
+    id: "car-5",
+    image: "/car5.png",
+    imageAlt: "Bébé Dépôt — sélection produits",
+    imageOnly: true,
   },
 ];
 

@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/$/, "");
+
+function isLocalApi(url: string) {
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
 
 function remotePatterns() {
   const cloudinary = [
@@ -28,6 +37,18 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: remotePatterns(),
     formats: ["image/avif", "image/webp"],
+  },
+  async rewrites() {
+    // Local dev: proxy browser calls to remote Nest API (avoids CORS from localhost:3001)
+    if (process.env.NODE_ENV === "development" && !isLocalApi(apiUrl)) {
+      return [
+        {
+          source: "/api-proxy/:path*",
+          destination: `${apiUrl}/:path*`,
+        },
+      ];
+    }
+    return [];
   },
   async headers() {
     return [
