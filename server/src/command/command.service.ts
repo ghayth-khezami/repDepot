@@ -7,6 +7,7 @@ import { CheckoutCommandDto } from "./dto/checkout-command.dto";
 import { UpdateCommandDto } from "./dto/update-command.dto";
 import { CommandQueryDto } from "./dto/command-query.dto";
 import { PaginatedResponse } from "../common/dto/pagination.dto";
+import { sanitizePlainText } from "../common/utils/sanitize-text";
 
 @Injectable()
 export class CommandService {
@@ -40,21 +41,57 @@ export class CommandService {
   }
 
   async createFromCheckout(dto: CheckoutCommandDto) {
-    const { productIds, clientId, guestClient, coClientId, adresseLivraison, dateLivraison } =
-      dto;
-    const pricing = await this.resolvePricing(productIds);
+    const productIds = [...new Set(dto.productIds)];
+    const adresseLivraison = sanitizePlainText(dto.adresseLivraison, 500);
+    const guestClient = dto.guestClient
+      ? {
+          ...dto.guestClient,
+          firstName: sanitizePlainText(dto.guestClient.firstName, 80),
+          lastName: sanitizePlainText(dto.guestClient.lastName, 80),
+          address: sanitizePlainText(dto.guestClient.address, 300),
+        }
+      : undefined;
 
-    const command = await this.persistCommand({
-      productIds,
-      clientId,
-      guestClient,
-      coClientId,
-      adresseLivraison,
-      dateLivraison,
-      PrixVente: pricing.PrixVente,
-      PrixAchat: pricing.PrixAchat,
-      productsNumber: pricing.productsNumber,
-      status: CommandStatus.NOT_DELIVERED,
+    const command = await this.prisma.$transaction(async (tx) => {
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds }, isDispo: true },
+        select: { id: true, PrixVente: true, PrixAchat: true, isDepot: true },
+      });
+
+      if (products.length !== productIds.length) {
+        throw new BadRequestException("One or more products are unavailable.");
+      }
+
+      const locked = await tx.product.updateMany({
+        where: { id: { in: productIds }, isDispo: true },
+        data: { isDispo: false },
+      });
+      if (locked.count !== productIds.length) {
+        throw new BadRequestException("One or more products are already ordered.");
+      }
+
+      const PrixVente = products.reduce((sum, p) => sum + p.PrixVente, 0);
+      const PrixAchat = products.reduce((sum, p) => {
+        if (p.isDepot) return sum;
+        return sum + (p.PrixAchat || 0);
+      }, 0);
+
+      return this.persistCommandInTx(
+        tx,
+        {
+          productIds,
+          clientId: dto.clientId,
+          guestClient,
+          coClientId: dto.coClientId,
+          adresseLivraison,
+          dateLivraison: dto.dateLivraison,
+          PrixVente,
+          PrixAchat,
+          productsNumber: productIds.length,
+          status: CommandStatus.NOT_DELIVERED,
+        },
+        { productsAlreadyLocked: true },
+      );
     });
 
     if (command) {
@@ -68,7 +105,7 @@ export class CommandService {
       createCommandDto;
     const pricing = await this.resolvePricing(productIds);
 
-    return this.persistCommand({
+    return this.persistCommandInTx(this.prisma, {
       productIds,
       clientId,
       guestClient,
@@ -82,18 +119,22 @@ export class CommandService {
     });
   }
 
-  private async persistCommand(input: {
-    productIds: string[];
-    clientId?: string;
-    guestClient?: CheckoutCommandDto["guestClient"];
-    coClientId?: string;
-    adresseLivraison: string;
-    dateLivraison?: string;
-    PrixVente: number;
-    PrixAchat: number;
-    productsNumber: number;
-    status: CommandStatus;
-  }) {
+  private async persistCommandInTx(
+    tx: Pick<PrismaService, "client" | "command" | "commandDetail" | "product">,
+    input: {
+      productIds: string[];
+      clientId?: string;
+      guestClient?: CheckoutCommandDto["guestClient"];
+      coClientId?: string;
+      adresseLivraison: string;
+      dateLivraison?: string;
+      PrixVente: number;
+      PrixAchat: number;
+      productsNumber: number;
+      status: CommandStatus;
+    },
+    options?: { productsAlreadyLocked?: boolean },
+  ) {
     const { productIds, clientId, guestClient, coClientId, adresseLivraison, dateLivraison } =
       input;
     let resolvedClientId = clientId;
@@ -102,13 +143,13 @@ export class CommandService {
       const normalizedEmail =
         guestClient.email?.trim().toLowerCase() ||
         `guest.${guestClient.phoneNumber}@bebedepot.local`;
-      const existingClient = await this.prisma.client.findUnique({
+      const existingClient = await tx.client.findUnique({
         where: { email: normalizedEmail },
       });
       if (existingClient) {
         resolvedClientId = existingClient.id;
       } else {
-        const createdClient = await this.prisma.client.create({
+        const createdClient = await tx.client.create({
           data: {
             ...guestClient,
             email: normalizedEmail,
@@ -122,7 +163,7 @@ export class CommandService {
       throw new BadRequestException("clientId or guestClient is required.");
     }
 
-    const command = await this.prisma.command.create({
+    const command = await tx.command.create({
       data: {
         PrixVente: input.PrixVente,
         PrixAchat: input.PrixAchat,
@@ -133,10 +174,9 @@ export class CommandService {
       },
     });
 
-    // Create command details for each product
     await Promise.all(
       productIds.map((productId) =>
-        this.prisma.commandDetail.create({
+        tx.commandDetail.create({
           data: {
             commandId: command.id,
             productId,
@@ -147,13 +187,14 @@ export class CommandService {
       ),
     );
 
-    await this.prisma.product.updateMany({
-      where: { id: { in: productIds } },
-      data: { isDispo: false },
-    });
+    if (!options?.productsAlreadyLocked) {
+      await tx.product.updateMany({
+        where: { id: { in: productIds } },
+        data: { isDispo: false },
+      });
+    }
 
-    // Return command with details
-    return this.prisma.command.findUnique({
+    return tx.command.findUnique({
       where: { id: command.id },
       include: {
         commandDetails: {

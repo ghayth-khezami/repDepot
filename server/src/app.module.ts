@@ -55,6 +55,11 @@ import { MediaModule } from "./media/media.module";
         ttl: 60_000,
         limit: 10,
       },
+      {
+        name: "newsletter",
+        ttl: 60_000,
+        limit: 5,
+      },
     ]),
     CloudinaryModule,
     MediaModule,

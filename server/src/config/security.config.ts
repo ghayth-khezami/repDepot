@@ -15,6 +15,14 @@ export function getJwtSecret(): string {
   return secret;
 }
 
+export function getGoogleClientId(): string | undefined {
+  const id = process.env.GOOGLE_CLIENT_ID?.trim();
+  if (process.env.NODE_ENV === "production" && !id) {
+    throw new Error("GOOGLE_CLIENT_ID must be set in production.");
+  }
+  return id || undefined;
+}
+
 export function normalizeOrigin(url: string): string {
   return url.trim().replace(/\/+$/, "");
 }

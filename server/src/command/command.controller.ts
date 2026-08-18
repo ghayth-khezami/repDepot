@@ -96,14 +96,9 @@ export class CommandController {
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", "attachment; filename=commands.csv");
       res.send("\ufeff" + csv);
-    } catch (error) {
+    } catch {
       res.status(500).setHeader("Content-Type", "application/json");
-      res.send(
-        JSON.stringify({
-          message: "Error exporting CSV",
-          error: error.message,
-        }),
-      );
+      res.send(JSON.stringify({ message: "Error exporting CSV" }));
     }
   }
 

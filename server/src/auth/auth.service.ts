@@ -9,6 +9,7 @@ import * as bcrypt from "bcryptjs";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserRole } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
+import { getGoogleClientId } from "../config/security.config";
 
 @Injectable()
 export class AuthService {
@@ -113,10 +114,13 @@ export class AuthService {
   }
 
   async googleSignIn(idToken: string, intent: "CLIENT" | "DEPOSER" = "CLIENT") {
-    const audience = process.env.GOOGLE_CLIENT_ID;
+    const audience = getGoogleClientId();
+    if (!audience) {
+      throw new UnauthorizedException("Google sign-in is not configured.");
+    }
     const ticket = await this.googleClient.verifyIdToken({
       idToken,
-      audience: audience || undefined,
+      audience,
     });
     const payload = ticket.getPayload();
     const rawEmail = payload?.email;

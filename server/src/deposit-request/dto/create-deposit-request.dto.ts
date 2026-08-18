@@ -1,10 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsNumber, IsOptional, IsString, Matches, Min } from "class-validator";
+import { IsNumber, IsOptional, IsString, Matches, MaxLength, Min } from "class-validator";
 
 export class CreateDepositRequestDto {
   @ApiProperty({ example: "Sarra Ben Ali" })
   @IsString()
+  @MaxLength(120)
   fullName: string;
 
   @ApiProperty({ example: "+21612345678" })
@@ -21,5 +22,6 @@ export class CreateDepositRequestDto {
   @ApiPropertyOptional({ example: "Produit en excellent etat" })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   message?: string;
 }

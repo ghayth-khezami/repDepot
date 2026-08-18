@@ -17,6 +17,7 @@ async function bootstrap() {
   getJwtSecret();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.set("trust proxy", 1);
   app.useWebSocketAdapter(new IoAdapter(app));
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));

@@ -5,23 +5,30 @@ import {
   IsDateString,
   IsArray,
   ArrayMinSize,
+  ArrayMaxSize,
   IsEmail,
   ValidateNested,
   Matches,
+  MaxLength,
+  IsUUID,
 } from "class-validator";
 import { Type } from "class-transformer";
+import { IsUniqueStrings } from "../../common/validators/unique-strings.validator";
 
 class GuestClientDto {
   @ApiProperty({ example: "John" })
   @IsString()
+  @MaxLength(80)
   firstName: string;
 
   @ApiProperty({ example: "Doe" })
   @IsString()
+  @MaxLength(80)
   lastName: string;
 
   @ApiProperty({ example: "123 Main St, City" })
   @IsString()
+  @MaxLength(300)
   address: string;
 
   @ApiPropertyOptional()
@@ -40,7 +47,9 @@ export class CheckoutCommandDto {
   @ApiProperty({ type: [String] })
   @IsArray()
   @ArrayMinSize(1)
-  @IsString({ each: true })
+  @ArrayMaxSize(30)
+  @IsUUID("4", { each: true })
+  @IsUniqueStrings()
   productIds: string[];
 
   @ApiPropertyOptional()
@@ -66,5 +75,6 @@ export class CheckoutCommandDto {
 
   @ApiProperty({ example: "123 Main St, City" })
   @IsString()
+  @MaxLength(500)
   adresseLivraison: string;
 }

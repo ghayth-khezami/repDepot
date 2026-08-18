@@ -5,6 +5,7 @@ import { CreateDepositRequestDto } from "./dto/create-deposit-request.dto";
 import { DepositRequestQueryDto } from "./dto/deposit-request-query.dto";
 import { UpdateDepositRequestStatusDto } from "./dto/update-deposit-request-status.dto";
 import { PaginatedResponse } from "../common/dto/pagination.dto";
+import { sanitizePlainText } from "../common/utils/sanitize-text";
 
 export type DepositRequestItemInput = {
   productName: string;
@@ -25,6 +26,8 @@ export class DepositRequestService {
     const result = await this.prisma.depositRequest.create({
       data: {
         ...dto,
+        fullName: sanitizePlainText(dto.fullName, 120),
+        message: dto.message ? sanitizePlainText(dto.message, 2000) : undefined,
         photos,
         userId: userId || null,
       },
