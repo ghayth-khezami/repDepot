@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { AppToaster } from "@/components/AppToaster";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { defaultOpenGraph } from "@/lib/seo";
+import { SOCIAL } from "@/lib/social";
 
 const playfair = Playfair_Display({
   variable: "--font-display",
@@ -51,6 +52,11 @@ export const metadata: Metadata = {
   openGraph: defaultOpenGraph("/", `${SITE_NAME} — Boutique bébé`, SITE_DESCRIPTION),
   twitter: { card: "summary_large_image", title: SITE_NAME, description: SITE_DESCRIPTION },
   robots: { index: true, follow: true },
+  icons: {
+    icon: "/depot.png",
+    shortcut: "/depot.png",
+    apple: "/depot.png",
+  },
 };
 
 export default function RootLayout({
@@ -71,6 +77,21 @@ export default function RootLayout({
             <AppToaster />
           </AddToCartFxProvider>
         </ShopProvider>
+        {/* Organization structured data for SEO */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: SITE_NAME,
+              alternateName: "bebedepot",
+              url: getSiteUrl(),
+              email: "contact@bebedepot.tn",
+              sameAs: [SOCIAL.instagram.href, SOCIAL.facebook.href, SOCIAL.tiktok.href, SOCIAL.whatsapp.href],
+            }),
+          }}
+        />
       </body>
     </html>
   );

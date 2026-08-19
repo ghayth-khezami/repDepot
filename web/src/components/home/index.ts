@@ -16,5 +16,6 @@ export { TestimonialsCarousel } from "./TestimonialsCarousel";
 export { Footer } from "./Footer";
 export { MobileBottomNav } from "./MobileBottomNav";
 export { FloatingContactButtons } from "./FloatingContactButtons";
+export { YouTubeSection } from "./YouTubeSection";
 export { FadeUp } from "./FadeUp";
 export { PhoneButton } from "./PhoneButton";

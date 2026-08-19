@@ -12,6 +12,7 @@ import {
   ProductsGrid,
   TestimonialsCarousel,
   TrustSection,
+  YouTubeSection,
 } from "@/components/home";
 import { STORE_CONTAINER } from "@/lib/home";
 
@@ -81,6 +82,7 @@ export default function Home() {
       </div>
 
       <TestimonialsCarousel />
+      <YouTubeSection />
       <Footer />
       <FloatingContactButtons />
     </div>

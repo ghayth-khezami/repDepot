@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Footer } from "@/components/Footer";
+import { YouTubeEmbed } from "@/components/YouTubeEmbed";
 import { StoreHoursRow } from "@/components/StoreHoursRow";
 import { fr } from "@/lib/fr";
 import { api } from "@/lib/api";
@@ -26,6 +27,8 @@ export default function MagasinPage() {
   return (
     <>
       <div className={`space-y-12 py-6 md:space-y-16 md:py-10 ${STORE_CONTAINER}`}>
+        <YouTubeEmbed />
+
         <section className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-10">
           <div className="space-y-5">
             <div className="overflow-hidden rounded-[1.75rem] shadow-[0_12px_40px_rgba(224,70,114,0.12)]">

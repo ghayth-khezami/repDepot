@@ -30,6 +30,7 @@
     "seed:categories": "ts-node prisma/seed-category-hierarchy.ts",
     "seed:catalog": "ts-node prisma/seed-catalog.ts",
     "create:user": "ts-node src/scripts/create-user.ts",
+    "seed:admin": "ts-node prisma/seed-admin.ts",
     "user:role": "ts-node src/scripts/set-user-role.ts",
     "bulk:users": "ts-node src/scripts/bulk-insert-users.ts"
   },

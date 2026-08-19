@@ -24,6 +24,8 @@ import { NotificationModule } from "./notification/notification.module";
 import { HealthModule } from "./health/health.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.module";
 import { MediaModule } from "./media/media.module";
+import { HeroCarouselSlideModule } from "./hero-carousel-slide/hero-carousel-slide.module";
+import { SiteSettingsModule } from "./site-settings/site-settings.module";
 
 @Module({
   imports: [
@@ -83,6 +85,8 @@ import { MediaModule } from "./media/media.module";
     NewsletterModule,
     NotificationModule,
     HealthModule,
+    HeroCarouselSlideModule,
+    SiteSettingsModule,
   ],
   providers: [
     {

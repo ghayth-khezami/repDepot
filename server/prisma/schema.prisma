@@ -414,3 +414,33 @@ model PushSubscription {
   @@unique([userId, endpoint])
   @@map("push_subscriptions")
 }
+
+model HeroCarouselSlide {
+  id            String   @id @default(uuid())
+  imageDoc      String
+  imageAlt      String   @default("")
+  sortOrder     Int      @default(0)
+  isPublished   Boolean  @default(true)
+  imageOnly     Boolean  @default(true)
+  arabicWelcome String?
+  title         String?
+  subtitle      String?
+  description   String?
+  ctaLabel      String?
+  ctaHref       String?
+  ctaType       String?
+  align         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([sortOrder])
+  @@map("hero_carousel_slides")
+}
+
+model SiteSettings {
+  id         String   @id @default("default")
+  youtubeUrl String?
+  updatedAt  DateTime @updatedAt
+
+  @@map("site_settings")
+}

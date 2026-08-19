@@ -11,9 +11,11 @@ import { PhoneButton } from "./PhoneButton";
 export function HeroSlide({
   slide,
   isActive,
+  priority = false,
 }: {
   slide: HeroSlideData;
   isActive: boolean;
+  priority?: boolean;
 }) {
   const alignCenter = slide.align === "center";
   const imageOnly = slide.imageOnly === true;
@@ -101,6 +103,7 @@ export function HeroSlide({
               src={slide.image}
               alt={slide.imageAlt}
               fill
+              priority={priority}
               sizes="100vw"
               className="object-cover object-center"
             />
@@ -117,6 +120,7 @@ export function HeroSlide({
               src={slide.image}
               alt={slide.imageAlt}
               fill
+              priority={priority}
               sizes="(max-width: 1280px) 100vw, 1280px"
               className="object-cover object-center"
             />
@@ -140,7 +144,7 @@ export function HeroSlide({
               src={slide.image}
               alt={slide.imageAlt}
               fill
-              priority={slide.id === "welcome"}
+              priority={priority}
               sizes="100vw"
               className="object-cover object-[center_30%]"
             />
@@ -173,7 +177,7 @@ export function HeroSlide({
             src={slide.image}
             alt={slide.imageAlt}
             fill
-            priority={slide.id === "welcome"}
+            priority={priority}
             sizes="(max-width: 1280px) 100vw, 1280px"
             className="object-cover object-[76%_center]"
           />

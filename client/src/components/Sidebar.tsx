@@ -15,6 +15,8 @@ import {
   Award,
   Mail,
   Heart,
+  Images,
+  Youtube,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +33,8 @@ const Sidebar = () => {
     { path: '/', label: 'Tableau de Bord', icon: LayoutDashboard },
     { path: '/products', label: 'Produits', icon: Package },
     { path: '/coups-de-coeur', label: 'Coups de cœur', icon: Heart },
+    { path: '/carrousel', label: 'Carrousel accueil', icon: Images },
+    { path: '/youtube', label: 'Lien YouTube', icon: Youtube },
     { path: '/categories', label: 'Catégories', icon: FolderTree },
     { path: '/marques', label: 'Marques', icon: Award },
     { path: '/clients', label: 'Clients', icon: ShoppingCart },

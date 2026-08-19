@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import './store/api/featuredProductApi';
+import './store/api/heroCarouselApi';
+import './store/api/siteSettingsApi';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
@@ -17,6 +19,8 @@ import ClientFeedbacksPage from './pages/ClientFeedbacksPage';
 import MarksPage from './pages/MarksPage';
 import NewsletterPage from './pages/NewsletterPage';
 import FeaturedProductsPage from './pages/FeaturedProductsPage';
+import HeroCarouselPage from './pages/HeroCarouselPage';
+import SiteSettingsPage from './pages/SiteSettingsPage';
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, bootstrapping } = useAuth();
@@ -46,6 +50,8 @@ function App() {
                 <Route path="/horaires" element={<HorairesPage />} />
                 <Route path="/avis-clients" element={<ClientFeedbacksPage />} />
                 <Route path="/marques" element={<MarksPage />} />
+                <Route path="/carrousel" element={<HeroCarouselPage />} />
+                <Route path="/youtube" element={<SiteSettingsPage />} />
                 <Route path="/newsletter" element={<NewsletterPage />} />
               </Routes>
             </Layout>

@@ -71,7 +71,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https://res.cloudinary.com http://localhost:3000 https:",
               "font-src 'self' data:",
               "connect-src 'self' http://localhost:3000 https:",
-              "frame-src https://accounts.google.com",
+              "frame-src 'self' https://accounts.google.com https://*.google.com https://maps.googleapis.com https://www.youtube.com https://www.youtube-nocookie.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

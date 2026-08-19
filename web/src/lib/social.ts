@@ -1,5 +1,6 @@
 export const STORE_PHONE_DISPLAY = "55 863 578";
 export const STORE_PHONE_TEL = "+21655863578";
+export const STORE_EMAIL = "contact@bebedepot.tn";
 
 export const SOCIAL = {
   instagram: {

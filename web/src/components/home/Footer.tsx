@@ -3,12 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { ArrowRight, MapPin, Phone } from "lucide-react";
+import { ArrowRight, Mail, MapPin, Phone } from "lucide-react";
 import { useShop } from "@/context/ShopContext";
 import { api } from "@/lib/api";
 import { fr, LOGO_SRC } from "@/lib/fr";
 import { FOOTER_LINKS, STORE_CONTAINER } from "@/lib/home";
-import { getGoogleMapsEmbedSrc, getGoogleMapsOpenUrl, SOCIAL, STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/social";
+import { getGoogleMapsEmbedSrc, getGoogleMapsOpenUrl, SOCIAL, STORE_EMAIL, STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/social";
 
 export function Footer() {
   const { categories } = useShop();
@@ -56,6 +56,13 @@ export function Footer() {
               >
                 <Phone size={15} />
                 {STORE_PHONE_DISPLAY}
+              </a>
+              <a
+                href={`mailto:${STORE_EMAIL}`}
+                className="flex items-center gap-2 font-medium text-[#E04672] hover:underline"
+              >
+                <Mail size={15} />
+                {STORE_EMAIL}
               </a>
               <p className="flex items-start gap-2">
                 <MapPin size={15} className="mt-0.5 shrink-0 text-[#E04672]" />

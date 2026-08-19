@@ -232,9 +232,46 @@ export const api = {
         closeTime: string | null;
       }>
     >("/store-hours"),
+  getHeroSlides: () =>
+    request<
+      Array<{
+        id: string;
+        imageDoc: string;
+        imageAlt: string;
+        sortOrder: number;
+        isPublished: boolean;
+        imageOnly: boolean;
+        arabicWelcome?: string | null;
+        title?: string | null;
+        subtitle?: string | null;
+        description?: string | null;
+        ctaLabel?: string | null;
+        ctaHref?: string | null;
+        ctaType?: string | null;
+        align?: string | null;
+      }>
+    >("/hero-carousel-slides/published"),
+  getSiteSettings: () =>
+    request<{ youtubeUrl: string | null }>("/site-settings/public"),
   normalizePhotoUrl: (photo?: string | null) => {
     if (!photo) return "";
-    if (photo.startsWith("http")) return photo;
+    if (photo.startsWith("http")) {
+      // Optimize Cloudinary delivery: insert auto format/quality transformation if missing
+      try {
+        const url = new URL(photo);
+        if (url.hostname.endsWith("res.cloudinary.com") && url.pathname.includes("/upload/")) {
+          const afterUpload = url.pathname.split("/upload/")[1] || "";
+          // If transformations already present (e.g., contain f_auto or q_auto), return as-is
+          if (!/f_auto|q_auto/.test(afterUpload)) {
+            const newPath = url.pathname.replace("/upload/", "/upload/q_auto,f_auto/");
+            return `${url.protocol}//${url.host}${newPath}${url.search}${url.hash}`;
+          }
+        }
+      } catch {
+        // ignore URL parsing errors and fall back to original
+      }
+      return photo;
+    }
     const base = API_URL === "/api-proxy" ? REMOTE_API_URL : API_URL;
     return `${base}${photo.startsWith("/") ? photo : `/${photo}`}`;
   },

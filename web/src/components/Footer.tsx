@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { MapPin } from "lucide-react";
-import { getGoogleMapsOpenUrl, SOCIAL } from "@/lib/social";
+import { getGoogleMapsOpenUrl, SOCIAL, STORE_EMAIL } from "@/lib/social";
 import { api } from "@/lib/api";
 import { fr, LOGO_SRC } from "@/lib/fr";
 
@@ -133,6 +133,7 @@ export function Footer({ connected = false }: FooterProps) {
             <MapPin size={14} />
             {fr.seeRoute}
           </a>
+          <a href={`mailto:${STORE_EMAIL}`} className="block text-sm text-primary underline-offset-4 hover:underline">{STORE_EMAIL}</a>
         </div>
       </div>
     </footer>
