@@ -158,7 +158,7 @@ const HorairesPage = () => {
         type="button"
         onClick={handleSave}
         disabled={saving || !isDirty}
-        className="rounded-xl bg-purple-700 px-6 py-3 text-sm font-bold text-white hover:bg-purple-800 disabled:opacity-60"
+        className="rounded-xl bg-pink-500 px-6 py-3 text-sm font-bold text-white hover:bg-pink-600 disabled:opacity-60"
       >
         {saving ? 'Enregistrement…' : 'Enregistrer les horaires'}
       </button>

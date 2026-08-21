@@ -5,7 +5,7 @@ import { ShopProvider } from "@/context/ShopContext";
 import { AddToCartFxProvider } from "@/components/AddToCartFxProvider";
 import { AppShell } from "@/components/AppShell";
 import { AppToaster } from "@/components/AppToaster";
-import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { absoluteUrl, getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { defaultOpenGraph } from "@/lib/seo";
 import { SOCIAL } from "@/lib/social";
 
@@ -83,11 +83,20 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
-              "@type": "Organization",
+              "@type": "LocalBusiness",
               name: SITE_NAME,
               alternateName: "bebedepot",
               url: getSiteUrl(),
               email: "contact@bebedepot.tn",
+              telephone: "+21655863578",
+              priceRange: "TND",
+              image: absoluteUrl("/depot.png"),
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: "Manouba",
+                addressCountry: "TN",
+              },
+              areaServed: "Tunisia",
               sameAs: [SOCIAL.instagram.href, SOCIAL.facebook.href, SOCIAL.tiktok.href, SOCIAL.whatsapp.href],
             }),
           }}

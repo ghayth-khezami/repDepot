@@ -36,5 +36,5 @@ export function getGoogleMapsEmbedSrc(): string {
 }
 
 export function getGoogleMapsOpenUrl(): string {
-  return `https://www.google.com/maps/search/?api=1&query=${STORE_LAT},${STORE_LON}`;
+  return "https://maps.app.goo.gl/5ukMuiNqQUoVUKFR6";
 }

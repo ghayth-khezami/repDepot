@@ -4,14 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ArrowRight, Mail, MapPin, Phone } from "lucide-react";
-import { useShop } from "@/context/ShopContext";
 import { api } from "@/lib/api";
 import { fr, LOGO_SRC } from "@/lib/fr";
-import { FOOTER_LINKS, STORE_CONTAINER } from "@/lib/home";
-import { getGoogleMapsEmbedSrc, getGoogleMapsOpenUrl, SOCIAL, STORE_EMAIL, STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/social";
+import { FOOTER_LINKS } from "@/lib/home";
+import { getGoogleMapsOpenUrl, SOCIAL, STORE_EMAIL, STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/social";
+import { FooterMapCard } from "@/components/FooterMapCard";
 
 export function Footer() {
-  const { categories } = useShop();
   const year = new Date().getFullYear();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
@@ -30,9 +29,12 @@ export function Footer() {
 
   return (
     <footer className="mt-8 w-full bg-gradient-to-b from-[#FFFDFB] to-[#FFF0F4] pt-16 md:pt-20">
-      <div className={`pb-10 ${STORE_CONTAINER}`}>
-        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-12 lg:gap-10">
-          <div className="space-y-5 lg:col-span-4">
+      <div className="w-full px-5 pb-10 sm:px-8 lg:px-12">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-12 lg:gap-8">
+          <div className="lg:col-span-3">
+            <FooterMapCard />
+          </div>
+          <div className="space-y-5 lg:col-span-3">
             <div className="flex items-center gap-3">
               <Image
                 src={LOGO_SRC}
@@ -99,24 +101,6 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="space-y-4 lg:col-span-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#E04672]">
-              Catégories
-            </p>
-            <ul className="space-y-2.5">
-              {categories.slice(0, 6).map((cat) => (
-                <li key={cat.id}>
-                  <Link
-                    href={`/categories/${cat.id}`}
-                    className="text-sm text-[#2D2346]/75 transition hover:text-[#E04672]"
-                  >
-                    {cat.categoryName}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
           <div className="space-y-5 lg:col-span-4">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#E04672]">
               {fr.newsletterTitle}
@@ -165,6 +149,7 @@ export function Footer() {
                 </a>
               ))}
             </div>
+
           </div>
         </div>
 
@@ -173,18 +158,6 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="w-full px-4 pb-0 md:px-6">
-        <div className="mx-auto max-w-6xl overflow-hidden rounded-t-[1.75rem] border border-[#E04672]/10 shadow-[0_-8px_32px_rgba(45,35,70,0.06)]">
-          <iframe
-            title="Bébé Dépôt — Manouba"
-            src={getGoogleMapsEmbedSrc()}
-            className="aspect-[16/9] w-full border-0 sm:aspect-[21/9]"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            allowFullScreen
-          />
-        </div>
-      </div>
     </footer>
   );
 }

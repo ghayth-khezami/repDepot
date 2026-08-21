@@ -14,9 +14,11 @@ import { fadeUp } from "@/lib/motion";
 export function ProductCard({
   product,
   onFavoriteChange,
+  compact = false,
 }: {
   product: Product;
   onFavoriteChange?: (result: "added" | "removed" | false, productId: string) => void;
+  compact?: boolean;
 }) {
   const { toggleLike, isLiked, addToCart, cart } = useShop();
   const fx = useAddToCartFx();
@@ -44,8 +46,8 @@ export function ProductCard({
       whileInView="show"
       viewport={{ once: true, margin: "-40px" }}
     >
-      <article className="group flex h-full flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-[0_8px_32px_rgba(45,35,70,0.07)] transition hover:-translate-y-1">
-        <div className="relative aspect-[4/5] overflow-hidden">
+      <article className={`group flex h-full flex-col overflow-hidden rounded-xl border border-[#182044]/8 bg-white shadow-[0_5px_18px_rgba(45,35,70,0.05)] transition hover:-translate-y-1 ${compact ? "product-card-compact" : ""}`}>
+        <div className={`relative overflow-hidden ${compact ? "aspect-[1.08/1]" : "aspect-[4/5]"}`}>
           <ProductPhotoGallery photos={product.photos} alt={product.productName} className="h-full" />
           <button
             type="button"
@@ -57,7 +59,7 @@ export function ProductCard({
                 onFavoriteChange?.(r, product.id);
               })();
             }}
-            className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur transition hover:scale-110"
+            className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur transition hover:scale-110"
             aria-label={liked ? "Retirer des favoris" : "Ajouter aux favoris"}
           >
             <Heart
@@ -67,19 +69,19 @@ export function ProductCard({
             />
           </button>
         </div>
-        <div className="flex flex-1 flex-col p-4 md:p-5">
-          <div className="mb-2 flex items-baseline justify-between gap-2">
-            <span className="min-w-0 truncate text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#E04672]">
+        <div className={`flex flex-1 flex-col ${compact ? "p-2.5" : "p-4 md:p-5"}`}>
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <span className="min-w-0 truncate text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-[#E04672]">
               {categoryName}
             </span>
-            <span className="shrink-0 font-display text-lg text-[#2D2346]">
+            <span className={`shrink-0 font-display text-[#2D2346] ${compact ? "text-sm" : "text-lg"}`}>
               {product.PrixVente.toFixed(0)}{" "}
               <span className="text-xs font-sans font-normal text-[#2D2346]/50">DT</span>
             </span>
           </div>
           <Link
             href={`/products/${product.id}`}
-            className="line-clamp-2 min-h-[2.6rem] flex-1 text-[15px] font-medium leading-tight text-[#2D2346] transition hover:text-[#E04672]"
+            className={`line-clamp-2 flex-1 font-medium leading-tight text-[#2D2346] transition hover:text-[#E04672] ${compact ? "min-h-[2.2rem] text-[11px]" : "min-h-[2.6rem] text-[15px]"}`}
           >
             {product.productName}
           </Link>

@@ -37,7 +37,7 @@ export function ProductsGrid({
       <section className="home-stickers-zone relative">
         <FloatingStickers seed={1} />
 
-        <div className="home-stickers-content space-y-10">
+        <div className="home-stickers-content space-y-10 px-1 py-1 md:px-2 md:py-2">
           <div>
             <p
               className="text-xs font-semibold uppercase tracking-[0.24em]"
@@ -66,7 +66,7 @@ export function ProductsGrid({
           <div className="flex flex-col items-center gap-4 border-t border-[#E04672]/8 pt-8">
             <Link
               href="/produits"
-              className="inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(224,70,114,0.22)] transition hover:brightness-105 md:text-base"
+              className="btn-primary inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(224,70,114,0.22)] transition hover:brightness-105 md:text-base"
               style={{ backgroundColor: HOME_COLORS.primary }}
             >
               Voir tout les articles

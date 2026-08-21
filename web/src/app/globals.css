@@ -83,7 +83,7 @@ body {
 body {
   font-family: var(--font-sans);
   color: var(--foreground);
-  background: var(--background);
+  background: #ffffff;
   min-height: 100vh;
 }
 
@@ -93,6 +93,44 @@ body {
 
 .home-app-root .home-scroll-body {
   background: var(--cream);
+}
+
+.home-content-flow {
+  background:
+    radial-gradient(circle at 8% 18%, oklch(0.94 0.04 15 / 0.42), transparent 24rem),
+    radial-gradient(circle at 92% 58%, oklch(0.96 0.035 80 / 0.72), transparent 28rem);
+}
+
+.home-premium-section {
+  position: relative;
+  border: 1px solid oklch(0.9 0.035 15 / 0.72);
+  border-radius: 2rem;
+  background: oklch(1 0 0 / 0.86);
+  padding: 1rem;
+  box-shadow: 0 18px 55px oklch(0.38 0.14 10 / 0.07), inset 0 1px 0 oklch(1 0 0 / 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.home-store-section {
+  background: linear-gradient(180deg, transparent, oklch(0.98 0.02 15 / 0.78));
+  padding: 1rem 0 0;
+}
+
+.home-store-panel {
+  border: 1px solid oklch(0.9 0.035 15 / 0.72);
+  border-radius: 2rem;
+  background: oklch(1 0 0 / 0.78);
+  padding: 1rem;
+  box-shadow: 0 18px 55px oklch(0.38 0.14 10 / 0.06);
+}
+
+@media (min-width: 768px) {
+  .home-premium-section,
+  .home-store-panel {
+    border-radius: 2.5rem;
+    padding: 1.5rem;
+  }
 }
 
 h1,
@@ -137,27 +175,96 @@ h4 {
   color: var(--plum);
 }
 
+/* Shared premium surface for native controls; explicit utility backgrounds remain opt-in. */
+button:not([class*="bg-"]):not(.unstyled),
+.liquid-glass-button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid oklch(0.99 0.02 15 / 0.58);
+  border-radius: 9999px;
+  background: linear-gradient(135deg, oklch(1 0 0 / 0.58), oklch(0.94 0.04 15 / 0.48));
+  box-shadow: 0 8px 24px oklch(0.58 0.18 10 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.7);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease, background 0.2s ease;
+}
+
+button:not([class*="bg-"]):not(.unstyled)::before,
+.liquid-glass-button::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, oklch(1 0 0 / 0.28), transparent 42%, oklch(0.78 0.12 10 / 0.18));
+  content: "";
+  pointer-events: none;
+}
+
+button:not([class*="bg-"]):not(.unstyled):hover,
+.liquid-glass-button:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.1) brightness(1.04);
+  box-shadow: 0 12px 30px oklch(0.58 0.18 10 / 0.2), inset 0 1px 0 oklch(1 0 0 / 0.82);
+}
+
+button:not([class*="bg-"]):not(.unstyled):active,
+.liquid-glass-button:active {
+  transform: translateY(1px) scale(0.96);
+  filter: brightness(0.98) saturate(1.18);
+  box-shadow: 0 3px 10px oklch(0.58 0.18 10 / 0.18), inset 0 2px 5px oklch(0.38 0.14 10 / 0.12);
+}
+
+button:not([class*="bg-"]):not(.unstyled):focus-visible,
+.liquid-glass-button:focus-visible {
+  outline: 3px solid oklch(0.78 0.12 10 / 0.38);
+  outline-offset: 3px;
+}
+
 .btn-primary {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: var(--gradient-brand);
-  color: var(--cream);
+  background: linear-gradient(135deg, oklch(0.66 0.19 10 / 0.9), oklch(0.78 0.13 15 / 0.78));
+  color: oklch(0.99 0.005 80);
   border-radius: 9999px;
   padding: 1rem 1.7rem;
   font-weight: 600;
   font-size: 0.9rem;
   box-shadow: var(--shadow-glow);
   transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
-  border: none;
+  border: 1px solid oklch(0.99 0.9 80 / 0.42);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
   cursor: pointer;
   text-decoration: none;
 }
 
+.btn-primary::before,
+.btn-ghost::before,
+.btn-dark-glass::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, oklch(1 0 0 / 0.3), transparent 44%, oklch(1 0 0 / 0.12));
+  content: "";
+  pointer-events: none;
+}
+
+.btn-primary:active,
+.btn-ghost:active,
+.btn-dark-glass:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: inset 0 2px 6px oklch(0.38 0.14 10 / 0.2), 0 3px 10px oklch(0.58 0.18 10 / 0.16);
+}
+
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  filter: brightness(1.05);
+  filter: brightness(1.08) saturate(1.08);
+  box-shadow: 0 8px 24px oklch(0.58 0.18 10 / 0.28), inset 0 1px 0 oklch(1 0 0 / 0.55);
 }
 
 .btn-primary:disabled {
@@ -170,11 +277,13 @@ h4 {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: var(--card);
+  background: oklch(1 0 0 / 0.48);
   color: var(--ink);
   border-radius: 9999px;
   padding: 1rem 1.7rem;
-  border: 1px solid var(--border);
+  border: 1px solid oklch(0.58 0.18 10 / 0.22);
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
   font-weight: 500;
   font-size: 0.9rem;
   transition: background-color 0.2s ease, transform 0.2s ease;
@@ -183,8 +292,34 @@ h4 {
 }
 
 .btn-ghost:hover {
-  background: var(--muted);
+  background: oklch(0.94 0.04 15 / 0.72);
   transform: translateY(-1px);
+}
+
+.btn-dark-glass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid oklch(1 0 0 / 0.18);
+  border-radius: 9999px;
+  background: oklch(0.22 0.05 290 / 0.86);
+  color: oklch(0.99 0.005 80);
+  padding: 1rem 1.7rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 8px 24px oklch(0.22 0.05 290 / 0.2), inset 0 1px 0 oklch(1 0 0 / 0.2);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-dark-glass:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: oklch(0.28 0.07 290 / 0.92);
+  box-shadow: 0 10px 28px oklch(0.22 0.05 290 / 0.3), inset 0 1px 0 oklch(1 0 0 / 0.3);
 }
 
 .surface-card {
@@ -996,6 +1131,83 @@ h4 {
   color: var(--muted-foreground);
 }
 
+.login-page {
+  background: radial-gradient(circle at 12% 10%, oklch(0.96 0.045 15 / 0.72), transparent 34%), var(--cream);
+}
+
+.login-baby-panel {
+  background: #fff0f4;
+}
+
+.login-form-panel {
+  background: rgb(255 255 255 / 0.86);
+}
+
+.login-tab {
+  position: relative;
+  flex: 1;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0.8rem 0.5rem 1rem;
+  color: rgb(45 35 70 / 0.55) !important;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: none !important;
+}
+
+.login-tab:hover,
+.login-tab:active {
+  transform: none !important;
+  filter: none !important;
+}
+
+.login-tab-active {
+  color: #c52f59 !important;
+}
+
+.login-tab-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: #e04672;
+  content: "";
+}
+
+.login-field {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid rgb(224 70 114 / 0.14);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 0.76);
+  padding: 0.15rem 1rem;
+  color: rgb(45 35 70 / 0.5);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-field:focus-within {
+  border-color: rgb(224 70 114 / 0.45);
+  box-shadow: 0 0 0 4px rgb(224 70 114 / 0.1);
+}
+
+.login-field input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0.85rem 0;
+  color: var(--ink);
+  outline: 0;
+}
+
+.login-field input::placeholder {
+  color: rgb(45 35 70 / 0.45);
+}
+
 .page-container {
   max-width: 1400px;
   margin-left: auto;
@@ -1405,4 +1617,59 @@ h4 {
 
 .float-soft {
   animation: float-soft 6s ease-in-out infinite;
+}
+
+/* Final button language: deep rose liquid glass without changing layout positioning. */
+button:not(.unstyled):not(.absolute):not(.fixed),
+a.btn-primary,
+a.btn-ghost,
+a.btn-dark-glass {
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid oklch(0.98 0.03 15 / 0.48) !important;
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, oklch(0.27 0.11 8 / 0.96), oklch(0.46 0.18 10 / 0.92) 52%, oklch(0.65 0.2 350 / 0.86)) !important;
+  color: oklch(0.99 0.01 15) !important;
+  box-shadow: 0 10px 30px oklch(0.28 0.14 8 / 0.3), inset 0 1px 0 oklch(1 0 0 / 0.58), inset 0 -1px 0 oklch(0.12 0.08 8 / 0.24) !important;
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+}
+
+button:not(.unstyled):not(.absolute):not(.fixed)::before,
+a.btn-primary::before,
+a.btn-ghost::before,
+a.btn-dark-glass::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(120deg, oklch(1 0 0 / 0.26), transparent 36%, oklch(0.72 0.22 350 / 0.24));
+  content: "";
+  pointer-events: none;
+}
+
+button:not(.unstyled):not(.absolute):not(.fixed):hover:not(:disabled),
+a.btn-primary:hover,
+a.btn-ghost:hover,
+a.btn-dark-glass:hover {
+  transform: translateY(-2px) !important;
+  filter: brightness(1.1) saturate(1.12) !important;
+  box-shadow: 0 15px 36px oklch(0.28 0.14 8 / 0.42), inset 0 1px 0 oklch(1 0 0 / 0.72) !important;
+}
+
+button:not(.unstyled):not(.absolute):not(.fixed):active,
+a.btn-primary:active,
+a.btn-ghost:active,
+a.btn-dark-glass:active {
+  transform: translateY(1px) scale(0.95) !important;
+  filter: brightness(0.98) saturate(1.2) !important;
+  box-shadow: 0 4px 12px oklch(0.28 0.14 8 / 0.24), inset 0 3px 8px oklch(0.1 0.08 8 / 0.3) !important;
+}
+
+button:not(.unstyled):not(.absolute):not(.fixed):focus-visible,
+a.btn-primary:focus-visible,
+a.btn-ghost:focus-visible,
+a.btn-dark-glass:focus-visible {
+  outline: 3px solid oklch(0.72 0.2 350 / 0.55);
+  outline-offset: 3px;
 }

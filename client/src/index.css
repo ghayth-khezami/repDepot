@@ -14,7 +14,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #faf5ff;
+  background-color: #fff7fa;
 }
 
 html.dark body {
@@ -54,7 +54,141 @@ html.dark body {
 }
 
 .bo-btn-secondary {
-  @apply rounded-lg border border-gray-300 px-4 py-2 text-gray-800 transition-colors hover:bg-gray-50 dark:border-slate-600 dark:text-gray-200 dark:hover:bg-slate-700;
+  @apply rounded-full border border-pink-200/70 bg-pink-100/60 px-4 py-2 font-medium text-rose-900 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-pink-200/80 dark:border-pink-800/70 dark:bg-rose-950/50 dark:text-pink-100 dark:hover:bg-rose-900/60;
+}
+
+.bo-page button:not([disabled]),
+.voice-assistant-button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.46) !important;
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.98), rgb(255 240 246 / 0.96)) !important;
+  color: rgb(157 23 77) !important;
+  box-shadow: 0 8px 22px rgb(225 29 116 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.85) !important;
+  backdrop-filter: blur(18px) saturate(135%);
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.bo-page button:not([disabled])::before,
+.voice-assistant-button::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, rgb(255 255 255 / 0.5), transparent 42%, rgb(244 114 182 / 0.14));
+  content: '';
+  pointer-events: none;
+}
+
+.bo-page button:not([disabled]):hover,
+.voice-assistant-button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08) saturate(1.1);
+}
+
+.bo-page button:not([disabled]):active,
+.voice-assistant-button:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: inset 0 3px 8px rgb(157 23 77 / 0.12), 0 4px 12px rgb(225 29 116 / 0.12) !important;
+}
+
+.bo-page button[class*='bg-']:not([disabled]):not(.category-admin button) {
+  border-color: rgb(236 72 153) !important;
+  background: rgb(236 72 153) !important;
+  color: white !important;
+}
+
+.bo-page button[class*='bg-']:not([disabled]):not(.category-admin button):hover {
+  background: rgb(219 39 119) !important;
+}
+
+.voice-assistant {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.voice-assistant-message {
+  max-width: 16rem;
+  border: 1px solid rgb(224 70 114 / 0.16);
+  border-radius: 9999px;
+  background: rgb(255 247 250 / 0.84);
+  padding: 0.45rem 0.75rem;
+  color: rgb(73 45 83 / 0.78);
+  font-size: 0.7rem;
+  box-shadow: 0 6px 18px rgb(118 45 139 / 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.voice-assistant-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .voice-assistant {
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+
+  .voice-assistant-message {
+    display: none;
+  }
+}
+
+.bo-page button[type='submit'],
+.bo-page button.bg-primary-600 {
+  border: 1px solid rgb(251 207 232) !important;
+  border-radius: 9999px !important;
+  background: rgb(236 72 153) !important;
+  padding: 0.625rem 1.25rem;
+  color: white !important;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgb(244 114 182 / 0.3) !important;
+  backdrop-filter: blur(12px);
+}
+
+.bo-page button[type='submit']:hover,
+.bo-page button.bg-primary-600:hover {
+  background: rgb(219 39 119) !important;
+}
+
+.bo-page .category-admin button:not([disabled]) {
+  border: 1px solid #fbcfe8 !important;
+  border-radius: 0.75rem !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  color: #9d174d !important;
+  backdrop-filter: none;
+}
+
+.bo-page .category-admin button.bg-pink-500:not([disabled]) {
+  border-color: #ec4899 !important;
+  background: #ec4899 !important;
+  color: #ffffff !important;
+}
+
+.bo-page .category-admin button.bg-pink-500:not([disabled]):hover {
+  background: #db2777 !important;
+}
+
+.bo-page .category-admin button:not([disabled])::before {
+  display: none;
+}
+
+.bo-page .category-admin button:not([disabled]):hover {
+  filter: none;
+  transform: translateY(-1px);
 }
 
 .bo-panel {

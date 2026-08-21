@@ -67,12 +67,12 @@ export default function Home() {
     <div className="min-h-dvh w-full bg-[#FFFDFB] text-[#2D2346]">
       <HeroCarousel />
 
-      <div className="space-y-20 overflow-x-clip py-16 md:space-y-28 md:py-20">
-        <div className={STORE_CONTAINER}>
+      <div className="home-content-flow space-y-16 overflow-x-clip py-12 md:space-y-24 md:py-16">
+        <div className={`${STORE_CONTAINER} home-premium-section`}>
           <ProductsGrid products={featured} loading={featuredLoading} />
         </div>
 
-        <div className={STORE_CONTAINER}>
+        <div className={`${STORE_CONTAINER} home-premium-section`}>
           <CategoriesExplorer categories={categories} counts={categoryCounts} />
         </div>
 
@@ -82,7 +82,9 @@ export default function Home() {
       </div>
 
       <TestimonialsCarousel />
-      <YouTubeSection />
+      <div className="home-store-section">
+        <YouTubeSection />
+      </div>
       <Footer />
       <FloatingContactButtons />
     </div>

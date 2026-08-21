@@ -2,443 +2,78 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowRight, House } from "lucide-react";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductGridSkeletons } from "@/components/ProductCardSkeleton";
 import { useInfiniteProducts } from "@/hooks/useInfiniteProducts";
 import { api } from "@/lib/api";
 import { getCategoryCardImage } from "@/lib/category-images";
-import { HOME_COLORS, STORE_CONTAINER } from "@/lib/home";
 import { fr } from "@/lib/fr";
 import type { CategoryHierarchyNode, CategoryTreeSelection } from "@/types";
 
-function TreeNodeCard({
-  title,
-  image,
-  selected,
-  onClick,
-  compact = false,
-}: {
-  title: string;
-  image: string;
-  selected: boolean;
-  onClick: () => void;
-  compact?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group overflow-hidden rounded-[1.25rem] border-2 bg-white text-left shadow-[0_6px_24px_rgba(45,35,70,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(224,70,114,0.12)] ${
-        selected
-          ? "border-[#E04672] ring-2 ring-[#E04672]/20"
-          : "border-[#E04672]/15 hover:border-[#E04672]/40"
-      } ${compact ? "w-[7.5rem] sm:w-[8.5rem]" : "w-full max-w-[11rem] sm:max-w-[12rem]"}`}
-    >
-      <div className={`relative overflow-hidden ${compact ? "h-16" : "h-20 sm:h-24"}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image} alt="" className="h-full w-full object-cover" />
-        <div className="absolute inset-x-0 bottom-0 h-7 bg-gradient-to-t from-[#2D2346]/55 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 px-2 pb-1.5">
-          <span className="line-clamp-2 text-[10px] font-semibold leading-tight text-white sm:text-[11px]">
-            {title}
-          </span>
-        </div>
-      </div>
-      <div className="h-1.5" style={{ backgroundColor: selected ? HOME_COLORS.primary : `${HOME_COLORS.primary}33` }} />
-    </button>
-  );
-}
+const CARD_COLORS = ["#FFF0F4", "#F4EEFB", "#FFF7DE", "#EAF8F7", "#EEF5FF", "#FFF0EC"];
 
-function VerticalConnector() {
-  return <div className="mx-auto h-6 w-0.5 rounded-full bg-[#E04672]/25" aria-hidden />;
-}
-
-function HorizontalRail({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="relative flex flex-wrap items-start justify-center gap-3 sm:gap-4">
-      <div
-        className="pointer-events-none absolute left-[12%] right-[12%] top-0 h-0.5 rounded-full bg-[#E04672]/20"
-        aria-hidden
-      />
-      {children}
-    </div>
-  );
-}
-
-function SubSub3Row({
-  nodes,
-  image,
-  selection,
-  base,
-  onSelect,
-}: {
-  nodes: { id: string; title: string }[];
-  image: string;
-  selection: CategoryTreeSelection | null;
-  base: Omit<CategoryTreeSelection, "label" | "subSubCategory3Id">;
-  onSelect: (s: CategoryTreeSelection) => void;
-}) {
-  if (!nodes.length) return null;
-  return (
-    <div className="mt-2 flex flex-col items-center">
-      <VerticalConnector />
-      <HorizontalRail>
-        {nodes.map((n) => (
-          <div key={n.id} className="pt-3">
-            <TreeNodeCard
-              title={n.title}
-              image={image}
-              compact
-              selected={selection?.subSubCategory3Id === n.id}
-              onClick={() =>
-                onSelect({
-                  ...base,
-                  subSubCategory3Id: n.id,
-                  label: n.title,
-                })
-              }
-            />
-          </div>
-        ))}
-      </HorizontalRail>
-    </div>
-  );
-}
-
-function SubSub2Column({
-  node,
-  image,
-  selection,
-  base,
-  onSelect,
-}: {
-  node: {
-    id: string;
-    title: string;
-    subSubCategories3: { id: string; title: string }[];
-  };
-  image: string;
-  selection: CategoryTreeSelection | null;
-  base: Omit<CategoryTreeSelection, "label" | "subSubCategory2Id" | "subSubCategory3Id">;
-  onSelect: (s: CategoryTreeSelection) => void;
-}) {
-  const base2 = { ...base, subSubCategory2Id: node.id };
-  return (
-    <div className="flex flex-col items-center">
-      <TreeNodeCard
-        title={node.title}
-        image={image}
-        compact
-        selected={
-          selection?.subSubCategory2Id === node.id && !selection?.subSubCategory3Id
-        }
-        onClick={() => onSelect({ ...base2, label: node.title })}
-      />
-      <SubSub3Row
-        nodes={node.subSubCategories3}
-        image={image}
-        selection={selection}
-        base={base2}
-        onSelect={onSelect}
-      />
-    </div>
-  );
-}
-
-function SubSub1Column({
-  node,
-  image,
-  selection,
-  base,
-  onSelect,
-}: {
-  node: {
-    id: string;
-    title: string;
-    subSubCategories2: Array<{
-      id: string;
-      title: string;
-      subSubCategories3: { id: string; title: string }[];
-    }>;
-  };
-  image: string;
-  selection: CategoryTreeSelection | null;
-  base: Omit<CategoryTreeSelection, "label" | "subSubCategory1Id" | "subSubCategory2Id" | "subSubCategory3Id">;
-  onSelect: (s: CategoryTreeSelection) => void;
-}) {
-  const base1 = { ...base, subSubCategory1Id: node.id };
-  return (
-    <div className="flex flex-col items-center">
-      <TreeNodeCard
-        title={node.title}
-        image={image}
-        compact
-        selected={
-          selection?.subSubCategory1Id === node.id &&
-          !selection?.subSubCategory2Id &&
-          !selection?.subSubCategory3Id
-        }
-        onClick={() => onSelect({ ...base1, label: node.title })}
-      />
-      {node.subSubCategories2.length > 0 && (
-        <div className="flex flex-col items-center">
-          <VerticalConnector />
-          <HorizontalRail>
-            {node.subSubCategories2.map((ss2) => (
-              <div key={ss2.id} className="pt-3">
-                <SubSub2Column
-                  node={ss2}
-                  image={image}
-                  selection={selection}
-                  base={base1}
-                  onSelect={onSelect}
-                />
-              </div>
-            ))}
-          </HorizontalRail>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CategoryTreeDiagram({
-  category,
-  selection,
-  onSelect,
-}: {
-  category: CategoryHierarchyNode;
-  selection: CategoryTreeSelection | null;
-  onSelect: (s: CategoryTreeSelection) => void;
-}) {
+function CategoryCard({ category, index, count, active, onSelect }: { category: CategoryHierarchyNode; index: number; count: number; active: boolean; onSelect: () => void }) {
   const image = getCategoryCardImage(category);
-  const subs = category.subCategories ?? [];
+  const links = category.subCategories.slice(0, 3).map((item) => item.title);
+  const color = CARD_COLORS[index % CARD_COLORS.length];
 
   return (
-    <div className="cat-hierarchy-tree overflow-x-auto rounded-[1.75rem] border border-[#E04672]/10 bg-gradient-to-b from-[#FFFDFB] to-[#FFF0F4]/40 p-5 sm:p-8">
-      <div className="flex min-w-[min(100%,20rem)] flex-col items-center">
-        <TreeNodeCard
-          title={category.categoryName}
-          image={image}
-          selected={
-            selection?.categoryId === category.id &&
-            !selection?.subCategoryId &&
-            !selection?.subSubCategory1Id
-          }
-          onClick={() =>
-            onSelect({
-              categoryId: category.id,
-              label: category.categoryName,
-            })
-          }
-        />
-
-        {subs.length > 0 && (
-          <>
-            <VerticalConnector />
-            <HorizontalRail>
-              {subs.map((sub) => (
-                <div key={sub.id} className="flex flex-col items-center pt-3">
-                  <TreeNodeCard
-                    title={sub.title}
-                    image={image}
-                    compact
-                    selected={
-                      selection?.subCategoryId === sub.id &&
-                      !selection?.subSubCategory1Id
-                    }
-                    onClick={() =>
-                      onSelect({
-                        categoryId: category.id,
-                        subCategoryId: sub.id,
-                        label: sub.title,
-                      })
-                    }
-                  />
-                  {(sub.subSubCategories1?.length ?? 0) > 0 && (
-                    <div className="flex flex-col items-center">
-                      <VerticalConnector />
-                      <HorizontalRail>
-                        {sub.subSubCategories1.map((ss1) => (
-                          <div key={ss1.id} className="pt-3">
-                            <SubSub1Column
-                              node={ss1}
-                              image={image}
-                              selection={selection}
-                              base={{
-                                categoryId: category.id,
-                                subCategoryId: sub.id,
-                              }}
-                              onSelect={onSelect}
-                            />
-                          </div>
-                        ))}
-                      </HorizontalRail>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </HorizontalRail>
-          </>
-        )}
+    <button type="button" onClick={onSelect} className={`unstyled group flex min-h-[292px] flex-col rounded-xl border bg-white p-3 text-left shadow-[0_5px_18px_rgba(45,35,70,0.04)] transition hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(45,35,70,0.1)] ${active ? "border-[#E04672]" : "border-[#2D2346]/10"}`}>
+      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-full p-2" style={{ backgroundColor: color }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={image} alt="" className="h-full w-full object-contain transition duration-500 group-hover:scale-105" />
       </div>
-    </div>
+      <div className="flex flex-1 flex-col px-1 pt-3">
+        <h2 className="line-clamp-2 min-h-10 text-center font-display text-sm font-semibold leading-tight text-[#182044]">{category.categoryName}</h2>
+        <p className="mt-1 text-center text-[11px] text-[#182044]/45">{count} {count === 1 ? fr.article : fr.articles}</p>
+        <ul className="mt-2 space-y-1 text-[11px] text-[#182044]/65">
+          {links.map((label) => <li key={label} className="flex items-center gap-2"><span className="h-1 w-1 shrink-0 rounded-full bg-[#E04672]/65" />{label}</li>)}
+        </ul>
+        <span className="mt-auto flex h-7 items-center justify-center rounded-lg text-[11px] font-medium" style={{ backgroundColor: color, color: "#E04672" }}>Explorer</span>
+      </div>
+    </button>
   );
 }
 
 export function CategoriesPageClient() {
   const [tree, setTree] = useState<CategoryHierarchyNode[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [selection, setSelection] = useState<CategoryTreeSelection | null>(null);
 
   useEffect(() => {
-    api
-      .getCategoryHierarchy()
-      .then((data) => {
-        setTree(data);
-        if (data[0]) {
-          setActiveCategoryId(data[0].id);
-          setSelection({ categoryId: data[0].id, label: data[0].categoryName });
+    api.getCategoryHierarchy().then((data) => {
+      setTree(data);
+      if (data[0]) setSelection({ categoryId: data[0].id, label: data[0].categoryName });
+      void Promise.all(data.map(async (category) => {
+        try {
+          const result = await api.getProductsPage({ categoryId: category.id, page: 1, limit: 1 });
+          return [category.id, result.meta.total] as const;
+        } catch {
+          return [category.id, 0] as const;
         }
-      })
-      .catch(() => setTree([]))
-      .finally(() => setLoading(false));
+      })).then((entries) => setCounts(Object.fromEntries(entries)));
+    }).catch(() => setTree([])).finally(() => setLoading(false));
   }, []);
 
-  const activeCategory = useMemo(
-    () => tree.find((c) => c.id === activeCategoryId) ?? null,
-    [tree, activeCategoryId],
-  );
-
-  const productFilters = useMemo(() => {
-    if (!selection) return {};
-    return {
-      categoryId: selection.categoryId,
-      subCategoryId: selection.subCategoryId,
-      subSubCategory1Id: selection.subSubCategory1Id,
-      subSubCategory2Id: selection.subSubCategory2Id,
-      subSubCategory3Id: selection.subSubCategory3Id,
-    };
-  }, [selection]);
-
+  const productFilters = useMemo(() => selection ? { categoryId: selection.categoryId, subCategoryId: selection.subCategoryId, subSubCategory1Id: selection.subSubCategory1Id, subSubCategory2Id: selection.subSubCategory2Id, subSubCategory3Id: selection.subSubCategory3Id } : {}, [selection]);
   const { items, loading: productsLoading, sentinelRef } = useInfiniteProducts(productFilters);
 
-  const pickCategory = (cat: CategoryHierarchyNode) => {
-    setActiveCategoryId(cat.id);
-    setSelection({ categoryId: cat.id, label: cat.categoryName });
-  };
-
   return (
-    <div className={`space-y-8 py-6 md:py-10 ${STORE_CONTAINER}`}>
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-sm font-medium text-[#2D2346]/60 transition hover:text-[#E04672]"
-      >
-        <ArrowLeft size={16} />
-        Retour à l&apos;accueil
-      </Link>
-
-      <div>
-        <p
-          className="text-xs font-semibold uppercase tracking-[0.24em]"
-          style={{ color: HOME_COLORS.primary }}
-        >
-          {fr.navCategories}
-        </p>
-        <h1 className="mt-2 font-display text-3xl text-[#2D2346] md:text-4xl">
-          Parcourez nos catégories
-        </h1>
-        <p className="mt-2 max-w-lg text-sm text-[#2D2346]/65">
-          Choisissez une catégorie, explorez l&apos;arborescence, puis consultez les produits
-          associés.
-        </p>
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="aspect-[4/5] animate-pulse rounded-[1.5rem] bg-[#FFF0F4]" />
-          ))}
-        </div>
-      ) : !tree.length ? (
-        <p className="text-sm text-[#2D2346]/60">Aucune catégorie disponible.</p>
-      ) : (
-        <>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {tree.map((cat) => {
-              const image = getCategoryCardImage(cat);
-              const active = activeCategoryId === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => pickCategory(cat)}
-                  className={`shrink-0 overflow-hidden rounded-[1.35rem] border-2 transition ${
-                    active
-                      ? "border-[#E04672] shadow-[0_8px_24px_rgba(224,70,114,0.15)]"
-                      : "border-[#E04672]/12 opacity-80 hover:opacity-100"
-                  }`}
-                >
-                  <div className="relative h-20 w-24 sm:h-24 sm:w-28">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={image} alt="" className="h-full w-full object-cover" />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#2D2346]/70 to-transparent px-2 pb-2 pt-6">
-                      <span className="line-clamp-2 text-left text-[10px] font-semibold leading-tight text-white sm:text-xs">
-                        {cat.categoryName}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {activeCategory && (
-            <CategoryTreeDiagram
-              category={activeCategory}
-              selection={selection}
-              onSelect={setSelection}
-            />
-          )}
-
-          {selection && (
-            <section className="space-y-5">
-              <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#E04672]/10 pb-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#E04672]">
-                    Produits
-                  </p>
-                  <h2 className="mt-1 font-display text-2xl text-[#2D2346] md:text-3xl">
-                    {selection.label}
-                  </h2>
-                </div>
-                <Link
-                  href={`/produits?${new URLSearchParams(
-                    Object.entries(productFilters).filter(([, v]) => v) as [string, string][],
-                  ).toString()}`}
-                  className="text-sm font-semibold text-[#E04672] hover:underline"
-                >
-                  Voir tout →
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
-                {items.map((p) => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
-                {productsLoading && items.length === 0 && <ProductGridSkeletons count={6} />}
-              </div>
-
-              {!productsLoading && items.length === 0 && (
-                <p className="py-10 text-center text-sm text-[#2D2346]/55">{fr.noProducts}</p>
-              )}
-              <div ref={sentinelRef} className="h-8" />
-            </section>
-          )}
-        </>
-      )}
-    </div>
+    <main className="w-full space-y-8 bg-white px-4 py-5 text-[#182044] sm:px-6 md:px-8 md:py-8 lg:px-10 xl:px-12">
+      <nav className="flex items-center gap-3 text-xs text-[#182044]/45" aria-label="Fil d'Ariane">
+        <Link href="/" className="inline-flex items-center gap-1 hover:text-[#E04672]"><House size={13} /> Accueil</Link><span>/</span><span className="text-[#182044]/65">Catégories</span>
+      </nav>
+      <section className="grid items-center gap-7 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <div><h1 className="font-display text-4xl leading-[1.05] text-[#182044] md:text-5xl">Parcourez nos <span className="text-[#E04672]">catégories</span></h1><p className="mt-4 max-w-xs text-sm leading-relaxed text-[#182044]/60">Choisissez une catégorie, explorez la sélection et trouvez exactement ce dont votre bébé a besoin.</p></div>
+        <div className="relative flex h-40 items-center justify-end overflow-hidden rounded-2xl border border-[#E04672]/15 bg-[#FFF0F4] px-6 md:h-44 md:px-12"><div className="absolute -left-10 -top-16 h-44 w-64 rounded-full bg-white/45" /><div className="absolute -right-10 -bottom-20 h-48 w-64 rounded-full bg-white/35" /><img src="/hero.jpg" alt="Sélection de produits pour bébé" className="relative h-full w-3/4 object-cover object-center mix-blend-multiply md:w-2/3" /></div>
+      </section>
+      <section className="space-y-4">
+        <h2 className="font-display text-xl text-[#182044] md:text-2xl">Catégories principales</h2>
+        {loading ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-[292px] animate-pulse rounded-xl bg-[#FFF0F4]" />)}</div> : tree.length === 0 ? <p className="text-sm text-[#182044]/55">Aucune catégorie disponible.</p> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-4">{tree.slice(0, 6).map((category, index) => <CategoryCard key={category.id} category={category} index={index} count={counts[category.id] ?? 0} active={selection?.categoryId === category.id} onSelect={() => setSelection({ categoryId: category.id, label: category.categoryName })} />)}</div>}
+      </section>
+      {selection && <section className="space-y-5 pt-3"><div className="flex items-end justify-between border-b border-[#182044]/10 pb-3"><h2 className="font-display text-xl text-[#182044] md:text-2xl">Produits populaires</h2><Link href={`/produits?${new URLSearchParams(Object.entries(productFilters).filter(([, value]) => value) as [string, string][]).toString()}`} className="inline-flex items-center gap-2 text-xs font-semibold text-[#E04672]">Voir tout <ArrowRight size={14} /></Link></div><div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">{items.slice(0, 10).map((product) => <ProductCard key={product.id} product={product} />)}{productsLoading && items.length === 0 && <ProductGridSkeletons count={5} />}</div>{!productsLoading && items.length === 0 && <p className="py-8 text-center text-sm text-[#182044]/55">{fr.noProducts}</p>}<div ref={sentinelRef} className="h-4" /></section>}
+    </main>
   );
 }

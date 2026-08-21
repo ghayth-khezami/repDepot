@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { PostLoginLoadingOverlay } from './PostLoginLoadingOverlay';
+import VoiceAssistant from './VoiceAssistant';
 
 interface LayoutProps {
   children: ReactNode;
@@ -18,6 +19,7 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="bo-page flex-1 overflow-y-auto pt-16 md:pt-0">
           <div className="p-4 md:p-8">{children}</div>
         </div>
+        <VoiceAssistant />
       </main>
     </div>
   );

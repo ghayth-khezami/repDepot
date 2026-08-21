@@ -7,6 +7,7 @@ import { MapPin } from "lucide-react";
 import { getGoogleMapsOpenUrl, SOCIAL, STORE_EMAIL } from "@/lib/social";
 import { api } from "@/lib/api";
 import { fr, LOGO_SRC } from "@/lib/fr";
+import { FooterMapCard } from "@/components/FooterMapCard";
 
 type FooterProps = {
   connected?: boolean;
@@ -41,7 +42,10 @@ export function Footer({ connected = false }: FooterProps) {
             }
       }
     >
-      <div className="page-container grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-4 md:gap-12">
+      <div className="page-container grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-5 md:gap-12">
+        <div className="lg:col-span-1">
+          <FooterMapCard />
+        </div>
         <div className="space-y-4 lg:col-span-1">
           <div className="flex items-center gap-3">
             <Image
@@ -77,6 +81,7 @@ export function Footer({ connected = false }: FooterProps) {
           {status === "err" && (
             <p className="text-sm text-red-600">{fr.newsletterError}</p>
           )}
+          <p className="text-sm text-muted-foreground">Inscrivez-vous à notre newsletter et visitez notre boutique</p>
         </div>
 
         <div className="space-y-4">

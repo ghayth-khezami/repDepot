@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,32 +8,31 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  username  String?  @unique
-  role      UserRole @default(CLIENT)
-  isVerified Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  likes    UserLike[]
-  depositRequests DepositRequest[]
-  coClient CoClient?
+  id                String             @id @default(uuid())
+  email             String             @unique
+  password          String
+  username          String?            @unique
+  isVerified        Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  role              UserRole           @default(CLIENT)
+  coClient          CoClient?
+  depositRequests   DepositRequest[]
   pushSubscriptions PushSubscription[]
+  likes             UserLike[]
 
   @@map("users")
 }
 
 model PendingUser {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  username      String?
-  codeHash      String
-  expiresAt     DateTime
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  username     String?
+  codeHash     String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("pending_users")
 }
@@ -46,58 +42,54 @@ model UserLike {
   userId    String
   productId String
   createdAt DateTime @default(now())
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
   @@map("user_likes")
 }
 
 model Client {
-  id          String   @id @default(uuid())
-  firstName   String
-  lastName    String
-  address     String
-  email       String   @unique
-  phoneNumber String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id             String          @id @default(uuid())
+  firstName      String
+  lastName       String
+  address        String
+  email          String          @unique
+  phoneNumber    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   commandDetails CommandDetail[]
 
   @@map("clients")
 }
 
 model CoClient {
-  id          String   @id @default(uuid())
-  firstName   String
-  lastName    String
-  address     String
-  email       String   @unique
-  phoneNumber String
-  RIB         String
-  userId      String?  @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  products        Product[]
+  id              String           @id @default(uuid())
+  firstName       String
+  lastName        String
+  address         String
+  email           String           @unique
+  phoneNumber     String
+  RIB             String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  userId          String?          @unique
+  user            User?            @relation(fields: [userId], references: [id])
   commandDetails  CommandDetail[]
   depositRequests DepositRequest[]
+  products        Product[]
 
   @@map("co_clients")
 }
 
 model Category {
-  id           String   @id @default(uuid())
-  categoryName String   @unique
-  description  String?
-  icon         String?
-  coverDoc     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  id            String        @id @default(uuid())
+  categoryName  String        @unique
+  description   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  icon          String?
+  coverDoc      String?
   products      Product[]
   subCategories SubCategory[]
 
@@ -105,108 +97,103 @@ model Category {
 }
 
 model SubCategory {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  categoryId  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  category           Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  products           Product[]
-  subSubCategories1  SubSubCategory1[]
+  id                String            @id @default(uuid())
+  title             String
+  description       String?
+  categoryId        String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  products          Product[]
+  category          Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subSubCategories1 SubSubCategory1[]
 
   @@index([categoryId])
   @@map("sub_categories")
 }
 
 model SubSubCategory1 {
-  id            String   @id @default(uuid())
-  title         String
-  description   String?
-  subCategoryId String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  subCategory          SubCategory          @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
-  subSubCategories2    SubSubCategory2[]
-  products             Product[]
+  id                String            @id @default(uuid())
+  title             String
+  description       String?
+  subCategoryId     String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  products          Product[]
+  subCategory       SubCategory       @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  subSubCategories2 SubSubCategory2[]
 
   @@index([subCategoryId])
   @@map("sub_sub_categories_1")
 }
 
 model SubSubCategory2 {
-  id                String   @id @default(uuid())
+  id                String            @id @default(uuid())
   title             String
   description       String?
   subSubCategory1Id String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  subSubCategory1      SubSubCategory1      @relation(fields: [subSubCategory1Id], references: [id], onDelete: Cascade)
-  subSubCategories3    SubSubCategory3[]
-  products             Product[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  products          Product[]
+  subSubCategory1   SubSubCategory1   @relation(fields: [subSubCategory1Id], references: [id], onDelete: Cascade)
+  subSubCategories3 SubSubCategory3[]
 
   @@index([subSubCategory1Id])
   @@map("sub_sub_categories_2")
 }
 
 model SubSubCategory3 {
-  id                String   @id @default(uuid())
+  id                String          @id @default(uuid())
   title             String
   description       String?
   subSubCategory2Id String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  subSubCategory2 SubSubCategory2 @relation(fields: [subSubCategory2Id], references: [id], onDelete: Cascade)
-  products        Product[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  products          Product[]
+  subSubCategory2   SubSubCategory2 @relation(fields: [subSubCategory2Id], references: [id], onDelete: Cascade)
 
   @@index([subSubCategory2Id])
   @@map("sub_sub_categories_3")
 }
 
 model Product {
-  id            String   @id @default(uuid())
-  productName   String
-  description   String?
-  /// Unique store barcode for label scanning (EAN-13 style numeric).
-  barcode       String?  @unique
+  id                String           @id @default(uuid())
+  productName       String
+  description       String?
+  PrixVente         Float
+  PrixAchat         Float?
+  stockQuantity     Int              @default(0)
+  isDepot           Boolean          @default(false)
+  depotPercentage   Float?
+  surcharge         Float?           @default(0)
+  gain              Float?           @default(0)
+  isDispo           Boolean          @default(true)
+  coclientId        String?
+  categoryId        String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  instagramLink     String?
+  facebookLink      String?
+  tiktokLink        String?
   /// Optional brand/marque logo path (uploads/brands).
-  marqueDoc     String?
-  instagramLink String?
-  facebookLink  String?
-  tiktokLink    String?
-  PrixVente     Float
-  PrixAchat     Float?
-  stockQuantity Int      @default(0)
-  isDepot      Boolean  @default(false)
-  depotPercentage Float?
-  surcharge     Float?   @default(0)
-  gain          Float?   @default(0)
-  isDispo       Boolean  @default(true)
-  coclientId    String?
-  categoryId         String
-  subCategoryId      String?
-  subSubCategory1Id  String?
-  subSubCategory2Id  String?
-  subSubCategory3Id  String?
-  markId             String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  subCategory      SubCategory?      @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
-  subSubCategory1  SubSubCategory1?  @relation(fields: [subSubCategory1Id], references: [id], onDelete: SetNull)
-  subSubCategory2  SubSubCategory2?  @relation(fields: [subSubCategory2Id], references: [id], onDelete: SetNull)
-  subSubCategory3  SubSubCategory3?  @relation(fields: [subSubCategory3Id], references: [id], onDelete: SetNull)
-  mark             Mark?             @relation(fields: [markId], references: [id], onDelete: SetNull)
-  coClient      CoClient?    @relation(fields: [coclientId], references: [id], onDelete: SetNull)
-  photos        ProductPhoto[]
-  commandDetails CommandDetail[]
-  likes         UserLike[]
-  featuredSlot  FeaturedProduct?
+  marqueDoc         String?
+  subCategoryId     String?
+  markId            String?
+  /// Unique store barcode for label scanning (EAN-13 style numeric).
+  barcode           String?          @unique
+  subSubCategory1Id String?
+  subSubCategory2Id String?
+  subSubCategory3Id String?
+  commandDetails    CommandDetail[]
+  featuredSlot      FeaturedProduct?
+  photos            ProductPhoto[]
+  category          Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  coClient          CoClient?        @relation(fields: [coclientId], references: [id])
+  mark              Mark?            @relation(fields: [markId], references: [id])
+  subCategory       SubCategory?     @relation(fields: [subCategoryId], references: [id])
+  subSubCategory1   SubSubCategory1? @relation(fields: [subSubCategory1Id], references: [id])
+  subSubCategory2   SubSubCategory2? @relation(fields: [subSubCategory2Id], references: [id])
+  subSubCategory3   SubSubCategory3? @relation(fields: [subSubCategory3Id], references: [id])
+  likes             UserLike[]
 
   @@map("products")
 }
@@ -217,8 +204,7 @@ model FeaturedProduct {
   sortOrder Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([sortOrder])
   @@map("featured_products")
@@ -230,110 +216,76 @@ model ProductPhoto {
   idProduct String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   product   Product  @relation(fields: [idProduct], references: [id], onDelete: Cascade)
 
   @@map("multifilesproducts")
 }
 
 model Command {
-  id              String   @id @default(uuid())
-  productsNumber  Int
-  PrixVente       Float
-  PrixAchat       Float
-  status          CommandStatus @default(NOT_DELIVERED)
-  dateLivraison   DateTime?
+  id               String          @id @default(uuid())
+  productsNumber   Int
+  PrixVente        Float
+  PrixAchat        Float
+  status           CommandStatus   @default(NOT_DELIVERED)
+  dateLivraison    DateTime?
   adresseLivraison String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  commandDetails  CommandDetail[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  commandDetails   CommandDetail[]
 
   @@map("commands")
 }
 
 model DepositRequest {
   id            String               @id @default(uuid())
-  userId        String?
-  coClientId    String?
   fullName      String
   phoneNumber   String
   proposedPrice Float
   message       String?
   photos        String[]
-  contractDoc   String?
   status        DepositRequestStatus @default(PENDING)
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
-
-  user     User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
-  coClient CoClient?            @relation(fields: [coClientId], references: [id], onDelete: SetNull)
-  items    DepositRequestItem[]
+  userId        String?
+  coClientId    String?
+  contractDoc   String?
+  items         DepositRequestItem[]
+  coClient      CoClient?            @relation(fields: [coClientId], references: [id])
+  user          User?                @relation(fields: [userId], references: [id])
 
   @@map("deposit_requests")
 }
 
 model DepositRequestItem {
-  id                   String   @id @default(uuid())
+  id                   String         @id @default(uuid())
   depositRequestId     String
   productName          String
   proposedPrice        Float
   commissionPercent    Float?
   priceAfterCommission Float?
   photos               String[]
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  depositRequest DepositRequest @relation(fields: [depositRequestId], references: [id], onDelete: Cascade)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  depositRequest       DepositRequest @relation(fields: [depositRequestId], references: [id], onDelete: Cascade)
 
   @@index([depositRequestId])
   @@map("deposit_request_items")
 }
 
 model CommandDetail {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   commandId  String
   productId  String
   clientId   String?
   coClientId String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  command    Command  @relation(fields: [commandId], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  coClient   CoClient? @relation(fields: [coClientId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  client     Client?   @relation(fields: [clientId], references: [id])
+  coClient   CoClient? @relation(fields: [coClientId], references: [id])
+  command    Command   @relation(fields: [commandId], references: [id], onDelete: Cascade)
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("command_details")
-}
-
-enum CommandStatus {
-  NOT_DELIVERED
-  DELIVERED
-  GOT_PROFIT
-}
-
-enum UserRole {
-  CLIENT
-  DEPOSER
-  ADMIN
-}
-
-enum DepositRequestStatus {
-  PENDING
-  CONTACTED
-  CONFIRMED
-  CLOSED
-}
-
-enum Weekday {
-  MONDAY
-  TUESDAY
-  WEDNESDAY
-  THURSDAY
-  FRIDAY
-  SATURDAY
-  SUNDAY
 }
 
 model StoreHour {
@@ -349,14 +301,13 @@ model StoreHour {
 }
 
 model Mark {
-  id        String   @id @default(uuid())
-  name      String   @unique
+  id        String    @id @default(uuid())
+  name      String    @unique
   logoDoc   String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  products Product[]
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
 
   @@map("marks")
 }
@@ -382,11 +333,6 @@ model ClientFeedback {
   @@map("client_feedbacks")
 }
 
-enum NotificationType {
-  COMMAND_CREATED
-  DEPOSIT_REQUEST_CREATED
-}
-
 model Notification {
   id        String           @id @default(uuid())
   type      NotificationType
@@ -408,8 +354,7 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, endpoint])
   @@map("push_subscriptions")
@@ -443,4 +388,38 @@ model SiteSettings {
   updatedAt  DateTime @updatedAt
 
   @@map("site_settings")
+}
+
+enum CommandStatus {
+  NOT_DELIVERED
+  DELIVERED
+  GOT_PROFIT
+}
+
+enum UserRole {
+  CLIENT
+  DEPOSER
+  ADMIN
+}
+
+enum DepositRequestStatus {
+  PENDING
+  CONTACTED
+  CLOSED
+  CONFIRMED
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum NotificationType {
+  COMMAND_CREATED
+  DEPOSIT_REQUEST_CREATED
 }

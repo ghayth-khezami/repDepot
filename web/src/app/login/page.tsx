@@ -4,6 +4,7 @@ import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useShop } from "@/context/ShopContext";
 import { LogoLoader } from "@/components/LogoLoader";
 import { safeRedirect } from "@/lib/safe-redirect";
@@ -170,92 +171,41 @@ export default function LoginPage() {
         </div>
       )}
 
-      <div className="page-container py-8">
-        <div className="mx-auto grid max-w-4xl overflow-hidden rounded-3xl border border-border bg-card shadow-[var(--shadow-soft)] md:grid-cols-2">
-          <div
-            className="relative hidden flex-col justify-center p-10 md:flex"
-            style={{ background: "var(--gradient-soft)" }}
-          >
-            <div className="flex items-center gap-3">
-              <Image src="/depot.png" alt="Bébé Dépôt" width={54} height={54} className="rounded-full object-contain" />
-              <div>
-                <p className="tag-eyebrow text-[0.65rem]">Bébé Dépôt</p>
-                <p className="text-xs text-muted-foreground">by Mme Khezami</p>
-              </div>
+      <main className="login-page px-4 py-4 sm:px-6 md:py-6">
+        <div className="login-shell mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-[#E04672]/10 bg-white/80 shadow-[0_24px_80px_rgba(224,70,114,0.14)] backdrop-blur-xl lg:grid-cols-2">
+          <section className="login-baby-panel relative min-h-[34rem] overflow-hidden lg:min-h-[40rem]">
+            <Image
+              src="/bebe_depot_left_baby_panel.png"
+              alt="Bébé dans un univers doux Bébé Dépôt"
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover object-center"
+            />
+          </section>
+
+          <section className="login-form-panel p-6 sm:p-10 lg:p-12">
+            <div className="flex items-center justify-between border-b border-[#E04672]/10">
+              <button type="button" onClick={() => setMode("signin")} className={`unstyled login-tab ${mode === "signin" ? "login-tab-active" : ""}`}>Se connecter</button>
+              <button type="button" onClick={() => setMode("signup")} className={`unstyled login-tab ${mode === "signup" ? "login-tab-active" : ""}`}>Créer un compte</button>
             </div>
-            <p className="display mt-8 text-3xl text-plum-deep">
-              {mode === "signin" ? "Bon retour !" : "Bienvenue !"}
-            </p>
-            <p className="mt-3 text-sm text-muted-foreground">
-              {mode === "signin"
-                ? "Connectez-vous pour passer commande et suivre vos achats."
-                : "Créez votre compte en quelques secondes."}
-            </p>
-            <button
-              type="button"
-              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="btn-ghost mt-6 w-fit"
-            >
-              {mode === "signin" ? "Créer un compte" : "J'ai déjà un compte"}
-            </button>
-          </div>
-
-          <div className="p-6 md:p-10">
-            <div className="mb-6 flex items-center justify-between md:hidden">
-              <Image src="/depot.png" alt="" width={40} height={40} className="rounded-full object-contain" />
-              <button
-                type="button"
-                onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-                className="btn-ghost px-4 py-2 text-xs"
-              >
-                {mode === "signin" ? "Inscription" : "Connexion"}
-              </button>
+            <div className="mt-8 max-w-md">
+              <h1 className="font-display text-3xl text-[#2D2346] sm:text-4xl">{title === "Connexion" ? "Connexion à votre compte" : title}</h1>
+              <p className="mt-2 text-sm text-[#2D2346]/60">{mode === "signin" ? "Entrez vos identifiants pour continuer" : "Créez votre compte pour commander simplement"}</p>
+              <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+                {mode === "signup" && <input className="field-input" placeholder="Nom d'utilisateur (optionnel)" value={username} onChange={(e) => setUsername(e.target.value)} />}
+                <label className="login-field"><Mail size={18} /><input type="email" placeholder="Adresse email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+                <label className="login-field"><LockKeyhole size={18} /><input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                <button type="submit" disabled={loading} className="btn-primary w-full !py-4">{mode === "signin" ? "Se connecter" : "S'inscrire"}</button>
+                <div ref={googleBtnRef} className="flex min-h-11 justify-center empty:hidden" />
+                {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() && !googleReady && <p className="text-center text-xs text-muted-foreground">Chargement Google…</p>}
+              </form>
+              <p className="mt-8 flex items-center justify-center gap-2 text-xs text-[#2D2346]/55"><ShieldCheck size={16} /> Vos données sont sécurisées et confidentielles</p>
             </div>
-
-            <h1 className="display text-3xl text-plum-deep">{title}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {mode === "signin"
-                ? "Entrez vos informations pour continuer."
-                : "Créez un compte pour commander."}
-            </p>
-
-            <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-              {mode === "signup" && (
-                <input
-                  className="field-input"
-                  placeholder="Nom d'utilisateur (optionnel)"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              )}
-              <input
-                className="field-input"
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <input
-                className="field-input"
-                type="password"
-                placeholder="Mot de passe"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <button type="submit" disabled={loading} className="btn-primary w-full">
-                {mode === "signin" ? "Se connecter" : "S'inscrire"}
-              </button>
-              <div ref={googleBtnRef} className="flex justify-center empty:hidden" />
-              {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() && !googleReady ? (
-                <p className="text-center text-xs text-muted-foreground">Chargement Google…</p>
-              ) : null}
-            </form>
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
     </>
   );
 }

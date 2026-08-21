@@ -235,7 +235,7 @@ const DepositRequestsPage = () => {
                 await updateStatus({ id: row.id, status: 'CONFIRMED' });
                 showToast('Demande confirmée', 'success');
               }}
-              className="rounded-lg bg-violet-600 px-2 py-1 text-xs text-white hover:bg-violet-700"
+              className="rounded-lg bg-pink-500 px-2 py-1 text-xs text-white hover:bg-pink-600"
             >
               Confirmer
             </button>
@@ -527,7 +527,7 @@ const DepositRequestsPage = () => {
                   setDetailId(null);
                   navigate(`/products?fromRequest=${encodeURIComponent(detailId)}`);
                 }}
-                className="rounded-lg bg-purple-700 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-800"
+                className="rounded-lg bg-pink-500 px-3 py-2 text-sm font-semibold text-white hover:bg-pink-600"
               >
                 Passer au produit
               </button>

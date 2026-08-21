@@ -23,7 +23,7 @@ export function CategoriesExplorer({
       <section id="categories" className="home-stickers-zone relative scroll-mt-32">
         <FloatingStickers seed={2} />
 
-        <div className="home-stickers-content space-y-8">
+        <div className="home-stickers-content space-y-8 px-1 py-1 md:px-2 md:py-2">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p
@@ -44,7 +44,7 @@ export function CategoriesExplorer({
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:gap-4 lg:grid-cols-7">
             {categories.map((cat) => {
               const count = counts[cat.id] ?? 0;
               const image = getCategoryCardImage(cat);
@@ -60,21 +60,21 @@ export function CategoriesExplorer({
                 >
                   <Link
                     href={`/categories/${cat.id}`}
-                    className="group flex h-full min-h-[200px] flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-[0_8px_32px_rgba(45,35,70,0.07)] transition hover:shadow-[0_12px_36px_rgba(45,35,70,0.1)] md:min-h-[220px]"
+                    className="group flex h-full min-h-[150px] flex-col overflow-hidden rounded-xl border border-[#182044]/8 bg-white p-2 shadow-[0_5px_18px_rgba(45,35,70,0.05)] transition hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(45,35,70,0.1)] md:min-h-[170px]"
                   >
-                    <div className="relative aspect-square w-full shrink-0 overflow-hidden">
+                    <div className="relative mx-auto aspect-square w-full shrink-0 overflow-hidden rounded-xl bg-[#FFF7F0]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={image}
                         alt={cat.categoryName}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
-                    <div className="flex flex-1 flex-col justify-center px-3 py-3 md:px-4">
-                      <h3 className="line-clamp-2 min-h-[2.5rem] font-display text-sm leading-snug text-[#2D2346] md:text-base">
+                    <div className="flex flex-1 flex-col justify-center px-1 py-2 text-center">
+                      <h3 className="line-clamp-2 min-h-[2rem] font-display text-xs leading-snug text-[#2D2346] md:text-sm">
                         {cat.categoryName}
                       </h3>
-                      <p className="mt-1 text-xs text-[#2D2346]/55 md:text-sm">{label}</p>
+                      <p className="mt-1 text-[10px] text-[#2D2346]/55">{label}</p>
                     </div>
                   </Link>
                 </motion.div>

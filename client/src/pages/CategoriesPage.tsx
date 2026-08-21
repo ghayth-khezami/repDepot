@@ -3,8 +3,9 @@ import { useGetCategoriesQuery, useCreateCategoryMutation, useUpdateCategoryMuta
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import SubCategoriesPanel from '../components/SubCategoriesPanel';
+import CropImageModal from '../components/CropImageModal';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../types';
-import { Edit, Image as ImageIcon, Trash2, Layers } from 'lucide-react';
+import { Edit, Image as ImageIcon, Trash2, Layers, Plus, Search, Sparkles } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 
@@ -39,6 +40,7 @@ const CategoriesPage = () => {
   const [selectedIcon, setSelectedIcon] = useState<string>('');
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>('');
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [subsModalId, setSubsModalId] = useState<string | null>(null);
 
   const { data, isLoading } = useGetCategoriesQuery({ page, limit, search });
@@ -79,6 +81,7 @@ const CategoriesPage = () => {
       setSelectedIcon('');
       setCoverFile(null);
       setCoverPreview('');
+      setCropFile(null);
     } catch {
       showToast('Erreur lors de l\'opération', 'error');
     }
@@ -124,19 +127,31 @@ const CategoriesPage = () => {
   ];
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">Catégories & sous-catégories</h1>
-        <p className="bo-muted mt-2">Organisez la boutique par catégories et sous-catégories</p>
+    <div className="category-admin space-y-6">
+      <div className="relative overflow-hidden rounded-2xl bg-[#fff1f5] px-6 py-7 text-[#4b1f35] shadow-sm ring-1 ring-[#f7c8d8] sm:px-8">
+        <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full border-[18px] border-pink-300/40" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-pink-600">
+              <Sparkles className="h-4 w-4" /> Catalogue
+            </div>
+            <h1 className="text-2xl font-bold sm:text-3xl">Catégories & sous-catégories</h1>
+            <p className="mt-2 max-w-xl text-sm text-[#7d5368]">Structurez la boutique, du rayon principal jusqu&apos;aux familles de produits.</p>
+          </div>
+          <button type="button" onClick={() => { setIsEditMode(false); setSelectedCategory(null); setSelectedIcon(''); setCoverFile(null); setCoverPreview(''); setCropFile(null); setIsModalOpen(true); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-pink-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-pink-600">
+            <Plus className="h-4 w-4" /> Nouvelle catégorie
+          </button>
+        </div>
       </div>
 
-      <div className="mb-6 flex gap-2 border-b border-gray-200">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 pb-2">
+        <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setTab('categories')}
           className={`border-b-2 px-4 py-2 text-sm font-semibold transition ${
             tab === 'categories'
-              ? 'border-violet-600 text-violet-700'
+              ? 'border-pink-500 text-pink-600'
               : 'border-transparent text-gray-500 hover:text-gray-800'
           }`}
         >
@@ -147,12 +162,14 @@ const CategoriesPage = () => {
           onClick={() => setTab('subcategories')}
           className={`border-b-2 px-4 py-2 text-sm font-semibold transition ${
             tab === 'subcategories'
-              ? 'border-violet-600 text-violet-700'
+              ? 'border-pink-500 text-pink-600'
               : 'border-transparent text-gray-500 hover:text-gray-800'
           }`}
         >
           Sous-catégories
         </button>
+        </div>
+        <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><Search className="h-4 w-4" /> Recherche instantanée dans la liste</div>
       </div>
 
       {tab === 'categories' ? (
@@ -183,7 +200,7 @@ const CategoriesPage = () => {
                 type="button"
                 title="Sous-catégories"
                 onClick={() => setSubsModalId(row.id)}
-                className="rounded-lg p-2 text-violet-600 hover:bg-violet-50"
+                className="rounded-lg p-2 text-pink-600 hover:bg-pink-50"
               >
                 <Layers className="h-4 w-4" />
               </button>
@@ -194,6 +211,7 @@ const CategoriesPage = () => {
                   setSelectedCategory(row);
                   setSelectedIcon(row.icon || '');
                   setCoverFile(null);
+                  setCropFile(null);
                   setCoverPreview(
                     row.coverDoc
                       ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${row.coverDoc}`
@@ -230,6 +248,7 @@ const CategoriesPage = () => {
             setSelectedIcon('');
             setCoverFile(null);
             setCoverPreview('');
+            setCropFile(null);
             setIsModalOpen(true);
           }}
           addButtonLabel="Ajouter une catégorie"
@@ -256,7 +275,7 @@ const CategoriesPage = () => {
                     <p className="text-xs text-gray-600">{sub.description}</p>
                   ) : null}
                 </div>
-                <span className="text-xs font-bold text-violet-700">
+                <span className="text-xs font-bold text-pink-700">
                   {sub._count?.products ?? 0} produit(s)
                 </span>
               </li>
@@ -275,6 +294,7 @@ const CategoriesPage = () => {
           setSelectedIcon('');
           setCoverFile(null);
           setCoverPreview('');
+          setCropFile(null);
         }}
         title={isEditMode ? 'Modifier la catégorie' : 'Ajouter une catégorie'}
       >
@@ -288,8 +308,8 @@ const CategoriesPage = () => {
               accept="image/jpeg,image/png,image/webp"
               onChange={(e) => {
                 const file = e.target.files?.[0] ?? null;
-                setCoverFile(file);
-                if (file) setCoverPreview(URL.createObjectURL(file));
+                e.target.value = '';
+                if (file) setCropFile(file);
               }}
               className="w-full text-sm"
             />
@@ -329,7 +349,7 @@ const CategoriesPage = () => {
                   type="button"
                   onClick={() => setSelectedIcon(path)}
                   className={`rounded-lg border p-2 ${
-                    selectedIcon === path ? 'border-violet-600 bg-violet-100' : 'border-gray-200 bg-white'
+                    selectedIcon === path ? 'border-pink-500 bg-pink-50' : 'border-gray-200 bg-white'
                   }`}
                 >
                   <img src={toStickerUrl(path)} alt="" className="mx-auto h-8 w-8 object-contain" />
@@ -338,15 +358,24 @@ const CategoriesPage = () => {
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-lg border px-4 py-2">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 font-semibold text-rose-700 hover:bg-rose-50">
               Annuler
             </button>
-            <button type="submit" className="rounded-lg bg-primary-600 px-4 py-2 text-white">
+            <button type="submit" className="rounded-xl bg-pink-500 px-4 py-2.5 font-semibold text-white hover:bg-pink-600">
               {isEditMode ? 'Enregistrer' : 'Créer'}
             </button>
           </div>
         </form>
       </Modal>
+      <CropImageModal
+        file={cropFile}
+        onCancel={() => setCropFile(null)}
+        onCrop={(file, previewUrl) => {
+          setCoverFile(file);
+          setCoverPreview(previewUrl);
+          setCropFile(null);
+        }}
+      />
       {dialog}
     </div>
   );

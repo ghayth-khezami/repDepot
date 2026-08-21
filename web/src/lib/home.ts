@@ -36,23 +36,23 @@ export type HomeFeature = {
 export const HOME_FEATURES: HomeFeature[] = [
   {
     icon: ShieldCheck,
-    title: "Produits vérifiés",
-    description: "Qualité & sécurité avant tout",
+    title: "Achats sécurisés",
+    description: "Articles vérifiés avant chaque mise en vente",
   },
   {
     icon: Truck,
-    title: "Livraison rapide",
-    description: "Partout en Tunisie",
+    title: "Paiement à la livraison",
+    description: "Payez à réception en toute sérénité",
   },
   {
     icon: Heart,
-    title: "Pensé pour bébé",
-    description: "Douceur, sécurité et tendance",
+    title: "Retour facile",
+    description: "Échanges simples selon nos conditions",
   },
   {
     icon: Medal,
-    title: "Marques de confiance",
-    description: "Les meilleurs choix pour votre bébé",
+    title: "Support réactif",
+    description: "Une équipe à votre écoute au quotidien",
   },
 ];
 
@@ -137,6 +137,7 @@ export const FOOTER_LINKS = [
   { href: "/magasin", label: "Magasin" },
   { href: "/cart", label: "Panier" },
   { href: "/login", label: "Mon compte" },
+  { href: "/categories", label: "Catégories" },
 ] as const;
 
 export const STORE_CONTAINER =

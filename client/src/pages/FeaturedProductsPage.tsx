@@ -86,7 +86,7 @@ const FeaturedProductsPage = () => {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+          className="rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-pink-600 disabled:opacity-60"
         >
           {saving ? 'Enregistrement…' : 'Enregistrer'}
         </button>
