@@ -1,0 +1,19 @@
+{
+  "name": "BÉBÉ-DÉPÔT - Back Office",
+  "short_name": "BÉBÉ-DÉPÔT",
+  "description": "Back office de gestion BÉBÉ-DÉPÔT",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fffafc",
+  "theme_color": "#f8b4d9",
+  "icons": [
+    {
+      "src": "/to%20choose.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
