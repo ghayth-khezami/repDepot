@@ -17,6 +17,7 @@ import {
 } from "@nestjs/common";
 import { Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { SkipThrottle } from "@nestjs/throttler";
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiConsumes } from "@nestjs/swagger";
 import { CategoryService } from "./category.service";
 import { CreateCategoryDto } from "./dto/create-category.dto";
@@ -69,6 +70,7 @@ export class CategoryController {
 
   @Get()
   @ApiOperation({ summary: "Get all categories with pagination and search" })
+  @SkipThrottle()
   @ApiResponse({ status: 200, description: "List of categories" })
   findAll(@Query() query: CategoryQueryDto) {
     return this.categoryService.findAll(query);
@@ -76,6 +78,7 @@ export class CategoryController {
 
   @Get("hierarchy")
   @ApiOperation({ summary: "Get full category tree for storefront navigation" })
+  @SkipThrottle()
   @ApiResponse({ status: 200, description: "Category hierarchy" })
   findHierarchy() {
     return this.categoryService.getFullHierarchy();
@@ -95,6 +98,7 @@ export class CategoryController {
 
   @Get(":id")
   @ApiOperation({ summary: "Get a category by ID" })
+  @SkipThrottle()
   @ApiParam({ name: "id", description: "Category ID" })
   @ApiResponse({ status: 200, description: "Category found" })
   @ApiResponse({ status: 404, description: "Category not found" })

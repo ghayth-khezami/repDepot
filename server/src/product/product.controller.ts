@@ -27,6 +27,7 @@ import {
   ApiBody,
 } from "@nestjs/swagger";
 import { Response } from "express";
+import { SkipThrottle } from "@nestjs/throttler";
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
@@ -79,7 +80,6 @@ export class ProductController {
     FileFieldsInterceptor(
       [
         { name: "photos", maxCount: 20 },
-        { name: "marque", maxCount: 1 },
       ],
       productPhotoUpload,
     ),
@@ -103,15 +103,9 @@ export class ProductController {
         coclientId: { type: "string" },
         categoryId: { type: "string" },
         subCategoryId: { type: "string" },
-        markId: { type: "string" },
         photos: {
           type: "array",
           items: { type: "string", format: "binary" },
-        },
-        marque: {
-          type: "string",
-          format: "binary",
-          description: "Optional brand / marque logo (Cloudinary)",
         },
       },
       required: ["productName", "PrixVente", "stockQuantity", "isDepot", "categoryId"],
@@ -123,7 +117,6 @@ export class ProductController {
     @UploadedFiles()
     files: {
       photos?: Express.Multer.File[];
-      marque?: Express.Multer.File[];
     },
   ) {
     const dto: CreateProductDto = {
@@ -146,17 +139,12 @@ export class ProductController {
       subSubCategory1Id: body.subSubCategory1Id || undefined,
       subSubCategory2Id: body.subSubCategory2Id || undefined,
       subSubCategory3Id: body.subSubCategory3Id || undefined,
-      markId: body.markId || undefined,
     };
     const photoDocs = await this.cloudinary.uploadFiles(
       files?.photos || [],
       "products",
     );
-    const marqueFile = files?.marque?.[0];
-    const marqueDoc = marqueFile
-      ? await this.cloudinary.uploadFile(marqueFile, "brands")
-      : undefined;
-    return this.productService.createWithPhotos(dto, photoDocs, marqueDoc);
+    return this.productService.createWithPhotos(dto, photoDocs);
   }
 
   @Get("admin/list")
@@ -171,6 +159,7 @@ export class ProductController {
   @ApiOperation({
     summary: "Get all products with pagination, search and filters",
   })
+  @SkipThrottle()
   @ApiResponse({ status: 200, description: "List of products" })
   findAll(@Query() query: ProductQueryDto) {
     return this.productService.findAll(query, { sanitize: true });
@@ -178,6 +167,7 @@ export class ProductController {
 
   @Get("featured")
   @ApiOperation({ summary: "Get featured products for homepage (max 8)" })
+  @SkipThrottle()
   @ApiResponse({ status: 200, description: "Featured products list" })
   getFeatured() {
     return this.productService.getFeaturedProducts();
@@ -187,6 +177,7 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Get featured product IDs (admin)" })
+  @SkipThrottle()
   getFeaturedIds() {
     return this.productService.getFeaturedProductIds();
   }
@@ -448,36 +439,6 @@ export class ProductController {
       "attachment; filename=etiquettes-code-barres.pdf",
     );
     res.send(buffer);
-  }
-
-  @Post(":id/brand-mark")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @UseInterceptors(FileInterceptor("marque", productPhotoUpload))
-  @ApiConsumes("multipart/form-data")
-  @ApiOperation({ summary: "Upload or replace optional marque (brand) logo" })
-  async uploadBrandMark(
-    @Param("id") id: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    if (!file) {
-      throw new BadRequestException("marque image file is required");
-    }
-    const product = await this.productService.findOne(id);
-    await this.cloudinary.deleteByUrl(product.marqueDoc);
-    const url = await this.cloudinary.uploadFile(file, "brands");
-    return this.productService.setBrandMark(id, url);
-  }
-
-  @Delete(":id/brand-mark")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Remove optional marque (brand) logo" })
-  async deleteBrandMark(@Param("id") id: string) {
-    const product = await this.productService.findOne(id);
-    await this.cloudinary.deleteByUrl(product.marqueDoc);
-    return this.productService.clearBrandMark(id);
   }
 
   @Get("by-barcode/:code")

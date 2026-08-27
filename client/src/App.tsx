@@ -16,7 +16,6 @@ import CommandsPage from './pages/CommandsPage';
 import DepositRequestsPage from './pages/DepositRequestsPage';
 import HorairesPage from './pages/HorairesPage';
 import ClientFeedbacksPage from './pages/ClientFeedbacksPage';
-import MarksPage from './pages/MarksPage';
 import NewsletterPage from './pages/NewsletterPage';
 import FeaturedProductsPage from './pages/FeaturedProductsPage';
 import HeroCarouselPage from './pages/HeroCarouselPage';
@@ -49,7 +48,6 @@ function App() {
                 <Route path="/deposit-requests" element={<DepositRequestsPage />} />
                 <Route path="/horaires" element={<HorairesPage />} />
                 <Route path="/avis-clients" element={<ClientFeedbacksPage />} />
-                <Route path="/marques" element={<MarksPage />} />
                 <Route path="/carrousel" element={<HeroCarouselPage />} />
                 <Route path="/youtube" element={<SiteSettingsPage />} />
                 <Route path="/newsletter" element={<NewsletterPage />} />

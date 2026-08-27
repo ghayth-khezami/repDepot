@@ -110,11 +110,6 @@ export class CreateProductDto {
   @IsString()
   subSubCategory3Id?: string;
 
-  @ApiPropertyOptional({ description: "Catalog mark / brand ID", example: "uuid" })
-  @IsOptional()
-  @IsString()
-  markId?: string;
-
   @ApiPropertyOptional({ description: "Store barcode (auto-generated if omitted)" })
   @IsOptional()
   @IsString()

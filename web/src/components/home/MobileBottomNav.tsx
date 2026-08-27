@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Grid3X3, Home, ShoppingBag, ShoppingCart, User } from "lucide-react";
+import { Home, ShoppingBag, ShoppingCart, User } from "lucide-react";
 import { useShop } from "@/context/ShopContext";
 
 const TABS = [
@@ -12,12 +12,6 @@ const TABS = [
     label: "Produits",
     icon: ShoppingBag,
     match: (p: string) => p.startsWith("/produits"),
-  },
-  {
-    href: "/categories",
-    label: "Catégories",
-    icon: Grid3X3,
-    match: () => false,
   },
   {
     href: "/cart",

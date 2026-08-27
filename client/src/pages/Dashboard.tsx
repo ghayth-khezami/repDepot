@@ -15,7 +15,12 @@ import {
   MapPin,
   Receipt,
   Award,
+  FolderTree,
+  Users,
+  FileText,
+  Heart,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -165,6 +170,22 @@ const Dashboard = () => {
         <div className="mb-8 animate-fade-in">
           <h1 className="mb-2 text-3xl font-bold sm:text-4xl">Tableau de Bord</h1>
           <p className="bo-muted">Vue d'ensemble de votre activité</p>
+        </div>
+
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {[
+            { href: '/products', label: 'Produits', icon: Package },
+            { href: '/coups-de-coeur', label: 'Coups de cœur', icon: Heart },
+            { href: '/categories', label: 'Catégories', icon: FolderTree },
+            { href: '/co-clients', label: 'Déposants', icon: Users },
+            { href: '/commands', label: 'Commandes', icon: ShoppingBag },
+            { href: '/deposit-requests', label: 'Demandes de dépôt', icon: FileText },
+          ].map(({ href, label, icon: Icon }) => (
+            <Link key={href} to={href} className="bo-panel flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lg">
+              <Icon className="h-5 w-5 text-pink-600" />
+              <span className="text-sm font-semibold">{label}</span>
+            </Link>
+          ))}
         </div>
 
         {/* Revenue Cards */}

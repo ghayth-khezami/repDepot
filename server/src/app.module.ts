@@ -18,7 +18,6 @@ import { StoreHoursModule } from "./store-hours/store-hours.module";
 import { SubCategoryModule } from "./sub-category/sub-category.module";
 import { SubSubCategoryModule } from "./sub-sub-category/sub-sub-category.module";
 import { ClientFeedbackModule } from "./client-feedback/client-feedback.module";
-import { MarkModule } from "./mark/mark.module";
 import { NewsletterModule } from "./newsletter/newsletter.module";
 import { NotificationModule } from "./notification/notification.module";
 import { HealthModule } from "./health/health.module";
@@ -81,7 +80,6 @@ import { SiteSettingsModule } from "./site-settings/site-settings.module";
     SubCategoryModule,
     SubSubCategoryModule,
     ClientFeedbackModule,
-    MarkModule,
     NewsletterModule,
     NotificationModule,
     HealthModule,

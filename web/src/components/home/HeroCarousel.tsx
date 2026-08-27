@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { HERO_RADIUS, HERO_SLIDES, STORE_CONTAINER, type HeroSlideData } from "@/lib/home";
+import { HERO_RADIUS, STORE_CONTAINER, type HeroSlideData } from "@/lib/home";
 import { api } from "@/lib/api";
 import { FeatureStrip } from "./FeatureStrip";
 import { HeroSlide } from "./HeroSlide";
@@ -42,7 +42,7 @@ function preloadImage(src: string) {
 }
 
 export function HeroCarousel() {
-  const [slides, setSlides] = useState<HeroSlideData[]>(HERO_SLIDES);
+  const [slides, setSlides] = useState<HeroSlideData[]>([]);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const count = slides.length;
@@ -51,15 +51,11 @@ export function HeroCarousel() {
     api
       .getHeroSlides()
       .then((rows) => {
-        if (rows.length > 0) {
-          const mapped = rows.map(mapApiSlide);
-          setSlides(mapped);
-          mapped.slice(0, 3).forEach((s) => preloadImage(s.image));
-        }
+        const mapped = rows.map(mapApiSlide);
+        setSlides(mapped);
+        mapped.slice(0, 3).forEach((s) => preloadImage(s.image));
       })
-      .catch(() => {
-        /* keep static fallback */
-      });
+      .catch(() => setSlides([]));
   }, []);
 
   useEffect(() => {

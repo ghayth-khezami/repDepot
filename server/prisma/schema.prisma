@@ -46,7 +46,6 @@ model UserLike {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
-  @@map("user_likes")
 }
 
 model Client {
@@ -174,10 +173,7 @@ model Product {
   instagramLink     String?
   facebookLink      String?
   tiktokLink        String?
-  /// Optional brand/marque logo path (uploads/brands).
-  marqueDoc         String?
   subCategoryId     String?
-  markId            String?
   /// Unique store barcode for label scanning (EAN-13 style numeric).
   barcode           String?          @unique
   subSubCategory1Id String?
@@ -188,7 +184,6 @@ model Product {
   photos            ProductPhoto[]
   category          Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   coClient          CoClient?        @relation(fields: [coclientId], references: [id])
-  mark              Mark?            @relation(fields: [markId], references: [id])
   subCategory       SubCategory?     @relation(fields: [subCategoryId], references: [id])
   subSubCategory1   SubSubCategory1? @relation(fields: [subSubCategory1Id], references: [id])
   subSubCategory2   SubSubCategory2? @relation(fields: [subSubCategory2Id], references: [id])
@@ -298,18 +293,6 @@ model StoreHour {
   updatedAt DateTime @updatedAt
 
   @@map("store_hours")
-}
-
-model Mark {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  logoDoc   String
-  sortOrder Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  products  Product[]
-
-  @@map("marks")
 }
 
 model NewsletterSubscriber {

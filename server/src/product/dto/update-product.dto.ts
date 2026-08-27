@@ -115,21 +115,6 @@ export class UpdateProductDto {
   @IsString()
   subSubCategory3Id?: string;
 
-  @ApiPropertyOptional({ description: "Catalog mark ID", example: "uuid" })
-  @IsOptional()
-  @IsString()
-  markId?: string;
-
-  /** Set to null to remove the optional marque (brand logo) image. */
-  @ApiPropertyOptional({
-    nullable: true,
-    description: "Brand logo URL path or null to clear",
-    example: "/uploads/brands/marque-123.png",
-  })
-  @Allow()
-  @IsOptional()
-  marqueDoc?: string | null;
-
   @ApiPropertyOptional({ description: "Store barcode" })
   @IsOptional()
   @IsString()

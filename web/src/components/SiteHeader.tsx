@@ -12,7 +12,6 @@ import {
   MapPin,
   Menu,
   ShoppingBag,
-  Grid3X3,
   User,
   X,
 } from "lucide-react";
@@ -33,7 +32,6 @@ const NAV = [
     match: (p: string) => p.startsWith("/produits"),
   },
   { href: "/magasin", label: fr.navStore, icon: MapPin, match: (p: string) => p === "/magasin" },
-  { href: "/categories", label: fr.navCategories, icon: Grid3X3, match: (p: string) => p.startsWith("/categories") },
 ] as const;
 
 const MOBILE_ACCOUNT = [

@@ -176,16 +176,6 @@ export function ProductDetailsClient({
 
           <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-6">
             <div className="flex flex-wrap items-center gap-3">
-              {product.mark?.logoDoc ? (
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#E04672]/10 bg-white p-1.5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={api.normalizePhotoUrl(product.mark.logoDoc)}
-                    alt={product.mark.name}
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-              ) : null}
               <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: PINK }}>
                 {categoryLabel}
               </p>

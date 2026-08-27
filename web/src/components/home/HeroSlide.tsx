@@ -152,7 +152,7 @@ export function HeroSlide({
         </div>
 
         <motion.div
-          className={`hero-mobile-panel relative z-10 -mt-5 rounded-t-[1.75rem] border-t border-[#E04672]/8 bg-[#FFFDFB] px-5 pb-10 pt-5 shadow-[0_-12px_40px_rgba(45,35,70,0.07)] ${
+          className={`hero-mobile-panel relative z-10 -mt-5 rounded-t-[1.75rem] bg-[#FFFDFB] px-5 pb-10 pt-5 shadow-[0_-12px_40px_rgba(45,35,70,0.07)] ${
             alignCenter ? "text-center" : "text-left"
           }`}
           initial={false}

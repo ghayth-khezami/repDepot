@@ -69,8 +69,6 @@ export interface Product {
   id: string;
   productName: string;
   description?: string;
-  /** Optional brand logo URL from server uploads/brands */
-  marqueDoc?: string | null;
   instagramLink?: string;
   facebookLink?: string;
   tiktokLink?: string;
@@ -85,8 +83,6 @@ export interface Product {
   coclientId?: string;
   categoryId: string;
   subCategoryId?: string | null;
-  markId?: string | null;
-  mark?: { id: string; name: string; logoDoc: string } | null;
   category?: {
     id: string;
     categoryName: string;
@@ -164,8 +160,6 @@ export interface UpdateProductDto {
   coclientId?: string;
   categoryId?: string;
   subCategoryId?: string;
-  markId?: string;
-  marqueDoc?: string | null;
 }
 
 export interface QueryParams {

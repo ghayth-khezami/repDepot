@@ -34,6 +34,7 @@ export default function VoiceAssistant() {
   const focusedFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('Cliquez dans un champ, puis parlez.');
+  const [fieldRect, setFieldRect] = useState<DOMRect | null>(null);
 
   useEffect(() => {
     const rememberField = (event: FocusEvent) => {
@@ -41,6 +42,7 @@ export default function VoiceAssistant() {
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
         if (target.type !== 'file' && target.type !== 'checkbox' && target.type !== 'radio') {
           focusedFieldRef.current = target;
+          setFieldRect(target.getBoundingClientRect());
           setMessage('Champ sélectionné. Cliquez sur Assistance vocale.');
         }
       }
@@ -112,8 +114,12 @@ export default function VoiceAssistant() {
     }
   };
 
+  const position = fieldRect
+    ? { top: `${fieldRect.bottom + 8}px`, left: `${Math.max(12, fieldRect.right - 170)}px` }
+    : undefined;
+
   return (
-    <div className="voice-assistant" aria-live="polite">
+    <div className={`voice-assistant${fieldRect ? ' voice-assistant-near-field' : ''}`} style={position} aria-live="polite">
       <span className="voice-assistant-message">{message}</span>
       <button
         type="button"

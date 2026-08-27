@@ -1,4 +1,4 @@
-import type { ApiPaginated, Category, Mark, Product } from "@/types";
+import type { ApiPaginated, Category, Product } from "@/types";
 import { getSiteUrl } from "@/lib/site";
 import { getServerApiUrl } from "@/lib/api-url";
 
@@ -34,14 +34,6 @@ export async function fetchCategory(id: string) {
   }
 }
 
-export async function fetchMark(id: string): Promise<Mark | null> {
-  try {
-    return await serverFetch<Mark>(`/marks/${id}`, 600);
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchAllCategories(): Promise<Category[]> {
   const all: Category[] = [];
   let page = 1;
@@ -66,14 +58,6 @@ export async function fetchAllProductIds(): Promise<Array<{ id: string; updatedA
     page += 1;
   }
   return all;
-}
-
-export async function fetchPublishedMarks(): Promise<Mark[]> {
-  try {
-    return await serverFetch<Mark[]>("/marks/published", 3600);
-  } catch {
-    return [];
-  }
 }
 
 export { getSiteUrl };

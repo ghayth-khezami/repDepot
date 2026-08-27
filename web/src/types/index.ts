@@ -15,14 +15,6 @@ export interface ClientFeedback {
   isPublished: boolean;
 }
 
-export interface Mark {
-  id: string;
-  name: string;
-  logoDoc: string;
-  sortOrder?: number;
-  _count?: { products: number };
-}
-
 export interface SubCategory {
   id: string;
   title: string;
@@ -81,7 +73,6 @@ export interface Product {
   id: string;
   productName: string;
   description?: string | null;
-  marqueDoc?: string | null;
   instagramLink?: string | null;
   facebookLink?: string | null;
   tiktokLink?: string | null;
@@ -101,8 +92,6 @@ export interface Product {
     title: string;
     description?: string | null;
   };
-  markId?: string | null;
-  mark?: Mark | null;
   subCategoryId?: string | null;
   photos?: Array<{
     id: string;

@@ -6,7 +6,6 @@ import {
 } from '../store/api/productApi';
 import { useGetCategoriesQuery } from '../store/api/categoryApi';
 import { useGetSubCategoriesQuery } from '../store/api/subCategoryApi';
-import { useGetMarksInfiniteQuery } from '../store/api/markApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
 import InfiniteSelect from '../components/InfiniteSelect';
 import ReusableTable, { Column } from '../components/ReusableTable';
@@ -35,7 +34,6 @@ const ProductsPage = () => {
   const [isDepot, setIsDepot] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string>('');
-  const [selectedMarkId, setSelectedMarkId] = useState<string>('');
   const [selectedCoClientId, setSelectedCoClientId] = useState<string>('');
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
@@ -59,29 +57,6 @@ const ProductsPage = () => {
     { skip: !isModalOpen },
   );
   const [allCategories, setAllCategories] = useState<any[]>([]);
-
-  const [marksPage, setMarksPage] = useState(1);
-  const { data: marksData, isLoading: marksLoading } = useGetMarksInfiniteQuery(
-    { limit: 10, page: marksPage },
-    { skip: !isModalOpen },
-  );
-  const [allMarks, setAllMarks] = useState<Array<{ id: string; name: string }>>([]);
-
-  useEffect(() => {
-    if (!isModalOpen) return;
-    setMarksPage(1);
-    setAllMarks([]);
-  }, [isModalOpen]);
-
-  useEffect(() => {
-    if (marksData?.data) {
-      setAllMarks((prev) => {
-        const ids = new Set(prev.map((m) => m.id));
-        const next = marksData.data.filter((m) => !ids.has(m.id));
-        return marksPage === 1 ? marksData.data.map((m) => ({ id: m.id, name: m.name })) : [...prev, ...next.map((m) => ({ id: m.id, name: m.name }))];
-      });
-    }
-  }, [marksData, marksPage]);
 
   const [subsPage, setSubsPage] = useState(1);
   const { data: subsData, isLoading: subsLoading } = useGetSubCategoriesQuery(
@@ -164,7 +139,6 @@ const ProductsPage = () => {
     if (isModalOpen && selectedProduct) {
       setSelectedCategoryId(selectedProduct.categoryId || '');
       setSelectedSubCategoryId(selectedProduct.subCategoryId || '');
-      setSelectedMarkId(selectedProduct.markId || '');
       setSelectedCoClientId(selectedProduct.coclientId || '');
       setIsDepot(selectedProduct.isDepot);
       setDepotPercentage(selectedProduct.depotPercentage || 0);
@@ -172,7 +146,6 @@ const ProductsPage = () => {
     } else if (isModalOpen && !selectedProduct) {
       setSelectedCategoryId('');
       setSelectedSubCategoryId('');
-      setSelectedMarkId('');
       setSelectedCoClientId('');
       setIsDepot(false);
       setDepotPercentage(0);
@@ -345,7 +318,6 @@ const ProductsPage = () => {
       surcharge: surcharge || 0,
       categoryId: selectedCategoryId,
       subCategoryId: selectedSubCategoryId || undefined,
-      markId: selectedMarkId || undefined,
       coclientId: selectedCoClientId || undefined,
     };
 
@@ -378,7 +350,6 @@ const ProductsPage = () => {
         if (baseData.coclientId) createFormData.append('coclientId', String(baseData.coclientId));
         createFormData.append('categoryId', String(baseData.categoryId));
         if (baseData.subCategoryId) createFormData.append('subCategoryId', String(baseData.subCategoryId));
-        if (baseData.markId) createFormData.append('markId', String(baseData.markId));
         photos
           .filter((photo): photo is File => photo instanceof File)
           .forEach((file) => createFormData.append('photos', file));
@@ -566,12 +537,6 @@ const ProductsPage = () => {
       ? viewProduct.photos[0].photoDoc.startsWith('http')
         ? viewProduct.photos[0].photoDoc
         : `${apiBaseUrl}${viewProduct.photos[0].photoDoc.startsWith('/') ? '' : '/'}${viewProduct.photos[0].photoDoc}`
-      : '';
-  const previewMarque =
-    viewProduct?.marqueDoc
-      ? viewProduct.marqueDoc.startsWith('http')
-        ? viewProduct.marqueDoc
-        : `${apiBaseUrl}${viewProduct.marqueDoc.startsWith('/') ? '' : '/'}${viewProduct.marqueDoc}`
       : '';
   const previewOutOfStock = viewProduct ? viewProduct.isDispo === false || viewProduct.stockQuantity <= 0 : false;
 
@@ -784,25 +749,6 @@ const ProductsPage = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Marque (catalogue)</label>
-            <InfiniteSelect
-              items={allMarks}
-              getOptionLabel={(m) => m.name}
-              getOptionValue={(m) => m.id}
-              value={selectedMarkId}
-              onChange={(value) => setSelectedMarkId(value as string)}
-              onLoadMore={() => {
-                if (marksData?.meta && marksPage < marksData.meta.totalPages) {
-                  setMarksPage((prev) => prev + 1);
-                }
-              }}
-              hasMore={marksData?.meta ? marksPage < marksData.meta.totalPages : false}
-              isLoading={marksLoading}
-              placeholder="Marque (optionnel)..."
-            />
-          </div>
-          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Déposant</label>
             <InfiniteSelect
@@ -1119,11 +1065,6 @@ const ProductsPage = () => {
                         </div>
                       </div>
                       <div className="flex w-[160px] shrink-0 flex-col items-end gap-2">
-                        <div className="flex h-12 w-full items-center justify-end">
-                          {previewMarque ? (
-                            <img src={previewMarque} alt="" className="h-12 w-auto max-w-[6rem] object-contain" />
-                          ) : null}
-                        </div>
                         <div className={`inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-2xl px-3 py-2 text-sm font-bold text-white shadow-md ${
                           previewOutOfStock ? 'bg-slate-400' : 'bg-[#7b2cff]'
                         }`}>
@@ -1156,11 +1097,6 @@ const ProductsPage = () => {
                         </div>
                       </div>
                       <div className="flex w-[138px] shrink-0 flex-col items-end gap-1.5">
-                        <div className="flex h-10 w-full items-center justify-end">
-                          {previewMarque ? (
-                            <img src={previewMarque} alt="" className="h-10 w-auto max-w-[5.25rem] object-contain" />
-                          ) : null}
-                        </div>
                         <div className={`inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-2xl px-2 py-2 text-[8.5px] font-black text-white shadow-md ${
                           previewOutOfStock ? 'bg-slate-400' : 'bg-[#7b2cff]'
                         }`}>

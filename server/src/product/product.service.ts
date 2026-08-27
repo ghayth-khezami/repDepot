@@ -67,9 +67,6 @@ export class ProductService {
             categoryName: true,
           },
         },
-        mark: {
-          select: { id: true, name: true, logoDoc: true },
-        },
         coClient: {
           select: {
             id: true,
@@ -85,7 +82,6 @@ export class ProductService {
   async createWithPhotos(
     createProductDto: CreateProductDto,
     photoDocs: string[],
-    marqueDoc?: string | null,
   ) {
     const gain = this.computeGain(createProductDto);
     const isDispo = createProductDto.stockQuantity > 0;
@@ -98,7 +94,6 @@ export class ProductService {
           gain: gain || 0,
           surcharge: createProductDto.surcharge || 0,
           isDispo,
-          ...(marqueDoc ? { marqueDoc } : {}),
         },
       });
 
@@ -115,7 +110,6 @@ export class ProductService {
         where: { id: product.id },
         include: {
           category: true,
-          mark: { select: { id: true, name: true, logoDoc: true } },
           coClient: true,
           photos: true,
         },
@@ -137,7 +131,6 @@ export class ProductService {
       subSubCategory1Id,
       subSubCategory2Id,
       subSubCategory3Id,
-      markId,
       coclientId,
       isDepot,
       minPrice,
@@ -177,9 +170,6 @@ export class ProductService {
       where.subSubCategory3Id = subSubCategory3Id;
     }
 
-    if (markId) {
-      where.markId = markId;
-    }
 
     if (coclientId) {
       where.coclientId = coclientId;
@@ -233,13 +223,6 @@ export class ProductService {
           subSubCategory1: { select: { id: true, title: true } },
           subSubCategory2: { select: { id: true, title: true } },
           subSubCategory3: { select: { id: true, title: true } },
-          mark: {
-            select: {
-              id: true,
-              name: true,
-              logoDoc: true,
-            },
-          },
           coClient: {
             select: {
               id: true,
@@ -310,13 +293,6 @@ export class ProductService {
         subSubCategory1: { select: { id: true, title: true } },
         subSubCategory2: { select: { id: true, title: true } },
         subSubCategory3: { select: { id: true, title: true } },
-        mark: {
-          select: {
-            id: true,
-            name: true,
-            logoDoc: true,
-          },
-        },
         coClient: {
           select: {
             id: true,
@@ -370,7 +346,6 @@ export class ProductService {
     const include = {
       category: { select: { id: true, categoryName: true } },
       subCategory: { select: { id: true, title: true } },
-      mark: { select: { id: true, name: true, logoDoc: true } },
       coClient: { select: { id: true, firstName: true, lastName: true } },
       photos: true,
     } as const;
@@ -460,32 +435,6 @@ export class ProductService {
     });
   }
 
-  async setBrandMark(id: string, marqueRelativePath: string) {
-    await this.findOne(id);
-    return this.prisma.product.update({
-      where: { id },
-      data: { marqueDoc: marqueRelativePath },
-      include: {
-        category: { select: { id: true, categoryName: true } },
-        coClient: { select: { id: true, firstName: true, lastName: true } },
-        photos: true,
-      },
-    });
-  }
-
-  async clearBrandMark(id: string) {
-    await this.findOne(id);
-    return this.prisma.product.update({
-      where: { id },
-      data: { marqueDoc: null },
-      include: {
-        category: { select: { id: true, categoryName: true } },
-        coClient: { select: { id: true, firstName: true, lastName: true } },
-        photos: true,
-      },
-    });
-  }
-
   async remove(id: string) {
     await this.findOne(id);
 
@@ -507,13 +456,6 @@ export class ProductService {
       select: {
         id: true,
         title: true,
-      },
-    },
-    mark: {
-      select: {
-        id: true,
-        name: true,
-        logoDoc: true,
       },
     },
     photos: {

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { fetchAllCategories, fetchAllProductIds, fetchPublishedMarks } from "@/lib/server-api";
+import { fetchAllCategories, fetchAllProductIds } from "@/lib/server-api";
 import { getSiteUrl } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -13,10 +13,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const [categories, products, marks] = await Promise.all([
+    const [categories, products] = await Promise.all([
       fetchAllCategories(),
       fetchAllProductIds(),
-      fetchPublishedMarks(),
     ]);
 
     const categoryEntries: MetadataRoute.Sitemap = categories.map((c) => ({
@@ -33,14 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     }));
 
-    const markEntries: MetadataRoute.Sitemap = marks.map((m) => ({
-      url: `${base}/marques/${m.id}`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.75,
-    }));
-
-    return [...staticRoutes, ...categoryEntries, ...productEntries, ...markEntries];
+    return [...staticRoutes, ...categoryEntries, ...productEntries];
   } catch {
     return staticRoutes;
   }

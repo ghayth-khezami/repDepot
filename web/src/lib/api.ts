@@ -11,7 +11,6 @@ import {
   SubSubCategory2,
   SubSubCategory3,
   ClientFeedback,
-  Mark,
 } from "@/types";
 import { getClientApiUrl, getRemoteApiUrl } from "@/lib/api-url";
 
@@ -219,7 +218,6 @@ export const api = {
   unlikeProduct: (token: string, productId: string) =>
     request<{ liked: false }>(`/likes/${productId}`, "DELETE", undefined, token),
   getClientFeedbacks: () => request<ClientFeedback[]>("/client-feedbacks"),
-  getMarks: () => request<Mark[]>("/marks/published"),
   subscribeNewsletter: (email: string) =>
     request<{ id: string; email: string }>("/newsletter/subscribe", "POST", { email }),
   getStoreHours: () =>
