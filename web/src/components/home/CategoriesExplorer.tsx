@@ -60,21 +60,21 @@ export function CategoriesExplorer({
                 >
                   <Link
                     href={`/categories/${cat.id}`}
-                    className="group flex h-full min-h-[150px] flex-col overflow-hidden rounded-xl border border-[#182044]/8 bg-white p-2 shadow-[0_5px_18px_rgba(45,35,70,0.05)] transition hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(45,35,70,0.1)] md:min-h-[170px]"
+                    className="group relative flex h-full min-h-[170px] overflow-hidden rounded-xl border border-[#182044]/8 bg-transparent shadow-[0_5px_18px_rgba(45,35,70,0.05)] transition hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(45,35,70,0.1)] md:min-h-[190px]"
                   >
-                    <div className="relative mx-auto aspect-square w-full shrink-0 overflow-hidden rounded-xl bg-[#FFF7F0]">
+                    <div className="absolute inset-0 overflow-hidden rounded-xl bg-transparent">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={image}
                         alt={cat.categoryName}
-                        className="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-105"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
-                    <div className="flex flex-1 flex-col justify-center px-1 py-2 text-center">
+                    <div className="absolute inset-x-2 bottom-2 rounded-xl border border-white/50 bg-white/72 px-2 py-1.5 text-center shadow-[0_8px_24px_rgba(45,35,70,0.12)] backdrop-blur-md transition group-hover:bg-white/82 md:inset-x-3 md:bottom-3">
                       <h3 className="line-clamp-2 min-h-[2rem] font-display text-xs leading-snug text-[#2D2346] md:text-sm">
                         {cat.categoryName}
                       </h3>
-                      <p className="mt-1 text-[10px] text-[#2D2346]/55">{label}</p>
+                      <p className="mt-0.5 text-[10px] text-[#2D2346]/60">{label}</p>
                     </div>
                   </Link>
                 </motion.div>

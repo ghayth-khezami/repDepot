@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { SkipThrottle } from "@nestjs/throttler";
 import { UserRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -35,12 +36,14 @@ export class SubCategoryController {
   }
 
   @Get()
+  @SkipThrottle()
   @ApiOperation({ summary: "List sub-categories with pagination" })
   findAll(@Query() query: SubCategoryQueryDto) {
     return this.subCategoryService.findAll(query);
   }
 
   @Get(":id")
+  @SkipThrottle()
   @ApiOperation({ summary: "Get sub-category by ID" })
   findOne(@Param("id") id: string) {
     return this.subCategoryService.findOne(id);

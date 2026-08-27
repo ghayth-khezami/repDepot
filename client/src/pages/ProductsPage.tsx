@@ -48,7 +48,12 @@ const ProductsPage = () => {
     isDepot: isDepotFilter,
   });
   // Category filter dropdown (always loaded, single page)
-  const { data: filterCategoriesData } = useGetCategoriesQuery({ limit: 100, page: 1 });
+  const [filterCategoriesPage, setFilterCategoriesPage] = useState(1);
+  const { data: filterCategoriesData, isLoading: filterCategoriesLoading } = useGetCategoriesQuery({
+    limit: 10,
+    page: filterCategoriesPage,
+  });
+  const [allFilterCategories, setAllFilterCategories] = useState<any[]>([]);
 
   // Infinite scroll for categories (modal only)
   const [categoriesPage, setCategoriesPage] = useState(1);
@@ -57,6 +62,17 @@ const ProductsPage = () => {
     { skip: !isModalOpen },
   );
   const [allCategories, setAllCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!filterCategoriesData?.data) return;
+    setAllFilterCategories((previous) => {
+      const existingIds = new Set(previous.map((category) => category.id));
+      const newCategories = filterCategoriesData.data.filter((category) => !existingIds.has(category.id));
+      return filterCategoriesPage === 1
+        ? filterCategoriesData.data
+        : [...previous, ...newCategories];
+    });
+  }, [filterCategoriesData, filterCategoriesPage]);
 
   const [subsPage, setSubsPage] = useState(1);
   const { data: subsData, isLoading: subsLoading } = useGetSubCategoriesQuery(
@@ -555,18 +571,22 @@ const ProductsPage = () => {
         onSearch={setSearch}
         filters={
           <>
-            <select
+            <InfiniteSelect
+              items={allFilterCategories}
+              getOptionLabel={(category) => category.categoryName}
+              getOptionValue={(category) => category.id}
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-            >
-              <option value="">Toutes les catégories</option>
-              {(filterCategoriesData?.data ?? []).map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.categoryName}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setCategoryFilter(value as string)}
+              onLoadMore={() => {
+                if (filterCategoriesData?.meta && filterCategoriesPage < filterCategoriesData.meta.totalPages) {
+                  setFilterCategoriesPage((previous) => previous + 1);
+                }
+              }}
+              hasMore={Boolean(filterCategoriesData?.meta && filterCategoriesPage < filterCategoriesData.meta.totalPages)}
+              isLoading={filterCategoriesLoading}
+              placeholder="Toutes les catégories"
+              className="text-sm"
+            />
             <select
               value={isDepotFilter === undefined ? '' : isDepotFilter ? 'true' : 'false'}
               onChange={(e) => setIsDepotFilter(e.target.value === '' ? undefined : e.target.value === 'true')}

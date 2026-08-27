@@ -21,7 +21,7 @@ export const productApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProducts: builder.query<PaginatedResponse<Product>, QueryParams>({
       query: (params) => {
-        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 50);
+        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 10);
         return {
         url: '/products/admin/list',
         params: { ...params, limit: safeLimit },
@@ -31,7 +31,7 @@ export const productApi = baseApi.injectEndpoints({
     }),
     getProductsInfinite: builder.query<PaginatedResponse<Product>, QueryParams>({
       query: (params) => {
-        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 50);
+        const safeLimit = Math.min(Math.max(Number(params?.limit ?? 10), 1), 10);
         return {
         url: '/products/admin/list',
         params: { ...params, limit: safeLimit },
