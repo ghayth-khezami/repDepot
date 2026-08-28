@@ -106,7 +106,7 @@ export function ProductPhotoPicker({
       <div className="relative overflow-hidden rounded-2xl border border-primary-100 bg-primary-50/40 dark:border-slate-700 dark:bg-slate-800/40">
         {active ? (
           <>
-            <img src={active.url} alt="" className="aspect-[4/3] w-full object-cover" />
+            <img src={active.url} alt="" className="aspect-[4/3] w-full bg-white object-contain dark:bg-slate-900" />
             {activeIndex === 0 && total > 0 ? (
               <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-bold text-white">
                 <Star size={10} fill="currentColor" />
@@ -139,7 +139,7 @@ export function ProductPhotoPicker({
                   index === activeIndex ? 'border-primary-600' : 'border-gray-200 dark:border-slate-600'
                 }`}
               >
-                <img src={slide.url} alt="" className="h-full w-full object-cover" />
+                <img src={slide.url} alt="" className="h-full w-full bg-white object-contain dark:bg-slate-900" />
               </button>
               {!disabled && !busy ? (
                 <button

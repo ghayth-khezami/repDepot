@@ -6,6 +6,8 @@ import {
   IsNumber,
   IsBoolean,
   Min,
+  IsArray,
+  IsUUID,
 } from "class-validator";
 
 export class UpdateProductDto {
@@ -58,11 +60,6 @@ export class UpdateProductDto {
   @Min(0)
   PrixAchat?: number;
 
-  @ApiPropertyOptional({ description: "Stock quantity", example: 50 })
-  @IsOptional()
-  @IsNumber()
-  stockQuantity?: number;
-
   @ApiPropertyOptional({ description: "Availability status", example: true })
   @IsOptional()
   @IsBoolean()
@@ -95,10 +92,22 @@ export class UpdateProductDto {
   @IsString()
   categoryId?: string;
 
+  @ApiPropertyOptional({ type: [String], description: "Category IDs for multi-category assignment" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  categoryIds?: string[];
+
   @ApiPropertyOptional({ description: "Sub-category ID", example: "uuid" })
   @IsOptional()
   @IsString()
   subCategoryId?: string;
+
+  @ApiPropertyOptional({ type: [String], description: "Sub-category IDs for multi-assignment" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subCategoryIds?: string[];
 
   @ApiPropertyOptional({ description: "Sub-sub-category level 1 ID", example: "uuid" })
   @IsOptional()
@@ -114,6 +123,24 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   subSubCategory3Id?: string;
+
+  @ApiPropertyOptional({ type: [String], description: "Sub-sub-category level 1 IDs" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subSubCategory1Ids?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: "Sub-sub-category level 2 IDs" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subSubCategory2Ids?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: "Sub-sub-category level 3 IDs" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subSubCategory3Ids?: string[];
 
   @ApiPropertyOptional({ description: "Store barcode" })
   @IsOptional()

@@ -96,7 +96,6 @@ export class ProductController {
         tiktokLink: { type: "string" },
         PrixVente: { type: "number" },
         PrixAchat: { type: "number" },
-        stockQuantity: { type: "number" },
         isDepot: { type: "boolean" },
         depotPercentage: { type: "number" },
         surcharge: { type: "number" },
@@ -108,7 +107,7 @@ export class ProductController {
           items: { type: "string", format: "binary" },
         },
       },
-      required: ["productName", "PrixVente", "stockQuantity", "isDepot", "categoryId"],
+      required: ["productName", "PrixVente", "isDepot", "categoryId"],
     },
   })
   @ApiOperation({ summary: "Create product with photos in one request" })
@@ -119,6 +118,15 @@ export class ProductController {
       photos?: Express.Multer.File[];
     },
   ) {
+    const parseIds = (value?: string) => {
+      if (!value) return undefined;
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : undefined;
+      } catch {
+        return undefined;
+      }
+    };
     const dto: CreateProductDto = {
       productName: body.productName,
       description: body.description || undefined,
@@ -127,18 +135,23 @@ export class ProductController {
       tiktokLink: body.tiktokLink || undefined,
       PrixVente: Number(body.PrixVente),
       PrixAchat: body.PrixAchat ? Number(body.PrixAchat) : undefined,
-      stockQuantity: Number(body.stockQuantity),
       isDepot: body.isDepot === "true",
+      isDispo: body.isDispo === undefined ? true : body.isDispo === "true",
       depotPercentage: body.depotPercentage
         ? Number(body.depotPercentage)
         : undefined,
       surcharge: body.surcharge ? Number(body.surcharge) : 0,
       coclientId: body.coclientId || undefined,
       categoryId: body.categoryId,
+      categoryIds: parseIds(body.categoryIds),
       subCategoryId: body.subCategoryId || undefined,
+      subCategoryIds: parseIds(body.subCategoryIds),
       subSubCategory1Id: body.subSubCategory1Id || undefined,
+      subSubCategory1Ids: parseIds(body.subSubCategory1Ids),
       subSubCategory2Id: body.subSubCategory2Id || undefined,
+      subSubCategory2Ids: parseIds(body.subSubCategory2Ids),
       subSubCategory3Id: body.subSubCategory3Id || undefined,
+      subSubCategory3Ids: parseIds(body.subSubCategory3Ids),
     };
     const photoDocs = await this.cloudinary.uploadFiles(
       files?.photos || [],
@@ -206,7 +219,6 @@ export class ProductController {
         Description: product.description || "",
         "Prix Vente": product.PrixVente || 0,
         "Prix Achat": product.PrixAchat || 0,
-        "Quantité Stock": product.stockQuantity || 0,
         "En Dépôt": product.isDepot ? "Oui" : "Non",
         "Pourcentage Dépôt": product.depotPercentage || "",
         Surcharge: product.surcharge || 0,
@@ -284,12 +296,11 @@ export class ProductController {
     // Table header
     let y = 50;
     const startX = 14;
-    const colWidths = [60, 30, 30, 25, 30, 25];
+    const colWidths = [60, 30, 30, 30, 25];
     const headers = [
       "Produit",
       "Prix Vente",
       "Prix Achat",
-      "Stock",
       "Catégorie",
       "Dépôt",
     ];
@@ -374,7 +385,6 @@ export class ProductController {
           : product.productName,
         `${product.PrixVente} TND`,
         `${product.PrixAchat} TND`,
-        String(product.stockQuantity),
         product.category?.categoryName?.substring(0, 12) || "N/A",
         product.isDepot ? "Oui" : "Non",
       ];

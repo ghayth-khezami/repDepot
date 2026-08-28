@@ -83,6 +83,9 @@ export interface Product {
   coclientId?: string;
   categoryId: string;
   subCategoryId?: string | null;
+  subSubCategory1Id?: string | null;
+  subSubCategory2Id?: string | null;
+  subSubCategory3Id?: string | null;
   category?: {
     id: string;
     categoryName: string;
@@ -159,7 +162,15 @@ export interface UpdateProductDto {
   isDepot?: boolean;
   coclientId?: string;
   categoryId?: string;
+  categoryIds?: string[];
   subCategoryId?: string;
+  subCategoryIds?: string[];
+  subSubCategory1Id?: string;
+  subSubCategory1Ids?: string[];
+  subSubCategory2Id?: string;
+  subSubCategory2Ids?: string[];
+  subSubCategory3Id?: string;
+  subSubCategory3Ids?: string[];
 }
 
 export interface QueryParams {

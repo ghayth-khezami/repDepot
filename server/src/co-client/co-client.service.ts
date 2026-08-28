@@ -128,7 +128,6 @@ export class CoClientService {
       description: p.description,
       PrixVente: p.PrixVente,
       PrixAchat: p.PrixAchat,
-      stockQuantity: p.stockQuantity,
       isDepot: p.isDepot,
       depotPercentage: p.depotPercentage,
       surcharge: p.surcharge,

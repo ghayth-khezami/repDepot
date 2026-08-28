@@ -15,6 +15,15 @@ export interface CreateProductDto {
   surcharge?: number;
   coclientId?: string;
   categoryId: string;
+  categoryIds?: string[];
+  subCategoryId?: string;
+  subCategoryIds?: string[];
+  subSubCategory1Id?: string;
+  subSubCategory1Ids?: string[];
+  subSubCategory2Id?: string;
+  subSubCategory2Ids?: string[];
+  subSubCategory3Id?: string;
+  subSubCategory3Ids?: string[];
 }
 
 export const productApi = baseApi.injectEndpoints({

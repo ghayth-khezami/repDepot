@@ -8,20 +8,90 @@ datasource db {
 }
 
 model User {
-  id                String             @id @default(uuid())
-  email             String             @unique
-  password          String
-  username          String?            @unique
-  isVerified        Boolean            @default(false)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  role              UserRole           @default(CLIENT)
-  coClient          CoClient?
-  depositRequests   DepositRequest[]
-  pushSubscriptions PushSubscription[]
-  likes             UserLike[]
+  id                   String                   @id @default(uuid())
+  email                String                   @unique
+  password             String
+  username             String?                  @unique
+  isVerified           Boolean                  @default(false)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  role                 UserRole                 @default(CLIENT)
+  coClient             CoClient?
+  depositRequests      DepositRequest[]
+  pushSubscriptions    PushSubscription[]
+  likes                UserLike[]
+  categoryLinks        ProductCategory[]
+  subCategoryLinks     ProductSubCategory[]
+  subSubCategory1Links ProductSubSubCategory1[]
+  subSubCategory2Links ProductSubSubCategory2[]
+  subSubCategory3Links ProductSubSubCategory3[]
 
   @@map("users")
+}
+
+model ProductCategory {
+  productId  String
+  categoryId String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  User       User?    @relation(fields: [userId], references: [id])
+  userId     String?
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+  @@map("product_categories")
+}
+
+model ProductSubCategory {
+  productId     String
+  subCategoryId String
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  User          User?       @relation(fields: [userId], references: [id])
+  userId        String?
+
+  @@id([productId, subCategoryId])
+  @@index([subCategoryId])
+  @@map("product_sub_categories")
+}
+
+model ProductSubSubCategory1 {
+  productId        String
+  subSubCategoryId String
+  product          Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subSubCategory   SubSubCategory1 @relation(fields: [subSubCategoryId], references: [id], onDelete: Cascade)
+  User             User?           @relation(fields: [userId], references: [id])
+  userId           String?
+
+  @@id([productId, subSubCategoryId])
+  @@index([subSubCategoryId])
+  @@map("product_sub_sub_categories_1")
+}
+
+model ProductSubSubCategory2 {
+  productId        String
+  subSubCategoryId String
+  product          Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subSubCategory   SubSubCategory2 @relation(fields: [subSubCategoryId], references: [id], onDelete: Cascade)
+  User             User?           @relation(fields: [userId], references: [id])
+  userId           String?
+
+  @@id([productId, subSubCategoryId])
+  @@index([subSubCategoryId])
+  @@map("product_sub_sub_categories_2")
+}
+
+model ProductSubSubCategory3 {
+  productId        String
+  subSubCategoryId String
+  product          Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subSubCategory   SubSubCategory3 @relation(fields: [subSubCategoryId], references: [id], onDelete: Cascade)
+  User             User?           @relation(fields: [userId], references: [id])
+  userId           String?
+
+  @@id([productId, subSubCategoryId])
+  @@index([subSubCategoryId])
+  @@map("product_sub_sub_categories_3")
 }
 
 model PendingUser {
@@ -82,28 +152,30 @@ model CoClient {
 }
 
 model Category {
-  id            String        @id @default(uuid())
-  categoryName  String        @unique
+  id            String            @id @default(uuid())
+  categoryName  String            @unique
   description   String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   icon          String?
   coverDoc      String?
   products      Product[]
+  productLinks  ProductCategory[]
   subCategories SubCategory[]
 
   @@map("categories")
 }
 
 model SubCategory {
-  id                String            @id @default(uuid())
+  id                String               @id @default(uuid())
   title             String
   description       String?
   categoryId        String
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   products          Product[]
-  category          Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  productLinks      ProductSubCategory[]
+  category          Category             @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   subSubCategories1 SubSubCategory1[]
 
   @@index([categoryId])
@@ -111,14 +183,15 @@ model SubCategory {
 }
 
 model SubSubCategory1 {
-  id                String            @id @default(uuid())
+  id                String                   @id @default(uuid())
   title             String
   description       String?
   subCategoryId     String
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   products          Product[]
-  subCategory       SubCategory       @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  productLinks      ProductSubSubCategory1[]
+  subCategory       SubCategory              @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
   subSubCategories2 SubSubCategory2[]
 
   @@index([subCategoryId])
@@ -126,14 +199,15 @@ model SubSubCategory1 {
 }
 
 model SubSubCategory2 {
-  id                String            @id @default(uuid())
+  id                String                   @id @default(uuid())
   title             String
   description       String?
   subSubCategory1Id String
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   products          Product[]
-  subSubCategory1   SubSubCategory1   @relation(fields: [subSubCategory1Id], references: [id], onDelete: Cascade)
+  productLinks      ProductSubSubCategory2[]
+  subSubCategory1   SubSubCategory1          @relation(fields: [subSubCategory1Id], references: [id], onDelete: Cascade)
   subSubCategories3 SubSubCategory3[]
 
   @@index([subSubCategory1Id])
@@ -141,54 +215,59 @@ model SubSubCategory2 {
 }
 
 model SubSubCategory3 {
-  id                String          @id @default(uuid())
+  id                String                   @id @default(uuid())
   title             String
   description       String?
   subSubCategory2Id String
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   products          Product[]
-  subSubCategory2   SubSubCategory2 @relation(fields: [subSubCategory2Id], references: [id], onDelete: Cascade)
+  productLinks      ProductSubSubCategory3[]
+  subSubCategory2   SubSubCategory2          @relation(fields: [subSubCategory2Id], references: [id], onDelete: Cascade)
 
   @@index([subSubCategory2Id])
   @@map("sub_sub_categories_3")
 }
 
 model Product {
-  id                String           @id @default(uuid())
-  productName       String
-  description       String?
-  PrixVente         Float
-  PrixAchat         Float?
-  stockQuantity     Int              @default(0)
-  isDepot           Boolean          @default(false)
-  depotPercentage   Float?
-  surcharge         Float?           @default(0)
-  gain              Float?           @default(0)
-  isDispo           Boolean          @default(true)
-  coclientId        String?
-  categoryId        String
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  instagramLink     String?
-  facebookLink      String?
-  tiktokLink        String?
-  subCategoryId     String?
+  id                     String                   @id @default(uuid())
+  productName            String
+  description            String?
+  PrixVente              Float
+  PrixAchat              Float?
+  isDepot                Boolean                  @default(false)
+  depotPercentage        Float?
+  surcharge              Float?                   @default(0)
+  gain                   Float?                   @default(0)
+  isDispo                Boolean                  @default(true)
+  coclientId             String?
+  categoryId             String
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  instagramLink          String?
+  facebookLink           String?
+  tiktokLink             String?
+  subCategoryId          String?
   /// Unique store barcode for label scanning (EAN-13 style numeric).
-  barcode           String?          @unique
-  subSubCategory1Id String?
-  subSubCategory2Id String?
-  subSubCategory3Id String?
-  commandDetails    CommandDetail[]
-  featuredSlot      FeaturedProduct?
-  photos            ProductPhoto[]
-  category          Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  coClient          CoClient?        @relation(fields: [coclientId], references: [id])
-  subCategory       SubCategory?     @relation(fields: [subCategoryId], references: [id])
-  subSubCategory1   SubSubCategory1? @relation(fields: [subSubCategory1Id], references: [id])
-  subSubCategory2   SubSubCategory2? @relation(fields: [subSubCategory2Id], references: [id])
-  subSubCategory3   SubSubCategory3? @relation(fields: [subSubCategory3Id], references: [id])
-  likes             UserLike[]
+  barcode                String?                  @unique
+  subSubCategory1Id      String?
+  subSubCategory2Id      String?
+  subSubCategory3Id      String?
+  commandDetails         CommandDetail[]
+  featuredSlot           FeaturedProduct?
+  photos                 ProductPhoto[]
+  category               Category                 @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  coClient               CoClient?                @relation(fields: [coclientId], references: [id])
+  subCategory            SubCategory?             @relation(fields: [subCategoryId], references: [id])
+  subSubCategory1        SubSubCategory1?         @relation(fields: [subSubCategory1Id], references: [id])
+  subSubCategory2        SubSubCategory2?         @relation(fields: [subSubCategory2Id], references: [id])
+  subSubCategory3        SubSubCategory3?         @relation(fields: [subSubCategory3Id], references: [id])
+  likes                  UserLike[]
+  ProductCategory        ProductCategory[]
+  ProductSubCategory     ProductSubCategory[]
+  ProductSubSubCategory1 ProductSubSubCategory1[]
+  ProductSubSubCategory2 ProductSubSubCategory2[]
+  ProductSubSubCategory3 ProductSubSubCategory3[]
 
   @@map("products")
 }

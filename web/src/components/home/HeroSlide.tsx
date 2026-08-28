@@ -93,10 +93,10 @@ export function HeroSlide({
   if (imageOnly) {
     return (
       <>
-        <div className="relative aspect-[5/4] w-full overflow-hidden md:hidden">
+        <div className="relative aspect-[5/4] w-full overflow-hidden bg-[#F8F4F1] md:hidden">
           <motion.div
             className="absolute inset-0"
-            animate={isActive ? { scale: [1, 1.04] } : { scale: 1 }}
+            animate={isActive ? { opacity: [0.96, 1] } : { opacity: 1 }}
             transition={isActive ? { duration: 5.5, ease: "easeOut" } : { duration: 0.3 }}
           >
             <Image
@@ -105,15 +105,15 @@ export function HeroSlide({
               fill
               priority={priority}
               sizes="100vw"
-              className="object-cover object-center"
+              className="object-contain object-center"
             />
           </motion.div>
         </div>
 
-        <div className="relative hidden h-full min-h-[420px] w-full lg:min-h-[460px] md:block">
+        <div className="relative hidden h-full min-h-[420px] w-full bg-[#F8F4F1] lg:min-h-[460px] md:block">
           <motion.div
             className="absolute inset-0"
-            animate={isActive ? { scale: [1, 1.03] } : { scale: 1 }}
+            animate={isActive ? { opacity: [0.96, 1] } : { opacity: 1 }}
             transition={isActive ? { duration: 5.5, ease: "easeOut" } : { duration: 0.3 }}
           >
             <Image
@@ -122,7 +122,7 @@ export function HeroSlide({
               fill
               priority={priority}
               sizes="(max-width: 1280px) 100vw, 1280px"
-              className="object-cover object-center"
+              className="object-contain object-center"
             />
           </motion.div>
         </div>
@@ -134,10 +134,10 @@ export function HeroSlide({
     <>
       {/* ── Mobile: photo + panel (no text on image) ── */}
       <div className="flex flex-col md:hidden">
-        <div className="relative aspect-[5/4] w-full overflow-hidden">
+        <div className="relative aspect-[5/4] w-full overflow-hidden bg-[#F8F4F1]">
           <motion.div
             className="absolute inset-0"
-            animate={isActive ? { scale: [1, 1.04] } : { scale: 1 }}
+            animate={isActive ? { opacity: [0.96, 1] } : { opacity: 1 }}
             transition={isActive ? { duration: 5.5, ease: "easeOut" } : { duration: 0.3 }}
           >
             <Image
@@ -146,7 +146,7 @@ export function HeroSlide({
               fill
               priority={priority}
               sizes="100vw"
-              className="object-cover object-[center_30%]"
+              className="object-contain object-center"
             />
           </motion.div>
         </div>
@@ -167,10 +167,10 @@ export function HeroSlide({
       </div>
 
       {/* ── Desktop: overlay on photo ── */}
-      <div className="relative hidden h-full min-h-[420px] w-full lg:min-h-[460px] md:block">
+      <div className="relative hidden h-full min-h-[420px] w-full bg-[#F8F4F1] lg:min-h-[460px] md:block">
         <motion.div
           className="absolute inset-0"
-          animate={isActive ? { scale: [1, 1.03] } : { scale: 1 }}
+          animate={isActive ? { opacity: [0.96, 1] } : { opacity: 1 }}
           transition={isActive ? { duration: 5.5, ease: "easeOut" } : { duration: 0.3 }}
         >
           <Image
@@ -179,7 +179,7 @@ export function HeroSlide({
             fill
             priority={priority}
             sizes="(max-width: 1280px) 100vw, 1280px"
-            className="object-cover object-[76%_center]"
+            className="object-contain object-center"
           />
         </motion.div>
 

@@ -5,6 +5,8 @@ import {
   IsBoolean,
   IsOptional,
   Min,
+  IsArray,
+  IsUUID,
 } from "class-validator";
 
 export class CreateProductDto {
@@ -58,13 +60,14 @@ export class CreateProductDto {
   @Min(0)
   PrixAchat?: number;
 
-  @ApiProperty({ description: "Stock quantity", example: 50 })
-  @IsNumber()
-  stockQuantity: number;
-
   @ApiProperty({ description: "Is in depot", example: true })
   @IsBoolean()
   isDepot: boolean;
+
+  @ApiPropertyOptional({ description: "Whether the single product item is available", default: true })
+  @IsOptional()
+  @IsBoolean()
+  isDispo?: boolean;
 
   @ApiPropertyOptional({
     description: "Depot percentage (0-100, required if depot)",
@@ -90,10 +93,22 @@ export class CreateProductDto {
   @IsString()
   categoryId: string;
 
+  @ApiPropertyOptional({ type: [String], description: "Category IDs for multi-category assignment" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  categoryIds?: string[];
+
   @ApiPropertyOptional({ description: "Sub-category ID", example: "uuid" })
   @IsOptional()
   @IsString()
   subCategoryId?: string;
+
+  @ApiPropertyOptional({ type: [String], description: "Sub-category IDs for multi-assignment" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subCategoryIds?: string[];
 
   @ApiPropertyOptional({ description: "Sub-sub-category level 1 ID", example: "uuid" })
   @IsOptional()
@@ -109,6 +124,24 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   subSubCategory3Id?: string;
+
+  @ApiPropertyOptional({ type: [String], description: "Sub-sub-category level 1 IDs" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subSubCategory1Ids?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: "Sub-sub-category level 2 IDs" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subSubCategory2Ids?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: "Sub-sub-category level 3 IDs" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subSubCategory3Ids?: string[];
 
   @ApiPropertyOptional({ description: "Store barcode (auto-generated if omitted)" })
   @IsOptional()

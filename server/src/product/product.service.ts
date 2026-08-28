@@ -47,14 +47,36 @@ export class ProductService {
     return payload.PrixVente - surcharge - (payload.PrixAchat || 0);
   }
 
+  private async syncCategoryLinks(tx: any, productId: string, dto: CreateProductDto | UpdateProductDto) {
+    const links = [
+      ["productCategory", "categoryId", dto.categoryIds],
+      ["productSubCategory", "subCategoryId", dto.subCategoryIds],
+      ["productSubSubCategory1", "subSubCategoryId", dto.subSubCategory1Ids],
+      ["productSubSubCategory2", "subSubCategoryId", dto.subSubCategory2Ids],
+      ["productSubSubCategory3", "subSubCategoryId", dto.subSubCategory3Ids],
+    ] as const;
+
+    for (const [model, field, ids] of links) {
+      if (ids === undefined) continue;
+      await tx[model].deleteMany({ where: { productId } });
+      if (ids.length > 0) {
+        await tx[model].createMany({
+          data: ids.map((id) => ({ productId, [field]: id })),
+        });
+      }
+    }
+  }
+
   async create(createProductDto: CreateProductDto) {
     const gain = this.computeGain(createProductDto);
-    const isDispo = createProductDto.stockQuantity > 0;
+    const isDispo = createProductDto.isDispo ?? true;
     const barcode = await this.resolveBarcode(createProductDto.barcode);
 
-    return this.prisma.product.create({
+    const { categoryIds, subCategoryIds, subSubCategory1Ids, subSubCategory2Ids, subSubCategory3Ids, ...productData } = createProductDto;
+    return this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
       data: {
-        ...createProductDto,
+        ...productData,
         barcode,
         gain: gain || 0,
         surcharge: createProductDto.surcharge || 0,
@@ -76,6 +98,9 @@ export class ProductService {
         },
         photos: true,
       },
+      });
+      await this.syncCategoryLinks(tx, product.id, createProductDto);
+      return tx.product.findUniqueOrThrow({ where: { id: product.id }, include: { category: true, coClient: true, photos: true } });
     });
   }
 
@@ -84,18 +109,21 @@ export class ProductService {
     photoDocs: string[],
   ) {
     const gain = this.computeGain(createProductDto);
-    const isDispo = createProductDto.stockQuantity > 0;
+    const isDispo = createProductDto.isDispo ?? true;
     const barcode = await this.resolveBarcode(createProductDto.barcode);
+    const { categoryIds, subCategoryIds, subSubCategory1Ids, subSubCategory2Ids, subSubCategory3Ids, ...productData } = createProductDto;
     return this.prisma.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
-          ...createProductDto,
+          ...productData,
           barcode,
           gain: gain || 0,
           surcharge: createProductDto.surcharge || 0,
           isDispo,
         },
       });
+
+      await this.syncCategoryLinks(tx, product.id, createProductDto);
 
       if (photoDocs.length > 0) {
         await tx.productPhoto.createMany({
@@ -394,27 +422,22 @@ export class ProductService {
       surcharge,
     });
 
-    const nextStock =
-      updateProductDto.stockQuantity !== undefined
-        ? updateProductDto.stockQuantity
-        : existingProduct.stockQuantity;
     const isDispo =
       updateProductDto.isDispo !== undefined
         ? updateProductDto.isDispo
-        : updateProductDto.stockQuantity !== undefined
-          ? updateProductDto.stockQuantity > 0
-          : existingProduct.isDispo;
+        : existingProduct.isDispo;
 
-    return this.prisma.product.update({
-      where: { id },
-      data: {
-        ...updateProductDto,
-        gain,
-        surcharge: surcharge || 0,
-        stockQuantity: nextStock,
-        isDispo,
-      },
-      include: {
+    const { categoryIds, subCategoryIds, subSubCategory1Ids, subSubCategory2Ids, subSubCategory3Ids, ...productData } = updateProductDto;
+    return this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.update({
+        where: { id },
+        data: {
+          ...productData,
+          gain,
+          surcharge: surcharge || 0,
+          isDispo,
+        },
+        include: {
         category: {
           select: {
             id: true,
@@ -428,10 +451,13 @@ export class ProductService {
             lastName: true,
           },
         },
-        photos: {
-          select: { id: true, photoDoc: true },
+          photos: {
+            select: { id: true, photoDoc: true },
+          },
         },
-      },
+      });
+      await this.syncCategoryLinks(tx, id, updateProductDto);
+      return product;
     });
   }
 

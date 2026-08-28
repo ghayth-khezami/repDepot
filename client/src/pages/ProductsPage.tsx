@@ -4,15 +4,14 @@ import {
   useUpdateProductMutation,
   useDeleteProductMutation,
 } from '../store/api/productApi';
-import { useGetCategoriesQuery } from '../store/api/categoryApi';
-import { useGetSubCategoriesQuery } from '../store/api/subCategoryApi';
+import { useGetCategoryHierarchyQuery } from '../store/api/categoryApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
 import InfiniteSelect from '../components/InfiniteSelect';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 import { Product, UpdateProductDto } from '../types';
-import { Edit, Trash2, X, Upload, Eye, Package, Monitor, Smartphone, Heart, ShoppingCart } from 'lucide-react';
+import { Edit, Trash2, X, Upload, Eye, Package, Monitor, Smartphone, Heart, ShoppingCart, Loader2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useSearchParams } from 'react-router-dom';
 
@@ -34,11 +33,20 @@ const ProductsPage = () => {
   const [isDepot, setIsDepot] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string>('');
+  const [selectedSubSubCategory1Id, setSelectedSubSubCategory1Id] = useState<string>('');
+  const [selectedSubSubCategory2Id, setSelectedSubSubCategory2Id] = useState<string>('');
+  const [selectedSubSubCategory3Id, setSelectedSubSubCategory3Id] = useState<string>('');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedSubCategoryIds, setSelectedSubCategoryIds] = useState<string[]>([]);
+  const [selectedSubSubCategory1Ids, setSelectedSubSubCategory1Ids] = useState<string[]>([]);
+  const [selectedSubSubCategory2Ids, setSelectedSubSubCategory2Ids] = useState<string[]>([]);
+  const [selectedSubSubCategory3Ids, setSelectedSubSubCategory3Ids] = useState<string[]>([]);
   const [selectedCoClientId, setSelectedCoClientId] = useState<string>('');
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [previewMode, setPreviewMode] = useState<'web' | 'mobile'>('web');
   const [prefillName, setPrefillName] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data, isLoading, refetch } = useGetProductsQuery({
     page,
@@ -47,60 +55,17 @@ const ProductsPage = () => {
     categoryId: categoryFilter || undefined,
     isDepot: isDepotFilter,
   });
-  // Category filter dropdown (always loaded, single page)
-  const [filterCategoriesPage, setFilterCategoriesPage] = useState(1);
-  const { data: filterCategoriesData, isLoading: filterCategoriesLoading } = useGetCategoriesQuery({
-    limit: 10,
-    page: filterCategoriesPage,
-  });
-  const [allFilterCategories, setAllFilterCategories] = useState<any[]>([]);
-
-  // Infinite scroll for categories (modal only)
-  const [categoriesPage, setCategoriesPage] = useState(1);
-  const { data: categoriesData, isLoading: categoriesLoading } = useGetCategoriesQuery(
-    { limit: 10, page: categoriesPage },
-    { skip: !isModalOpen },
-  );
-  const [allCategories, setAllCategories] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!filterCategoriesData?.data) return;
-    setAllFilterCategories((previous) => {
-      const existingIds = new Set(previous.map((category) => category.id));
-      const newCategories = filterCategoriesData.data.filter((category) => !existingIds.has(category.id));
-      return filterCategoriesPage === 1
-        ? filterCategoriesData.data
-        : [...previous, ...newCategories];
-    });
-  }, [filterCategoriesData, filterCategoriesPage]);
-
-  const [subsPage, setSubsPage] = useState(1);
-  const { data: subsData, isLoading: subsLoading } = useGetSubCategoriesQuery(
-    { limit: 10, page: subsPage, categoryId: selectedCategoryId || undefined },
-    { skip: !selectedCategoryId || !isModalOpen },
-  );
-  const [allSubCategories, setAllSubCategories] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!selectedCategoryId) {
-      setAllSubCategories([]);
-      setSelectedSubCategoryId('');
-      return;
-    }
-    setSubsPage(1);
-    setAllSubCategories([]);
-    setSelectedSubCategoryId('');
-  }, [selectedCategoryId]);
-
-  useEffect(() => {
-    if (subsData?.data && selectedCategoryId) {
-      setAllSubCategories((prev) => {
-        const ids = new Set(prev.map((s) => s.id));
-        const next = subsData.data.filter((s) => !ids.has(s.id));
-        return subsPage === 1 ? subsData.data : [...prev, ...next];
-      });
-    }
-  }, [subsData, selectedCategoryId, subsPage]);
+  const { data: categoryHierarchy = [], isLoading: categoriesLoading } = useGetCategoryHierarchyQuery();
+  const selectedCategories = categoryHierarchy.filter((category) => selectedCategoryIds.includes(category.id));
+  const allCategories = categoryHierarchy;
+  const allFilterCategories = categoryHierarchy;
+  const allSubCategories = selectedCategories.flatMap((category) => category.subCategories ?? []).filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index);
+  const selectedSubCategories = allSubCategories.filter((item) => selectedSubCategoryIds.includes(item.id));
+  const allSubSubCategories1 = selectedSubCategories.flatMap((item) => item.subSubCategories1 ?? []).filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index);
+  const selectedSubSubCategories1 = allSubSubCategories1.filter((item) => selectedSubSubCategory1Ids.includes(item.id));
+  const allSubSubCategories2 = selectedSubSubCategories1.flatMap((item) => item.subSubCategories2 ?? []).filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index);
+  const selectedSubSubCategories2 = allSubSubCategories2.filter((item) => selectedSubSubCategory2Ids.includes(item.id));
+  const allSubSubCategories3 = selectedSubSubCategories2.flatMap((item) => item.subSubCategories3 ?? []).filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index);
 
   // Infinite scroll for co-clients
   const [coClientsPage, setCoClientsPage] = useState(1);
@@ -110,17 +75,6 @@ const ProductsPage = () => {
     { skip: !isModalOpen },
   );
   const [allCoClients, setAllCoClients] = useState<any[]>([]);
-
-  // Accumulate categories
-  useEffect(() => {
-    if (categoriesData?.data) {
-      setAllCategories((prev) => {
-        const existingIds = new Set(prev.map((c) => c.id));
-        const newItems = categoriesData.data.filter((c) => !existingIds.has(c.id));
-        return [...prev, ...newItems];
-      });
-    }
-  }, [categoriesData]);
 
   // Accumulate co-clients
   useEffect(() => {
@@ -136,14 +90,8 @@ const ProductsPage = () => {
   // Load initial data when modal opens
   useEffect(() => {
     if (isModalOpen) {
-      setCategoriesPage(1);
       setCoClientsPage(1);
-      setAllCategories([]);
       setAllCoClients([]);
-      // Trigger initial load
-      if (categoriesData?.data) {
-        setAllCategories(categoriesData.data);
-      }
       if (coClientsData?.data) {
         setAllCoClients(coClientsData.data);
       }
@@ -155,6 +103,14 @@ const ProductsPage = () => {
     if (isModalOpen && selectedProduct) {
       setSelectedCategoryId(selectedProduct.categoryId || '');
       setSelectedSubCategoryId(selectedProduct.subCategoryId || '');
+      setSelectedSubSubCategory1Id(selectedProduct.subSubCategory1Id || '');
+      setSelectedSubSubCategory2Id(selectedProduct.subSubCategory2Id || '');
+      setSelectedSubSubCategory3Id(selectedProduct.subSubCategory3Id || '');
+      setSelectedCategoryIds(selectedProduct.categoryId ? [selectedProduct.categoryId] : []);
+      setSelectedSubCategoryIds(selectedProduct.subCategoryId ? [selectedProduct.subCategoryId] : []);
+      setSelectedSubSubCategory1Ids(selectedProduct.subSubCategory1Id ? [selectedProduct.subSubCategory1Id] : []);
+      setSelectedSubSubCategory2Ids(selectedProduct.subSubCategory2Id ? [selectedProduct.subSubCategory2Id] : []);
+      setSelectedSubSubCategory3Ids(selectedProduct.subSubCategory3Id ? [selectedProduct.subSubCategory3Id] : []);
       setSelectedCoClientId(selectedProduct.coclientId || '');
       setIsDepot(selectedProduct.isDepot);
       setDepotPercentage(selectedProduct.depotPercentage || 0);
@@ -162,6 +118,14 @@ const ProductsPage = () => {
     } else if (isModalOpen && !selectedProduct) {
       setSelectedCategoryId('');
       setSelectedSubCategoryId('');
+      setSelectedSubSubCategory1Id('');
+      setSelectedSubSubCategory2Id('');
+      setSelectedSubSubCategory3Id('');
+      setSelectedCategoryIds([]);
+      setSelectedSubCategoryIds([]);
+      setSelectedSubSubCategory1Ids([]);
+      setSelectedSubSubCategory2Ids([]);
+      setSelectedSubSubCategory3Ids([]);
       setSelectedCoClientId('');
       setIsDepot(false);
       setDepotPercentage(0);
@@ -182,6 +146,15 @@ const ProductsPage = () => {
     setSurcharge(0);
     setIsDepot(false);
     setSelectedCategoryId('');
+    setSelectedSubCategoryId('');
+    setSelectedSubSubCategory1Id('');
+    setSelectedSubSubCategory2Id('');
+    setSelectedSubSubCategory3Id('');
+    setSelectedCategoryIds([]);
+    setSelectedSubCategoryIds([]);
+    setSelectedSubSubCategory1Ids([]);
+    setSelectedSubSubCategory2Ids([]);
+    setSelectedSubSubCategory3Ids([]);
     setSelectedCoClientId('');
     setPrefillName(null);
     setIsModalOpen(true);
@@ -244,6 +217,15 @@ const ProductsPage = () => {
     setDepotPercentage(product.depotPercentage || 0);
     setSurcharge((product as any).surcharge || 0);
     setSelectedCategoryId(product.categoryId || '');
+    setSelectedSubCategoryId(product.subCategoryId || '');
+    setSelectedSubSubCategory1Id(product.subSubCategory1Id || '');
+    setSelectedSubSubCategory2Id(product.subSubCategory2Id || '');
+    setSelectedSubSubCategory3Id(product.subSubCategory3Id || '');
+    setSelectedCategoryIds(product.categoryId ? [product.categoryId] : []);
+    setSelectedSubCategoryIds(product.subCategoryId ? [product.subCategoryId] : []);
+    setSelectedSubSubCategory1Ids(product.subSubCategory1Id ? [product.subSubCategory1Id] : []);
+    setSelectedSubSubCategory2Ids(product.subSubCategory2Id ? [product.subSubCategory2Id] : []);
+    setSelectedSubSubCategory3Ids(product.subSubCategory3Id ? [product.subSubCategory3Id] : []);
     setSelectedCoClientId(product.coclientId || '');
     setPhotos([]);
     setIsModalOpen(true);
@@ -284,7 +266,6 @@ const ProductsPage = () => {
         id: row.id,
         data: {
           isDispo: nextIsDispo,
-          stockQuantity: nextIsDispo ? Math.max(row.stockQuantity, 1) : 0,
         },
       });
       showToast(nextIsDispo ? 'Produit marque disponible' : 'Produit marque en rupture', 'success');
@@ -320,6 +301,8 @@ const ProductsPage = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
     
     const baseData: any = {
@@ -329,11 +312,18 @@ const ProductsPage = () => {
       facebookLink: (formData.get('facebookLink') as string) || undefined,
       tiktokLink: (formData.get('tiktokLink') as string) || undefined,
       PrixVente: Number(formData.get('PrixVente')),
-      stockQuantity: Number(formData.get('stockQuantity')),
       isDepot: isDepot,
       surcharge: surcharge || 0,
       categoryId: selectedCategoryId,
+      categoryIds: selectedCategoryIds,
       subCategoryId: selectedSubCategoryId || undefined,
+      subCategoryIds: selectedSubCategoryIds,
+      subSubCategory1Id: selectedSubSubCategory1Id || undefined,
+      subSubCategory1Ids: selectedSubSubCategory1Ids,
+      subSubCategory2Id: selectedSubSubCategory2Id || undefined,
+      subSubCategory2Ids: selectedSubSubCategory2Ids,
+      subSubCategory3Id: selectedSubSubCategory3Id || undefined,
+      subSubCategory3Ids: selectedSubSubCategory3Ids,
       coclientId: selectedCoClientId || undefined,
     };
 
@@ -359,13 +349,20 @@ const ProductsPage = () => {
         if (baseData.tiktokLink) createFormData.append('tiktokLink', String(baseData.tiktokLink));
         createFormData.append('PrixVente', String(baseData.PrixVente));
         if (baseData.PrixAchat !== undefined) createFormData.append('PrixAchat', String(baseData.PrixAchat));
-        createFormData.append('stockQuantity', String(baseData.stockQuantity));
         createFormData.append('isDepot', String(baseData.isDepot));
         if (baseData.depotPercentage !== undefined) createFormData.append('depotPercentage', String(baseData.depotPercentage));
         createFormData.append('surcharge', String(baseData.surcharge || 0));
         if (baseData.coclientId) createFormData.append('coclientId', String(baseData.coclientId));
         createFormData.append('categoryId', String(baseData.categoryId));
         if (baseData.subCategoryId) createFormData.append('subCategoryId', String(baseData.subCategoryId));
+        if (baseData.subSubCategory1Id) createFormData.append('subSubCategory1Id', String(baseData.subSubCategory1Id));
+        if (baseData.subSubCategory2Id) createFormData.append('subSubCategory2Id', String(baseData.subSubCategory2Id));
+        if (baseData.subSubCategory3Id) createFormData.append('subSubCategory3Id', String(baseData.subSubCategory3Id));
+        createFormData.append('categoryIds', JSON.stringify(baseData.categoryIds));
+        createFormData.append('subCategoryIds', JSON.stringify(baseData.subCategoryIds));
+        createFormData.append('subSubCategory1Ids', JSON.stringify(baseData.subSubCategory1Ids));
+        createFormData.append('subSubCategory2Ids', JSON.stringify(baseData.subSubCategory2Ids));
+        createFormData.append('subSubCategory3Ids', JSON.stringify(baseData.subSubCategory3Ids));
         photos
           .filter((photo): photo is File => photo instanceof File)
           .forEach((file) => createFormData.append('photos', file));
@@ -418,6 +415,8 @@ const ProductsPage = () => {
     } catch (error) {
       console.error('Error:', error);
       showToast('Erreur lors de l\'opération', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -509,7 +508,6 @@ const ProductsPage = () => {
         return '-';
       },
     },
-    { header: 'Stock', accessor: 'stockQuantity' },
     {
       header: 'Statut',
       accessor: (row) => {
@@ -554,7 +552,7 @@ const ProductsPage = () => {
         ? viewProduct.photos[0].photoDoc
         : `${apiBaseUrl}${viewProduct.photos[0].photoDoc.startsWith('/') ? '' : '/'}${viewProduct.photos[0].photoDoc}`
       : '';
-  const previewOutOfStock = viewProduct ? viewProduct.isDispo === false || viewProduct.stockQuantity <= 0 : false;
+  const previewOutOfStock = viewProduct ? viewProduct.isDispo === false : false;
 
   return (
     <div>
@@ -577,13 +575,7 @@ const ProductsPage = () => {
               getOptionValue={(category) => category.id}
               value={categoryFilter}
               onChange={(value) => setCategoryFilter(value as string)}
-              onLoadMore={() => {
-                if (filterCategoriesData?.meta && filterCategoriesPage < filterCategoriesData.meta.totalPages) {
-                  setFilterCategoriesPage((previous) => previous + 1);
-                }
-              }}
-              hasMore={Boolean(filterCategoriesData?.meta && filterCategoriesPage < filterCategoriesData.meta.totalPages)}
-              isLoading={filterCategoriesLoading}
+              isLoading={categoriesLoading}
               placeholder="Toutes les catégories"
               className="text-sm"
             />
@@ -721,29 +713,23 @@ const ProductsPage = () => {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Quantité en stock</label>
-              <input
-                type="number"
-                name="stockQuantity"
-                defaultValue={selectedProduct?.stockQuantity}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
               <InfiniteSelect
                 items={allCategories}
                 getOptionLabel={(cat) => cat.categoryName}
                 getOptionValue={(cat) => cat.id}
-                value={selectedCategoryId}
-                onChange={(value) => setSelectedCategoryId(value as string)}
-                onLoadMore={() => {
-                  if (categoriesData?.meta && categoriesPage < categoriesData.meta.totalPages) {
-                    setCategoriesPage((prev) => prev + 1);
-                  }
+                multiple
+                value={selectedCategoryIds}
+                onChange={(value) => {
+                  const values = value as string[];
+                  setSelectedCategoryIds(values);
+                  setSelectedCategoryId(values[0] || '');
+                  setSelectedSubCategoryIds([]);
+                  setSelectedSubCategoryId('');
+                  setSelectedSubSubCategory1Id('');
+                  setSelectedSubSubCategory2Id('');
+                  setSelectedSubSubCategory3Id('');
                 }}
-                hasMore={categoriesData?.meta ? categoriesPage < categoriesData.meta.totalPages : false}
                 isLoading={categoriesLoading}
                 placeholder="Sélectionner une catégorie..."
               />
@@ -756,17 +742,79 @@ const ProductsPage = () => {
               items={allSubCategories}
               getOptionLabel={(s) => s.title}
               getOptionValue={(s) => s.id}
-              value={selectedSubCategoryId}
-              onChange={(value) => setSelectedSubCategoryId(value as string)}
-              onLoadMore={() => {
-                if (subsData?.meta && subsPage < subsData.meta.totalPages) {
-                  setSubsPage((prev) => prev + 1);
-                }
+              multiple
+              value={selectedSubCategoryIds}
+              onChange={(value) => {
+                const values = value as string[];
+                setSelectedSubCategoryIds(values);
+                setSelectedSubCategoryId(values[0] || '');
+                setSelectedSubSubCategory1Id('');
+                setSelectedSubSubCategory2Id('');
+                setSelectedSubSubCategory3Id('');
               }}
-              hasMore={Boolean(selectedCategoryId && subsData?.meta && subsPage < subsData.meta.totalPages)}
-              isLoading={subsLoading}
+              isLoading={categoriesLoading}
               placeholder={selectedCategoryId ? 'Sous-catégorie (optionnel)...' : 'Choisissez d\'abord une catégorie'}
             />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sous-sous-catégorie niveau 1</label>
+              <InfiniteSelect
+                items={allSubSubCategories1}
+                getOptionLabel={(item) => item.title}
+                getOptionValue={(item) => item.id}
+                multiple
+                value={selectedSubSubCategory1Ids}
+                onChange={(value) => {
+                  const values = value as string[];
+                  setSelectedSubSubCategory1Ids(values);
+                  setSelectedSubSubCategory1Id(values[0] || '');
+                  setSelectedSubSubCategory2Id('');
+                  setSelectedSubSubCategory3Id('');
+                }}
+                isLoading={categoriesLoading}
+                disabled={!selectedSubCategoryId}
+                placeholder={selectedSubCategoryId ? 'Choisir (optionnel)...' : 'Choisissez une sous-catégorie'}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sous-sous-catégorie niveau 2</label>
+              <InfiniteSelect
+                items={allSubSubCategories2}
+                getOptionLabel={(item) => item.title}
+                getOptionValue={(item) => item.id}
+                multiple
+                value={selectedSubSubCategory2Ids}
+                onChange={(value) => {
+                  const values = value as string[];
+                  setSelectedSubSubCategory2Ids(values);
+                  setSelectedSubSubCategory2Id(values[0] || '');
+                  setSelectedSubSubCategory3Id('');
+                }}
+                isLoading={categoriesLoading}
+                disabled={!selectedSubSubCategory1Id}
+                placeholder={selectedSubSubCategory1Id ? 'Choisir (optionnel)...' : 'Choisissez le niveau 1'}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sous-sous-catégorie niveau 3</label>
+              <InfiniteSelect
+                items={allSubSubCategories3}
+                getOptionLabel={(item) => item.title}
+                getOptionValue={(item) => item.id}
+                multiple
+                value={selectedSubSubCategory3Ids}
+                onChange={(value) => {
+                  const values = value as string[];
+                  setSelectedSubSubCategory3Ids(values);
+                  setSelectedSubSubCategory3Id(values[0] || '');
+                }}
+                isLoading={categoriesLoading}
+                disabled={!selectedSubSubCategory2Id}
+                placeholder={selectedSubSubCategory2Id ? 'Choisir (optionnel)...' : 'Choisissez le niveau 2'}
+              />
+            </div>
           </div>
 
           <div>
@@ -1011,9 +1059,12 @@ const ProductsPage = () => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              disabled={isSubmitting}
+              aria-label={isEditMode ? 'Enregistrer' : 'Créer'}
+              title={isEditMode ? 'Enregistrer' : 'Créer'}
+              className="inline-flex min-w-24 items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-white transition-colors hover:bg-primary-700 disabled:cursor-wait disabled:opacity-60"
             >
-              {isEditMode ? 'Enregistrer' : 'Créer'}
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : isEditMode ? 'Enregistrer' : 'Créer'}
             </button>
           </div>
         </form>
@@ -1133,7 +1184,6 @@ const ProductsPage = () => {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl bg-gray-50 px-4 py-3">
                 <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Stock</div>
-                <div className="mt-1 text-sm font-semibold text-gray-900">{viewProduct.stockQuantity}</div>
               </div>
               <div className="rounded-xl bg-gray-50 px-4 py-3">
                 <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Statut</div>

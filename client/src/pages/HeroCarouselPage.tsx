@@ -44,7 +44,7 @@ const HeroCarouselPage = () => {
       render: (v) => (
         <div className="h-16 w-28 overflow-hidden rounded-lg border border-gray-200 bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl(String(v))} alt="" className="h-full w-full object-cover" />
+          <img src={imageUrl(String(v))} alt="" className="h-full w-full bg-gray-50 object-contain" />
         </div>
       ),
     },
@@ -215,7 +215,7 @@ const HeroCarouselPage = () => {
                       : imageUrl(selected?.imageDoc || '')
                   }
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="h-full w-full bg-gray-50 object-contain"
                 />
               </div>
             )}

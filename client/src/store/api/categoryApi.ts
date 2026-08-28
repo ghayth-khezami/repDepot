@@ -1,6 +1,31 @@
 import { baseApi } from './baseApi';
 import { Category, PaginatedResponse, CreateCategoryDto, UpdateCategoryDto, QueryParams } from '../../types';
 
+export interface CategoryHierarchy extends Omit<Category, 'subCategories'> {
+  subCategories?: Array<{
+    id: string;
+    title: string;
+    categoryId: string;
+    createdAt: string;
+    updatedAt: string;
+    subSubCategories1?: Array<{
+      id: string;
+      title: string;
+      subCategoryId: string;
+      createdAt: string;
+      updatedAt: string;
+      subSubCategories2?: Array<{
+        id: string;
+        title: string;
+        subSubCategory1Id: string;
+        createdAt: string;
+        updatedAt: string;
+              subSubCategories3?: Array<{ id: string; title: string; subSubCategory2Id: string; createdAt: string; updatedAt: string }>;
+      }>;
+    }>;
+  }>;
+}
+
 function buildCategoryFormData(
   data: CreateCategoryDto | UpdateCategoryDto,
   coverFile?: File | null,
@@ -22,6 +47,10 @@ export const categoryApi = baseApi.injectEndpoints({
         params,
       }),
       providesTags: ['Category'],
+    }),
+    getCategoryHierarchy: builder.query<CategoryHierarchy[], void>({
+      query: () => '/categories/hierarchy',
+      providesTags: ['Category', 'SubCategory'],
     }),
     getCategory: builder.query<Category, string>({
       query: (id) => `/categories/${id}`,
@@ -67,6 +96,7 @@ export const categoryApi = baseApi.injectEndpoints({
 
 export const {
   useGetCategoriesQuery,
+  useGetCategoryHierarchyQuery,
   useGetCategoryQuery,
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
