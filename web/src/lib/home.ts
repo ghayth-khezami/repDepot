@@ -1,5 +1,4 @@
 import type { Icon } from "@phosphor-icons/react";
-import { Heart, Medal, ShieldCheck, Truck } from "@phosphor-icons/react";
 
 export const HOME_COLORS = {
   primary: "#E04672",
@@ -33,28 +32,7 @@ export type HomeFeature = {
   description: string;
 };
 
-export const HOME_FEATURES: HomeFeature[] = [
-  {
-    icon: ShieldCheck,
-    title: "Achats sécurisés",
-    description: "Articles vérifiés avant chaque mise en vente",
-  },
-  {
-    icon: Truck,
-    title: "Paiement à la livraison",
-    description: "Payez à réception en toute sérénité",
-  },
-  {
-    icon: Heart,
-    title: "Retour facile",
-    description: "Échanges simples selon nos conditions",
-  },
-  {
-    icon: Medal,
-    title: "Support réactif",
-    description: "Une équipe à votre écoute au quotidien",
-  },
-];
+export const HOME_FEATURES: HomeFeature[] = [];
 
 export type HeroSlideData = {
   id: string;
@@ -108,28 +86,13 @@ export const HERO_SLIDES: HeroSlideData[] = [
   },
 ];
 
-export const TRUST_ITEMS = [
-  {
-    icon: "CreditCard" as const,
-    title: "Paiement à la livraison",
-    description: "Payez à réception en toute sérénité",
-  },
-  {
-    icon: "ArrowCounterClockwise" as const,
-    title: "Retour facile",
-    description: "Échanges simples selon nos conditions",
-  },
-  {
-    icon: "ChatCircleDots" as const,
-    title: "Support réactif",
-    description: "Une équipe à votre écoute au quotidien",
-  },
-  {
-    icon: "ShieldCheck" as const,
-    title: "Achats sécurisés",
-    description: "Articles vérifiés avant chaque mise en vente",
-  },
-] as const;
+export type TrustItemKey = "CreditCard" | "ArrowCounterClockwise" | "ChatCircleDots" | "ShieldCheck";
+
+export const TRUST_ITEMS: Array<{
+  icon: TrustItemKey;
+  title: string;
+  description: string;
+}> = [];
 
 export const FOOTER_LINKS = [
   { href: "/", label: "Accueil" },

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Edit, Trash2 } from 'lucide-react';
 import Modal from '../components/Modal';
+import CropImageModal from '../components/CropImageModal';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import { useToast } from '../context/ToastContext';
 import { useConfirmDialog } from '../components/ConfirmDialog';
@@ -22,6 +23,7 @@ const HeroCarouselPage = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selected, setSelected] = useState<HeroCarouselSlide | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
 
   const { data, isLoading } = useGetHeroCarouselSlidesAdminQuery({
     page,
@@ -182,6 +184,7 @@ const HeroCarouselPage = () => {
           setIsModalOpen(false);
           setSelected(null);
           setImageFile(null);
+          setCropFile(null);
         }}
         title={isEditMode ? 'Modifier le slide' : 'Nouveau slide carrousel'}
       >
@@ -201,7 +204,7 @@ const HeroCarouselPage = () => {
                   return;
                 }
                 const { compressImageForUpload } = await import('../lib/compressImage');
-                setImageFile(await compressImageForUpload(raw));
+                setCropFile(await compressImageForUpload(raw));
               }}
               className="w-full text-sm"
             />
@@ -276,6 +279,14 @@ const HeroCarouselPage = () => {
           </div>
         </form>
       </Modal>
+      <CropImageModal
+        file={cropFile}
+        onCancel={() => setCropFile(null)}
+        onCrop={(file) => {
+          setImageFile(file);
+          setCropFile(null);
+        }}
+      />
     </div>
   );
 };

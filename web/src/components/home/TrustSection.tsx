@@ -8,11 +8,11 @@ import {
   ShieldCheck,
   type Icon,
 } from "@phosphor-icons/react";
-import { TRUST_ITEMS, HOME_COLORS } from "@/lib/home";
+import { TRUST_ITEMS, HOME_COLORS, type TrustItemKey } from "@/lib/home";
 import { FadeUp } from "./FadeUp";
 import { FloatingStickers } from "./FloatingStickers";
 
-const TRUST_ICONS: Record<(typeof TRUST_ITEMS)[number]["icon"], Icon> = {
+const TRUST_ICONS: Record<TrustItemKey, Icon> = {
   CreditCard,
   ArrowCounterClockwise,
   ChatCircleDots,
@@ -20,6 +20,8 @@ const TRUST_ICONS: Record<(typeof TRUST_ITEMS)[number]["icon"], Icon> = {
 };
 
 export function TrustSection() {
+  if (!TRUST_ITEMS.length) return null;
+
   return (
     <FadeUp>
       <section id="trust" className="home-stickers-zone relative scroll-mt-28">

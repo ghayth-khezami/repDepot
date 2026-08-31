@@ -3,6 +3,7 @@ import { useGetCategoriesQuery, useCreateCategoryMutation, useUpdateCategoryMuta
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import SubCategoriesPanel from '../components/SubCategoriesPanel';
+import SubSubCategoriesPanel from '../components/SubSubCategoriesPanel';
 import CropImageModal from '../components/CropImageModal';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../types';
 import { Edit, Image as ImageIcon, Trash2, Layers, Plus, Search, Sparkles } from 'lucide-react';
@@ -30,7 +31,7 @@ const toStickerUrl = (path?: string) => {
 };
 
 const CategoriesPage = () => {
-  const [tab, setTab] = useState<'categories' | 'subcategories'>('categories');
+  const [tab, setTab] = useState<'categories' | 'subcategories' | 'subsubcategories'>('categories');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
@@ -168,6 +169,17 @@ const CategoriesPage = () => {
         >
           Sous-catégories
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('subsubcategories')}
+          className={`border-b-2 px-4 py-2 text-sm font-semibold transition ${
+            tab === 'subsubcategories'
+              ? 'border-pink-500 text-pink-600'
+              : 'border-transparent text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          Sous-sous-catégories
+        </button>
         </div>
         <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><Search className="h-4 w-4" /> Recherche instantanée dans la liste</div>
       </div>
@@ -253,8 +265,10 @@ const CategoriesPage = () => {
           }}
           addButtonLabel="Ajouter une catégorie"
         />
-      ) : (
+      ) : tab === 'subcategories' ? (
         <SubCategoriesPanel />
+      ) : (
+        <SubSubCategoriesPanel />
       )}
 
       <Modal
@@ -348,8 +362,8 @@ const CategoriesPage = () => {
                   key={path}
                   type="button"
                   onClick={() => setSelectedIcon(path)}
-                  className={`rounded-lg border p-2 ${
-                    selectedIcon === path ? 'border-pink-500 bg-pink-50' : 'border-gray-200 bg-white'
+                  className={`min-h-12 min-w-12 rounded-lg border-2 p-2 ${
+                    selectedIcon === path ? 'border-pink-500 bg-pink-50 ring-2 ring-pink-200' : 'border-gray-300 bg-white hover:border-pink-300'
                   }`}
                 >
                   <img src={toStickerUrl(path)} alt="" className="mx-auto h-8 w-8 object-contain" />

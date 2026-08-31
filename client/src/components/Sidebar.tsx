@@ -56,7 +56,7 @@ const Sidebar = () => {
     <>
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="fixed left-4 top-4 z-50 rounded-lg bg-primary-600 p-2 text-white shadow-lg md:hidden"
+        className="fixed left-4 top-4 z-50 rounded-lg bg-[#E04672] p-2 text-white shadow-lg md:hidden"
         aria-label="Menu"
       >
         {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -65,14 +65,14 @@ const Sidebar = () => {
       <aside
         className={`${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          } fixed z-40 flex h-screen w-64 flex-col border-r border-pink-200/60 bg-gradient-to-b from-pink-100/90 via-rose-50/80 to-pink-50/90 text-gray-800 shadow-lg backdrop-blur-xl transition-transform duration-300 dark:border-pink-900/50 dark:from-rose-950/90 dark:via-slate-900/90 dark:to-rose-950/80 dark:text-gray-100 md:static md:translate-x-0`}
+          } fixed z-40 flex h-screen w-64 flex-col border-r border-[#F7D5DF] bg-gradient-to-b from-[#FFF3F6] via-[#FFFDFE] to-[#FFF8F9] text-[#2D2346] shadow-[0_12px_40px_rgba(224,70,114,0.08)] backdrop-blur-xl transition-transform duration-300 dark:border-[#4C1D2F] dark:from-[#1F1020] dark:via-[#181225] dark:to-[#0F172A] dark:text-gray-100 md:static md:translate-x-0`}
       >
-        <div className="border-b border-gray-200 p-6 dark:border-slate-700">
+        <div className="border-b border-[#F4D4DF] p-6 dark:border-slate-700">
           <div className="flex flex-col items-center gap-3">
             <img src={depotLogo} alt="BÉBÉ-DÉPÔT Logo" className="h-20 w-20 object-contain" />
             <div className="text-center">
-              <h1 className="text-lg font-bold text-rose-800 dark:text-pink-200">BÉBÉ-DÉPÔT</h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Back Office</p>
+              <h1 className="text-lg font-bold text-[#E04672] dark:text-pink-200">BÉBÉ-DÉPÔT</h1>
+              <p className="text-xs text-[#5B4D69] dark:text-gray-400">Back Office</p>
             </div>
           </div>
         </div>
@@ -88,8 +88,8 @@ const Sidebar = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
                   active
-                    ? 'bg-pink-200/80 font-semibold text-rose-900 shadow-sm dark:bg-pink-900/50 dark:text-pink-100'
-                    : 'text-gray-700 hover:bg-pink-100/80 hover:text-rose-900 dark:text-gray-300 dark:hover:bg-rose-900/40 dark:hover:text-white'
+                    ? 'bg-[#FCE4EC] font-semibold text-[#E04672] shadow-sm ring-1 ring-[#F7B7C9] dark:bg-[#3B1A2C] dark:text-pink-100'
+                    : 'text-[#453A56] hover:bg-[#FDF0F5] hover:text-[#E04672] dark:text-gray-300 dark:hover:bg-rose-900/40 dark:hover:text-white'
                 }`}
               >
                 <Icon className="h-5 w-5 shrink-0" />
@@ -103,7 +103,7 @@ const Sidebar = () => {
           <button
             type="button"
             onClick={toggleTheme}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-gray-700 transition-colors hover:bg-pink-100/80 hover:text-rose-900 dark:text-gray-200 dark:hover:bg-rose-900/40 dark:hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[#453A56] transition-colors hover:bg-[#FDF0F5] hover:text-[#E04672] dark:text-gray-200 dark:hover:bg-rose-900/40 dark:hover:text-white"
             aria-pressed={isDark}
           >
             {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -112,7 +112,7 @@ const Sidebar = () => {
           <button
             type="button"
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-gray-700 transition-colors hover:bg-pink-100/80 hover:text-rose-900 dark:text-gray-200 dark:hover:bg-rose-900/40 dark:hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[#453A56] transition-colors hover:bg-[#FDF0F5] hover:text-[#E04672] dark:text-gray-200 dark:hover:bg-rose-900/40 dark:hover:text-white"
           >
             <LogOut className="h-5 w-5" />
             <span>Déconnexion</span>

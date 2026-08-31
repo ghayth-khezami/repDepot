@@ -7,6 +7,7 @@ import { LogOut, Moon, ShoppingCart, Sun, User } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useShop } from "@/context/ShopContext";
+import { LOGO_SRC } from "@/lib/fr";
 
 export function Navbar() {
   const router = useRouter();
@@ -29,7 +30,15 @@ export function Navbar() {
           }}
           className="inline-flex cursor-pointer items-center gap-2"
         >
-          <Image src="/depot.jpg" alt="Bebe-Depot logo" width={34} height={34} className="rounded-full border border-white/15" />
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10 shadow-sm">
+            <Image
+              src={LOGO_SRC}
+              alt="Bebe-Depot logo"
+              width={34}
+              height={34}
+              className="h-full w-full object-contain p-1"
+            />
+          </div>
           <span className="text-lg font-extrabold tracking-tight text-white">Bebe-Depot</span>
         </Link>
         <div className="flex items-center gap-3 text-sm font-semibold">

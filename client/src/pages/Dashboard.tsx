@@ -165,7 +165,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen rounded-2xl bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 p-4 sm:p-6 lg:p-8 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen rounded-2xl bg-gradient-to-br from-[#FFF4F7] via-[#FFFDFB] to-[#FFF4EF] p-4 sm:p-6 lg:p-8 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 animate-fade-in">
           <h1 className="mb-2 text-3xl font-bold sm:text-4xl">Tableau de Bord</h1>
@@ -191,7 +191,7 @@ const Dashboard = () => {
         {/* Revenue Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Revenue Card */}
-          <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 animate-slide-up">
+          <div className="bg-gradient-to-br from-[#F78AA9] to-[#E04672] rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 animate-slide-up">
             <div className="flex items-center justify-between mb-4">
               <div className="bg-white/20 rounded-lg p-3">
                 <DollarSign className="w-8 h-8" />
@@ -208,7 +208,7 @@ const Dashboard = () => {
           </div>
 
           {/* Buying Revenue Card */}
-          <div className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="bg-gradient-to-br from-[#FFB0C7] to-[#F06292] rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between mb-4">
               <div className="bg-white/20 rounded-lg p-3">
                 <ShoppingBag className="w-8 h-8" />
@@ -284,7 +284,7 @@ const Dashboard = () => {
                         index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
                         index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
                         index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                        'bg-gradient-to-br from-purple-400 to-purple-600'
+                        'bg-gradient-to-br from-[#F7A8BF] to-[#E04672]'
                       }`}>
                         {product.rank || index + 1}
                       </div>
@@ -322,7 +322,7 @@ const Dashboard = () => {
                       <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                         <div>
                           <p className="text-xs text-gray-500">Valeur Totale</p>
-                          <p className="text-lg font-bold text-purple-600">
+                          <p className="text-lg font-bold text-[#E04672]">
                             {product.totalValue?.toFixed(2) || product.PrixVente?.toFixed(2) || '0.00'} TND
                           </p>
                         </div>
@@ -344,12 +344,12 @@ const Dashboard = () => {
           {/* Bar Chart - Monthly Sold Products */}
           <div className="bo-panel p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in">
             <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
-              <TrendingUp className="w-6 h-6 text-purple-600" />
+              <TrendingUp className="w-6 h-6 text-[#E04672]" />
               Produits Vendus par Mois
             </h2>
             {monthlyLoading ? (
               <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E04672]"></div>
               </div>
             ) : monthlySoldData && monthlySoldData.length > 0 ? (
               <div className="space-y-4">
@@ -361,7 +361,7 @@ const Dashboard = () => {
                         <span className="w-12 text-sm font-medium text-gray-700 dark:text-gray-300">{formatMonth(item.month)}</span>
                         <div className="h-8 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                           <div
-                            className="bg-gradient-to-r from-purple-500 to-indigo-600 h-full rounded-full flex items-center justify-end pr-3 transition-all duration-1000 ease-out"
+                            className="bg-gradient-to-r from-[#E04672] to-[#F7A8BF] h-full rounded-full flex items-center justify-end pr-3 transition-all duration-1000 ease-out"
                             style={{ width: `${percentage}%` }}
                           >
                             {item.count > 0 && (
@@ -492,7 +492,7 @@ const Dashboard = () => {
                           <p className="text-xs text-gray-500">
                             {new Date(location.date).toLocaleDateString('fr-FR')}
                           </p>
-                          <p className="text-xs text-purple-600 font-medium">{location.revenue.toFixed(2)} TND</p>
+                          <p className="text-xs text-[#E04672] font-medium">{location.revenue.toFixed(2)} TND</p>
                           <p className="text-xs text-gray-600">{location.address}</p>
                         </div>
                       </Popup>

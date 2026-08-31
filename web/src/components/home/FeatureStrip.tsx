@@ -8,12 +8,17 @@ import { FeatureCard } from "./FeatureCard";
 export function FeatureStrip() {
   const [focusedIndex, setFocusedIndex] = useState(0);
 
+  if (!HOME_FEATURES.length) return null;
+
   useEffect(() => {
+    if (HOME_FEATURES.length === 0) return;
     const timer = window.setInterval(() => {
       setFocusedIndex((index) => (index + 1) % HOME_FEATURES.length);
     }, 3000);
     return () => window.clearInterval(timer);
   }, []);
+
+  if (HOME_FEATURES.length === 0) return null;
 
   return (
     <section className="relative z-10 mt-4">
