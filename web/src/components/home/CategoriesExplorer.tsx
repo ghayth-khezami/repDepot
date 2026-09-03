@@ -37,7 +37,7 @@ export function CategoriesExplorer({
               </h2>
             </div>
             <Link
-              href="/categories"
+              href="/produits"
               className="text-sm font-semibold text-[#E04672] underline-offset-4 hover:underline"
             >
               Voir tout →

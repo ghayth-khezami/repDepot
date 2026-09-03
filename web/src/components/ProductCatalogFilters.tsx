@@ -17,8 +17,8 @@ export type CatalogFilterState = Filters & {
   subSubCategory1Id?: string;
 };
 
-const PRICE_MIN = 0;
-const PRICE_MAX = 500;
+const FALLBACK_PRICE_MIN = 0;
+const FALLBACK_PRICE_MAX = 500;
 
 const SORT_OPTIONS: Array<{ value: NonNullable<Filters["sort"]>; label: string }> = [
   { value: "price_asc", label: fr.sortPriceAsc },
@@ -33,14 +33,14 @@ type Props = {
   variant?: "sidebar" | "standalone" | "mobile-trigger";
 };
 
-function countActive(f: CatalogFilterState) {
+function countActive(f: CatalogFilterState, priceMin: number, priceMax: number) {
   let n = 0;
   if (f.search?.trim()) n += 1;
   if (f.categoryId) n += 1;
   if (f.subCategoryId) n += 1;
   if (f.subSubCategory1Id) n += 1;
-  if (f.minPrice !== undefined && f.minPrice > PRICE_MIN) n += 1;
-  if (f.maxPrice !== undefined && f.maxPrice < PRICE_MAX) n += 1;
+  if (f.minPrice !== undefined && f.minPrice > priceMin) n += 1;
+  if (f.maxPrice !== undefined && f.maxPrice < priceMax) n += 1;
   if (f.sort && f.sort !== "newest") n += 1;
   return n;
 }
@@ -59,13 +59,26 @@ export function ProductCatalogFilters({
   const [categoryOpen, setCategoryOpen] = useState(true);
   const [subCategoryOpen, setSubCategoryOpen] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [priceBounds, setPriceBounds] = useState({ min: FALLBACK_PRICE_MIN, max: FALLBACK_PRICE_MAX });
   const [searchInput, setSearchInput] = useState(value.search ?? "");
-  const [priceMin, setPriceMin] = useState(value.minPrice ?? PRICE_MIN);
-  const [priceMax, setPriceMax] = useState(value.maxPrice ?? PRICE_MAX);
+  const [priceMin, setPriceMin] = useState(value.minPrice ?? FALLBACK_PRICE_MIN);
+  const [priceMax, setPriceMax] = useState(value.maxPrice ?? FALLBACK_PRICE_MAX);
   const debouncedSearch = useDebouncedValue(searchInput, 350);
-  const activeCount = countActive(value);
+  const activeCount = countActive(value, priceBounds.min, priceBounds.max);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    api.getProductPriceRange().then((range) => {
+      const min = Math.floor(Math.max(0, range.min));
+      const max = Math.ceil(Math.max(min + 1, range.max));
+      setPriceBounds({ min, max });
+      setPriceMin(value.minPrice ?? min);
+      setPriceMax(value.maxPrice ?? max);
+    }).catch(() => undefined);
+    // The range is loaded once when the filter panel mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!value.categoryId) {
@@ -119,8 +132,8 @@ export function ProductCatalogFilters({
 
   const reset = () => {
     setSearchInput("");
-    setPriceMin(PRICE_MIN);
-    setPriceMax(PRICE_MAX);
+    setPriceMin(priceBounds.min);
+    setPriceMax(priceBounds.max);
     onChange({ sort: "newest", minPrice: undefined, maxPrice: undefined });
   };
 
@@ -128,8 +141,8 @@ export function ProductCatalogFilters({
     setPriceMin(min);
     setPriceMax(max);
     patch({
-      minPrice: min > PRICE_MIN ? min : undefined,
-      maxPrice: max < PRICE_MAX ? max : undefined,
+      minPrice: min > priceBounds.min ? min : undefined,
+      maxPrice: max < priceBounds.max ? max : undefined,
     });
   };
 
@@ -177,8 +190,8 @@ export function ProductCatalogFilters({
       <div>
         <span className="catalog-filter-label">Prix (TND)</span>
         <PriceRangeSlider
-          min={PRICE_MIN}
-          max={PRICE_MAX}
+          min={priceBounds.min}
+          max={priceBounds.max}
           valueMin={priceMin}
           valueMax={priceMax}
           onChange={handlePriceChange}

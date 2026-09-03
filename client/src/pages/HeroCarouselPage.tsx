@@ -23,6 +23,7 @@ const HeroCarouselPage = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selected, setSelected] = useState<HeroCarouselSlide | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [mobileImageFile, setMobileImageFile] = useState<File | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
 
   const { data, isLoading } = useGetHeroCarouselSlidesAdminQuery({
@@ -79,6 +80,7 @@ const HeroCarouselPage = () => {
     fd.append('ctaType', String(data.get('ctaType') || ''));
     fd.append('align', String(data.get('align') || ''));
     if (imageFile) fd.append('image', imageFile);
+    if (mobileImageFile) fd.append('imageMobile', mobileImageFile);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -100,6 +102,7 @@ const HeroCarouselPage = () => {
       setIsModalOpen(false);
       setSelected(null);
       setImageFile(null);
+      setMobileImageFile(null);
     } catch {
       showToast('Erreur', 'error');
     }
@@ -144,6 +147,7 @@ const HeroCarouselPage = () => {
                 setIsEditMode(true);
                 setSelected(row);
                 setImageFile(null);
+                setMobileImageFile(null);
                 setIsModalOpen(true);
               }}
               className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
@@ -223,6 +227,11 @@ const HeroCarouselPage = () => {
               </div>
             )}
           </div>
+          <div className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-gray-600">
+            <p className="font-medium text-gray-700">Image mobile (optionnel)</p>
+            <p className="mt-1 text-xs">Choisissez la photo source puis enregistrez la version mobile dans le recadrage.</p>
+            {mobileImageFile || selected?.imageDocMobile ? <p className="mt-2 text-xs text-green-700">Version mobile prête</p> : null}
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Texte alternatif</label>
             <input
@@ -282,9 +291,14 @@ const HeroCarouselPage = () => {
       <CropImageModal
         file={cropFile}
         onCancel={() => setCropFile(null)}
-        onCrop={(file) => {
-          setImageFile(file);
-          setCropFile(null);
+        onCrop={(file, _preview, preset) => {
+          if (preset === 'mobile') {
+            setMobileImageFile(file);
+            setCropFile(null);
+          } else {
+            setImageFile(file);
+            setCropFile(null);
+          }
         }}
       />
     </div>

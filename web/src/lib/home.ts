@@ -37,6 +37,7 @@ export const HOME_FEATURES: HomeFeature[] = [];
 export type HeroSlideData = {
   id: string;
   image: string;
+  mobileImage?: string;
   imageAlt: string;
   imageOnly?: boolean;
   arabicWelcome?: string;

@@ -136,6 +136,7 @@ export const api = {
     return request<ApiPaginated<Product>>(`/products?${params.toString()}`, "GET", undefined, token);
   },
   getFeaturedProducts: () => request<Product[]>("/products/featured"),
+  getProductPriceRange: () => request<{ min: number; max: number }>("/products/price-range"),
   getProduct: (id: string, token?: string | null) =>
     request<Product>(`/products/${id}`, "GET", undefined, token),
   login: (email: string, password: string) =>
@@ -235,6 +236,7 @@ export const api = {
       Array<{
         id: string;
         imageDoc: string;
+        imageDocMobile?: string | null;
         imageAlt: string;
         sortOrder: number;
         isPublished: boolean;

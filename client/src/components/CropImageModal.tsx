@@ -5,7 +5,7 @@ import Modal from './Modal';
 type CropImageModalProps = {
   file: File | null;
   onCancel: () => void;
-  onCrop: (file: File, previewUrl: string) => void;
+  onCrop: (file: File, previewUrl: string, preset: 'web' | 'mobile') => void;
 };
 
 type Point = { x: number; y: number };
@@ -175,7 +175,7 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
     canvas.toBlob((blob) => {
       if (!blob) return;
       const croppedFile = new File([blob], `carousel-${Date.now()}.jpg`, { type: 'image/jpeg' });
-      onCrop(croppedFile, URL.createObjectURL(blob));
+      onCrop(croppedFile, URL.createObjectURL(blob), preset.id);
     }, 'image/jpeg', 0.9);
   };
 

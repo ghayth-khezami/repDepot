@@ -300,6 +300,14 @@ export class ProductService {
     };
   }
 
+  async getPriceRange() {
+    const range = await this.prisma.product.aggregate({
+      _min: { PrixVente: true },
+      _max: { PrixVente: true },
+    });
+    return { min: range._min.PrixVente ?? 0, max: range._max.PrixVente ?? 0 };
+  }
+
   async findOne(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },

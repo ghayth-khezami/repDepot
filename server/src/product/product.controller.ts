@@ -179,6 +179,12 @@ export class ProductController {
     return this.productService.findAll(query, { sanitize: true });
   }
 
+  @Get("price-range")
+  @SkipThrottle()
+  getPriceRange() {
+    return this.productService.getPriceRange();
+  }
+
   @Get("featured")
   @ApiOperation({ summary: "Get featured products for homepage (max 8)" })
   @SkipThrottle()

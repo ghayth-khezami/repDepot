@@ -21,6 +21,7 @@ async function uploadHeroSlide(
 export interface HeroCarouselSlide {
   id: string;
   imageDoc: string;
+  imageDocMobile?: string | null;
   imageAlt: string;
   sortOrder: number;
   isPublished: boolean;

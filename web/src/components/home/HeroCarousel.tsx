@@ -25,6 +25,7 @@ function mapApiSlide(slide: ApiSlide): HeroSlideData {
   return {
     id: slide.id,
     image: api.normalizePhotoUrl(slide.imageDoc),
+    mobileImage: api.normalizePhotoUrl(slide.imageDocMobile) || undefined,
     imageAlt: slide.imageAlt || "Bébé Dépôt",
     imageOnly: slide.imageOnly,
     arabicWelcome: slide.arabicWelcome ?? undefined,

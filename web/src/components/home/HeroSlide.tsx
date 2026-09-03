@@ -105,7 +105,7 @@ export function HeroSlide({
               fill
               priority={priority}
               sizes="100vw"
-              className="object-contain object-center"
+              className="object-cover object-center"
             />
           </motion.div>
         </div>
@@ -122,7 +122,7 @@ export function HeroSlide({
               fill
               priority={priority}
               sizes="(max-width: 1280px) 100vw, 1280px"
-              className="object-contain object-center"
+              className="object-cover object-center"
             />
           </motion.div>
         </div>
@@ -141,12 +141,12 @@ export function HeroSlide({
             transition={isActive ? { duration: 5.5, ease: "easeOut" } : { duration: 0.3 }}
           >
             <Image
-              src={slide.image}
+              src={slide.mobileImage ?? slide.image}
               alt={slide.imageAlt}
               fill
               priority={priority}
               sizes="100vw"
-              className="object-contain object-center"
+              className="object-cover object-center"
             />
           </motion.div>
         </div>
@@ -179,7 +179,7 @@ export function HeroSlide({
             fill
             priority={priority}
             sizes="(max-width: 1280px) 100vw, 1280px"
-            className="object-contain object-center"
+            className="object-cover object-center"
           />
         </motion.div>
 

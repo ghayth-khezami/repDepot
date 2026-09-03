@@ -5,6 +5,7 @@ import { PaginatedResponse } from "../common/dto/pagination.dto";
 
 export type HeroCarouselSlideInput = {
   imageDoc: string;
+  imageDocMobile?: string | null;
   imageAlt?: string;
   sortOrder?: number;
   isPublished?: boolean;
@@ -66,6 +67,7 @@ export class HeroCarouselSlideService {
     return this.prisma.heroCarouselSlide.create({
       data: {
         imageDoc: data.imageDoc,
+        imageDocMobile: data.imageDocMobile ?? null,
         imageAlt: data.imageAlt ?? "",
         sortOrder: data.sortOrder ?? 0,
         isPublished: data.isPublished ?? true,

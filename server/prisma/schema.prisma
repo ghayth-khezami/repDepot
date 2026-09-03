@@ -425,6 +425,7 @@ model PushSubscription {
 model HeroCarouselSlide {
   id            String   @id @default(uuid())
   imageDoc      String
+  imageDocMobile String?
   imageAlt      String   @default("")
   sortOrder     Int      @default(0)
   isPublished   Boolean  @default(true)

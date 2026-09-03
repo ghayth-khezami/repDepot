@@ -8,11 +8,11 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FileFieldsInterceptor } from "@nestjs/platform-express";
 import { ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { UserRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -85,17 +85,22 @@ export class HeroCarouselSlideController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @UseInterceptors(FileInterceptor("image", imageUpload))
+  @UseInterceptors(FileFieldsInterceptor([{ name: "image", maxCount: 1 }, { name: "imageMobile", maxCount: 1 }], imageUpload))
   @ApiConsumes("multipart/form-data")
   @ApiOperation({ summary: "Create hero carousel slide (admin, Cloudinary)" })
   async create(
     @Body() body: Record<string, string>,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles() files?: { image?: Express.Multer.File[]; imageMobile?: Express.Multer.File[] },
   ) {
+    const file = files?.image?.[0];
     if (!file) throw new BadRequestException("image file is required");
     const imageDoc = await this.cloudinary.uploadFile(file, "hero-carousel");
+    const imageDocMobile = files?.imageMobile?.[0]
+      ? await this.cloudinary.uploadFile(files.imageMobile[0], "hero-carousel")
+      : null;
     return this.heroCarouselSlideService.create({
       imageDoc,
+      imageDocMobile,
       ...slidePayloadFromBody(body),
     });
   }
@@ -103,19 +108,26 @@ export class HeroCarouselSlideController {
   @Patch(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @UseInterceptors(FileInterceptor("image", imageUpload))
+  @UseInterceptors(FileFieldsInterceptor([{ name: "image", maxCount: 1 }, { name: "imageMobile", maxCount: 1 }], imageUpload))
   @ApiConsumes("multipart/form-data")
   @ApiOperation({ summary: "Update hero carousel slide (admin, Cloudinary)" })
   async update(
     @Param("id") id: string,
     @Body() body: Record<string, string>,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles() files?: { image?: Express.Multer.File[]; imageMobile?: Express.Multer.File[] },
   ) {
     const data: Record<string, unknown> = slidePayloadFromBody(body);
+    const file = files?.image?.[0];
+    const mobileFile = files?.imageMobile?.[0];
     if (file) {
       const existing = await this.heroCarouselSlideService.findOne(id);
       await this.cloudinary.deleteByUrl(existing.imageDoc);
       data.imageDoc = await this.cloudinary.uploadFile(file, "hero-carousel");
+    }
+    if (mobileFile) {
+      const existing = await this.heroCarouselSlideService.findOne(id);
+      if (existing.imageDocMobile) await this.cloudinary.deleteByUrl(existing.imageDocMobile);
+      data.imageDocMobile = await this.cloudinary.uploadFile(mobileFile, "hero-carousel");
     }
     return this.heroCarouselSlideService.update(id, data);
   }
