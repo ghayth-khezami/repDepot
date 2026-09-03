@@ -52,11 +52,6 @@ export const metadata: Metadata = {
   openGraph: defaultOpenGraph("/", `${SITE_NAME} — Boutique bébé`, SITE_DESCRIPTION),
   twitter: { card: "summary_large_image", title: SITE_NAME, description: SITE_DESCRIPTION },
   robots: { index: true, follow: true },
-  icons: {
-    icon: "/depot.png",
-    shortcut: "/depot.png",
-    apple: "/depot.png",
-  },
 };
 
 export default function RootLayout({

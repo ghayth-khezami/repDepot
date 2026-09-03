@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/$/, "");
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "https://repdepot-qgek.onrender.com").replace(/\/$/, "");
 
 function isLocalApi(url: string) {
   try {

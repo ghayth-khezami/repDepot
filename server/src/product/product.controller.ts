@@ -163,6 +163,7 @@ export class ProductController {
   @Get("admin/list")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @SkipThrottle()
   @ApiOperation({ summary: "Admin: full product list with sensitive fields" })
   findAllAdmin(@Query() query: ProductQueryDto) {
     return this.productService.findAll(query, { sanitize: false });

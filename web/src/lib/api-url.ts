@@ -1,6 +1,6 @@
 /** Remote Nest API (from env). Server-side and image URLs always use this. */
 export function getRemoteApiUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_API_URL || "https://repdepot-qgek.onrender.com").replace(/\/$/, "");
 }
 
 function isLocalApi(url: string): boolean {
