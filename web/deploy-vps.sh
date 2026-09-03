@@ -14,12 +14,12 @@ fi
 
 if [ ! -f .env ]; then
   echo "ERROR: .env missing. Create web/.env with:"
-  echo "  NEXT_PUBLIC_API_URL=https://repdepot-qgek.onrender.com"
+  echo "  NEXT_PUBLIC_API_URL=https://api.bebedepot.tn"
   exit 1
 fi
 
-if ! grep -q "NEXT_PUBLIC_API_URL=https://repdepot-qgek.onrender.com" .env; then
-  echo "WARN: NEXT_PUBLIC_API_URL should be https://repdepot-qgek.onrender.com (no /api suffix)"
+if ! grep -q "NEXT_PUBLIC_API_URL=https://api.bebedepot.tn" .env; then
+  echo "WARN: NEXT_PUBLIC_API_URL should be https://api.bebedepot.tn (no /api suffix)"
 fi
 
 echo "==> Building Next.js..."

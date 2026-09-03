@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "https://repdepot-qgek.onrender.com").replace(/\/$/, "");
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "https://api.bebedepot.tn").replace(/\/$/, "");
 
 function isLocalApi(url: string) {
   try {
@@ -31,9 +31,6 @@ function remotePatterns() {
 }
 
 const nextConfig: NextConfig = {
-  // Vercel projects imported from the old Vite setup often keep Output Directory = "dist".
-  // Next.js defaults to ".next"; align build output so deploy succeeds without dashboard changes.
-  distDir: process.env.VERCEL ? "dist" : ".next",
   images: {
     remotePatterns: remotePatterns(),
     formats: ["image/avif", "image/webp"],
