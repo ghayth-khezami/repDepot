@@ -199,7 +199,19 @@ export POSTGRES_PASSWORD='your-strong-password'
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-### 1.6 HTTPS (Caddy — simple)
+### 1.6 Load the initial product catalog (one time)
+
+The catalog is application data, so it is loaded separately from Prisma schema migrations. Run this once from the server directory after the API dependencies are installed:
+
+```bash
+pnpm prisma migrate deploy
+pnpm seed:categories
+pnpm seed:catalog
+```
+
+`seed:catalog` is safe to rerun: existing products with the same category and name are left unchanged. The seed creates products without photos when the local `mock/` images are not present; photos can then be uploaded from the product form or copied to the server separately.
+
+### 1.7 HTTPS (Caddy — simple)
 
 Install Caddy on the VM, `/etc/caddy/Caddyfile`:
 

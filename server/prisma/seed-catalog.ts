@@ -647,10 +647,11 @@ function slugify(name: string): string {
     .slice(0, 60);
 }
 
-function copyMockToUploads(mockRelative: string, destBaseName: string): string {
+function copyMockToUploads(mockRelative: string, destBaseName: string): string | null {
   const src = join(MOCK_DIR, mockRelative);
   if (!existsSync(src)) {
-    throw new Error(`Mock image not found: ${src}`);
+    console.warn(`  ! Photo locale absente, produit créé sans photo: ${mockRelative}`);
+    return null;
   }
   const ext = extname(mockRelative) || ".jpg";
   const destName = `${destBaseName}${ext}`;
@@ -669,25 +670,6 @@ function attachMockFiles(
   }));
 }
 
-async function clearCategoryProducts(categoryNames: string[]) {
-  const cats = await prisma.category.findMany({
-    where: { categoryName: { in: categoryNames } },
-    select: { id: true },
-  });
-  const ids = cats.map((c) => c.id);
-  if (ids.length === 0) return;
-  await prisma.productPhoto.deleteMany({
-    where: { product: { categoryId: { in: ids } } },
-  });
-  await prisma.userLike.deleteMany({
-    where: { product: { categoryId: { in: ids } } },
-  });
-  await prisma.commandDetail.deleteMany({
-    where: { product: { categoryId: { in: ids } } },
-  });
-  await prisma.product.deleteMany({ where: { categoryId: { in: ids } } });
-}
-
 async function seedCategory(
   categoryName: string,
   products: ProductSeed[],
@@ -703,21 +685,27 @@ async function seedCategory(
     const slug = slugify(`${categoryName}-${p.productName}-${i + 1}`);
     const photoDoc = copyMockToUploads(p.mockFile, `catalog-${slug}`);
 
+    const existing = await prisma.product.findFirst({
+      where: { categoryId: category.id, productName: p.productName },
+      select: { id: true },
+    });
+    if (existing) {
+      console.log(`  = ${p.productName} (déjà présent)`);
+      continue;
+    }
+
     const product = await prisma.product.create({
       data: {
         productName: p.productName,
         description: p.description,
         PrixVente: p.PrixVente,
         PrixAchat: p.PrixAchat,
-        stockQuantity: p.stockQuantity,
         isDepot: false,
         isDispo: true,
         surcharge: 0,
         gain: Number((p.PrixVente - p.PrixAchat).toFixed(2)),
         categoryId: category.id,
-        photos: {
-          create: [{ photoDoc }],
-        },
+        ...(photoDoc ? { photos: { create: [{ photoDoc }] } } : {}),
       },
     });
     console.log(`  + ${product.productName}`);
@@ -732,9 +720,6 @@ async function main() {
   }
 
   const targetCategories = CATEGORIES.map((c) => c.categoryName);
-  console.log("🗑️  Nettoyage des produits existants dans les catégories cibles…");
-  await clearCategoryProducts([...targetCategories]);
-
   for (const c of CATEGORIES) {
     await prisma.category.upsert({
       where: { categoryName: c.categoryName },
