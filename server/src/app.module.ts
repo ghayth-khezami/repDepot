@@ -25,6 +25,7 @@ import { CloudinaryModule } from "./cloudinary/cloudinary.module";
 import { MediaModule } from "./media/media.module";
 import { HeroCarouselSlideModule } from "./hero-carousel-slide/hero-carousel-slide.module";
 import { SiteSettingsModule } from "./site-settings/site-settings.module";
+import { ReadAwareThrottlerGuard } from "./common/guards/read-aware-throttler.guard";
 
 @Module({
   imports: [
@@ -89,7 +90,7 @@ import { SiteSettingsModule } from "./site-settings/site-settings.module";
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: ReadAwareThrottlerGuard,
     },
   ],
 })

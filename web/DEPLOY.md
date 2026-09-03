@@ -11,13 +11,13 @@ Create a **separate** Vercel project from the mobile PWA (do not reuse mobile se
 | **Root Directory** | `web` |
 | **Framework Preset** | Next.js |
 | **Build Command** | `pnpm build` (or leave default) |
-| **Output Directory** | `dist` (aligned with `next.config.ts` when deployed on Vercel) |
+| **Output Directory** | Leave empty (Next.js default) |
 | **Install Command** | `pnpm install` |
 
 ### Environment variables
 
 ```env
-NEXT_PUBLIC_API_URL=https://repdepot-qgek.onrender.com
+NEXT_PUBLIC_API_URL=https://api.bebedepot.tn
 ```
 
 No trailing slash. **Do not** add `/api` — Nest routes are `/products`, `/categories`, etc. (`/api` is Swagger docs only in dev).

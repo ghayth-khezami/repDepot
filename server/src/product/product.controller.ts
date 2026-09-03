@@ -485,12 +485,14 @@ export class ProductController {
   @Get(":id/full")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @SkipThrottle()
   @ApiOperation({ summary: "Admin: get product with sensitive fields" })
   findOneFull(@Param("id") id: string) {
     return this.productService.findOne(id);
   }
 
   @Get(":id")
+  @SkipThrottle()
   @ApiOperation({ summary: "Get a product by ID" })
   @ApiParam({ name: "id", description: "Product ID" })
   @ApiResponse({ status: 200, description: "Product found" })
