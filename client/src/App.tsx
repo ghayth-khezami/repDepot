@@ -20,6 +20,7 @@ import NewsletterPage from './pages/NewsletterPage';
 import FeaturedProductsPage from './pages/FeaturedProductsPage';
 import HeroCarouselPage from './pages/HeroCarouselPage';
 import SiteSettingsPage from './pages/SiteSettingsPage';
+import QrScannerPage from './pages/QrScannerPage';
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, bootstrapping } = useAuth();
@@ -43,6 +44,7 @@ function App() {
                 <Route path="/co-clients" element={<CoClientsPage />} />
                 <Route path="/categories" element={<CategoriesPage />} />
                 <Route path="/products" element={<ProductsPage />} />
+                <Route path="/scan" element={<QrScannerPage />} />
                 <Route path="/coups-de-coeur" element={<FeaturedProductsPage />} />
                 <Route path="/commands" element={<CommandsPage />} />
                 <Route path="/deposit-requests" element={<DepositRequestsPage />} />

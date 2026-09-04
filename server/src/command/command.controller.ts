@@ -67,6 +67,15 @@ export class CommandController {
     return this.commandService.findAll(query);
   }
 
+  @Delete("admin/all")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Admin: delete all commands" })
+  removeAll() {
+    return this.commandService.removeAll();
+  }
+
   @Get("export/csv")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

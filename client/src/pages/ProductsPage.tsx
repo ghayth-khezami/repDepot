@@ -3,6 +3,7 @@ import {
   useGetProductsQuery,
   useUpdateProductMutation,
   useDeleteProductMutation,
+  useDeleteAllProductsMutation,
 } from '../store/api/productApi';
 import { useGetCategoryHierarchyQuery } from '../store/api/categoryApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
@@ -134,6 +135,7 @@ const ProductsPage = () => {
   }, [isModalOpen, selectedProduct]);
   const [updateProduct] = useUpdateProductMutation();
   const [deleteProduct] = useDeleteProductMutation();
+  const [deleteAllProducts] = useDeleteAllProductsMutation();
   const { showToast } = useToast();
   const { confirm, dialog } = useConfirmDialog();
 
@@ -255,6 +257,19 @@ const ProductsPage = () => {
       onConfirm: async () => {
         await deleteProduct(id).unwrap();
         showToast('Produit supprimé avec succès', 'success');
+      },
+    });
+  };
+
+  const handleDeleteAll = () => {
+    confirm({
+      title: 'Supprimer tous les produits',
+      message: 'Cette action supprime définitivement tous les produits. Continuer ?',
+      confirmLabel: 'Tout supprimer',
+      onConfirm: async () => {
+        const result = await deleteAllProducts().unwrap();
+        showToast(`${result.deleted} produits supprimés`, 'success');
+        await refetch();
       },
     });
   };
@@ -456,6 +471,22 @@ const ProductsPage = () => {
       .catch(() => showToast('Erreur lors de l\'export PDF', 'error'));
   };
 
+  const handleExportQrPdf = () => {
+    const token = localStorage.getItem('token');
+    fetch(`${apiBaseUrl}/products/export/qr/pdf`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'produits-qr.pdf';
+        link.click();
+        window.URL.revokeObjectURL(url);
+        showToast('PDF QR généré', 'success');
+      })
+      .catch(() => showToast('Erreur génération PDF QR', 'error'));
+  };
+
   const products = data?.data || [];
 
   const columns: Column<Product & { isSold?: boolean; photos?: any[] }>[] = [
@@ -559,6 +590,12 @@ const ProductsPage = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold sm:text-3xl">Gestion des Produits</h1>
         <p className="bo-muted mt-2">Gérez tous les produits</p>
+        <button type="button" onClick={handleDeleteAll} className="mt-3 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">
+          Supprimer tous les produits
+        </button>
+        <button type="button" onClick={handleExportQrPdf} className="ml-2 mt-3 rounded-lg border border-primary-200 px-3 py-2 text-sm font-semibold text-primary-700">
+          Générer PDF QR produits
+        </button>
       </div>
 
       <ReusableTable

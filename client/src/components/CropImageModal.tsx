@@ -37,6 +37,7 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
   const [zoom, setZoom] = useState(1);
   const [step, setStep] = useState<'web' | 'mobile'>('web');
   const [selection, setSelection] = useState<Selection>({ x: 70, y: 45, width: 420, height: 220 });
+  const [previewUrl, setPreviewUrl] = useState('');
 
   const preset = PRESETS.find((item) => item.id === step) ?? PRESETS[0];
   const viewWidth = preset.width;
@@ -70,6 +71,34 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
 
     setSelection(nextSelection);
   }, [preset.id, file]);
+
+  useEffect(() => {
+    if (!imageRef.current || !sourceUrl) return;
+    const image = imageRef.current;
+    if (!image.complete || !image.naturalWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = preset.outputWidth;
+    canvas.height = preset.outputHeight;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    const scale = Math.max(viewWidth / image.naturalWidth, viewHeight / image.naturalHeight) * zoom;
+    const renderedWidth = image.naturalWidth * scale;
+    const renderedHeight = image.naturalHeight * scale;
+    const imageLeft = (viewWidth - renderedWidth) / 2;
+    const imageTop = (viewHeight - renderedHeight) / 2;
+    context.drawImage(
+      image,
+      (selection.x - imageLeft) / scale,
+      (selection.y - imageTop) / scale,
+      selection.width / scale,
+      selection.height / scale,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    setPreviewUrl(canvas.toDataURL('image/jpeg', 0.85));
+  }, [selection, zoom, preset, sourceUrl, viewWidth, viewHeight]);
 
   if (!file || !sourceUrl) return null;
 
@@ -213,6 +242,19 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
           ))}
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(['web', 'mobile'] as const).map((previewPreset) => (
+            <div key={previewPreset} className="rounded-xl border border-rose-100 bg-white p-2">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-rose-700">
+                {previewPreset === 'web' ? 'Aperçu site web' : 'Aperçu mobile'}
+              </p>
+              <div className={`overflow-hidden rounded-lg bg-slate-100 ${previewPreset === 'web' ? 'aspect-[16/9]' : 'aspect-[9/12]'}`}>
+                {previewUrl ? <img src={previewUrl} alt="Aperçu du carrousel" className="h-full w-full object-cover" /> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div
           ref={viewportRef}
           className="relative mx-auto w-full overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-rose-200"
@@ -280,7 +322,7 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
           </button>
           <button type="button" onClick={saveCrop} className="inline-flex items-center gap-2 rounded-xl bg-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-600">
             <Check className="h-4 w-4" />
-            Utiliser cette photo
+            Enregistrer {preset.label}
           </button>
         </div>
       </div>

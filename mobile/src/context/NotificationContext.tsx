@@ -13,6 +13,7 @@ import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import {
   useGetNotificationsQuery,
+  useLazyGetNotificationsQuery,
   useGetUnreadCountQuery,
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
@@ -39,6 +40,8 @@ type NotificationContextValue = {
   pushEnabled: boolean;
   enablePush: () => Promise<void>;
   connected: boolean;
+  loadMore: () => Promise<boolean>;
+  hasMore: boolean;
 };
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
@@ -56,6 +59,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [liveItems, setLiveItems] = useState<AppNotification[]>([]);
   const [connected, setConnected] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [extraItems, setExtraItems] = useState<AppNotification[]>([]);
+  const [notificationPage, setNotificationPage] = useState(1);
   const socketRef = useRef<Socket | null>(null);
 
   const { data: listData, refetch: refetchList } = useGetNotificationsQuery(
@@ -69,13 +74,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [markAllReadMutation] = useMarkAllNotificationsReadMutation();
   const [fetchVapid] = useLazyGetVapidPublicKeyQuery();
   const [subscribePush] = useSubscribePushMutation();
+  const [fetchNotifications] = useLazyGetNotificationsQuery();
 
   const serverItems = listData?.data ?? [];
   const notifications = useMemo(() => {
-    const ids = new Set(serverItems.map((n) => n.id));
-    const merged = [...liveItems.filter((n) => !ids.has(n.id)), ...serverItems];
+    const ids = new Set([...serverItems, ...extraItems].map((n) => n.id));
+    const merged = [...liveItems.filter((n) => !ids.has(n.id)), ...extraItems, ...serverItems];
     return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [liveItems, serverItems]);
+  }, [extraItems, liveItems, serverItems]);
 
   const unreadCount = unreadData?.count ?? listData?.meta.unreadCount ?? 0;
 
@@ -95,6 +101,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       socketRef.current = null;
       setConnected(false);
       setLiveItems([]);
+      setExtraItems([]);
+      setNotificationPage(1);
       setPushEnabled(false);
       return;
     }
@@ -170,6 +178,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     void refetchUnread();
   }, [markAllReadMutation, refetchList, refetchUnread]);
 
+  const loadMore = useCallback(async () => {
+    const nextPage = notificationPage + 1;
+    const result = await fetchNotifications({ page: nextPage, limit: PAGE_SIZE }).unwrap();
+    setExtraItems((prev) => [...prev, ...result.data.filter((item: AppNotification) => !prev.some((old) => old.id === item.id))]);
+    setNotificationPage(nextPage);
+    return nextPage < result.meta.totalPages;
+  }, [fetchNotifications, notificationPage]);
+
   return (
     <NotificationContext.Provider
       value={{
@@ -183,6 +199,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         pushEnabled,
         enablePush,
         connected,
+        loadMore,
+        hasMore: notificationPage < (listData?.meta.totalPages ?? 1),
       }}
     >
       {children}

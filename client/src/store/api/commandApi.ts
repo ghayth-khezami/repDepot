@@ -74,6 +74,10 @@ export const commandApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Command'],
     }),
+    deleteAllCommands: builder.mutation<{ deleted: number }, void>({
+      query: () => ({ url: '/commands/admin/all', method: 'DELETE' }),
+      invalidatesTags: ['Command'],
+    }),
   }),
 });
 
@@ -83,4 +87,5 @@ export const {
   useCreateCommandMutation,
   useUpdateCommandMutation,
   useDeleteCommandMutation,
+  useDeleteAllCommandsMutation,
 } = commandApi;

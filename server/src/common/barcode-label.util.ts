@@ -1,4 +1,5 @@
 import * as jsPDF from "jspdf";
+import * as QRCode from "qrcode";
 
 /** EAN-13 left-hand odd parity encodings (L). */
 const L: Record<string, string> = {
@@ -195,5 +196,36 @@ export function buildProductLabelsPdf(products: LabelProduct[]): Buffer {
 export function buildSingleProductLabelPdf(product: LabelProduct): Buffer {
   const doc = new jsPDF.jsPDF({ unit: "mm", format: "a4" });
   drawSingleLabel(doc, product, (210 - LABEL_W) / 2, 40);
+  return Buffer.from(doc.output("arraybuffer"));
+}
+
+export async function buildProductQrPdf(
+  products: Array<{ id: string; productName: string; PrixVente: number }>,
+): Promise<Buffer> {
+  const doc = new jsPDF.jsPDF({ unit: "mm", format: "a4" });
+  const cellWidth = 60;
+  const cellHeight = 72;
+  const columns = 3;
+  const rows = 3;
+  const marginX = 15;
+  const marginY = 18;
+
+  doc.setFontSize(16);
+  doc.text("BÉBÉ-DÉPÔT — QR produits", 105, 10, { align: "center" });
+
+  for (let index = 0; index < products.length; index += 1) {
+    if (index > 0 && index % (columns * rows) === 0) doc.addPage();
+    const position = index % (columns * rows);
+    const x = marginX + (position % columns) * cellWidth;
+    const y = marginY + Math.floor(position / columns) * cellHeight;
+    const dataUrl = await QRCode.toDataURL(products[index].id, { margin: 1, width: 320 });
+    doc.addImage(dataUrl, "PNG", x + 8, y, 44, 44);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text(truncateName(products[index].productName, 24), x + cellWidth / 2, y + 51, { align: "center", maxWidth: cellWidth - 4 });
+    doc.setFont("helvetica", "normal");
+    doc.text(formatTnd(products[index].PrixVente), x + cellWidth / 2, y + 59, { align: "center" });
+  }
+
   return Buffer.from(doc.output("arraybuffer"));
 }

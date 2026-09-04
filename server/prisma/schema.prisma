@@ -402,7 +402,14 @@ model Notification {
   body      String
   linkPath  String?
   entityId  String?
+  clientName String?
+  clientPhone String?
+  orderAddress String?
+  productName String?
+  productImage String?
+  orderPrice Float?
   read      Boolean          @default(false)
+  reminderSentAt DateTime?
   createdAt DateTime         @default(now())
 
   @@index([read, createdAt])

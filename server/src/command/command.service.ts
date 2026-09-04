@@ -443,6 +443,11 @@ export class CommandService {
     return { message: "Command deleted successfully" };
   }
 
+  async removeAll() {
+    const result = await this.prisma.command.deleteMany();
+    return { deleted: result.count };
+  }
+
   async getAllForExport() {
     return this.prisma.command.findMany({
       include: {

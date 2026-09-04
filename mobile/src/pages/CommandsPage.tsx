@@ -202,6 +202,14 @@ export default function CommandsPage() {
               <p className="text-xs font-semibold uppercase text-gray-500">Adresse livraison</p>
               <p className="mt-1 text-sm">{detail.adresseLivraison}</p>
             </div>
+            {(() => {
+              const client = (detail.commandDetails ?? []).find((item: any) => item.client)?.client;
+              return client?.phoneNumber ? (
+                <a href={`tel:${client.phoneNumber}`} className="flex w-full items-center justify-center rounded-xl bg-primary-600 py-3 font-semibold text-white">
+                  Appeler {client.firstName}
+                </a>
+              ) : null;
+            })()}
             <div>
               <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Produits</p>
               <ul className="space-y-2">

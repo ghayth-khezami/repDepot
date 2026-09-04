@@ -91,6 +91,10 @@ export const productApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Product'],
     }),
+    deleteAllProducts: builder.mutation<{ deleted: number }, void>({
+      query: () => ({ url: '/products/admin/all', method: 'DELETE' }),
+      invalidatesTags: ['Product'],
+    }),
   }),
 });
 
@@ -98,7 +102,9 @@ export const {
   useGetProductsQuery,
   useGetProductsInfiniteQuery,
   useGetProductQuery,
+  useLazyGetProductQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
+  useDeleteAllProductsMutation,
 } = productApi;

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, ShoppingBag, Package, X } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { uploadUrl } from '../lib/apiBase';
 
 function iconFor(type: string) {
   if (type === 'COMMAND_CREATED') return ShoppingBag;
@@ -20,6 +21,8 @@ export function NotificationPanel() {
     connected,
     pushEnabled,
     enablePush,
+    loadMore,
+    hasMore,
   } = useNotifications();
 
   if (!panelOpen) return null;
@@ -84,7 +87,10 @@ export function NotificationPanel() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">{n.title}</p>
+                      {n.productImage ? <img src={uploadUrl(n.productImage)} alt="" className="mt-2 h-14 w-14 rounded-xl object-cover" /> : null}
                       <p className="text-xs text-gray-600 dark:text-gray-400">{n.body}</p>
+                      {n.clientName ? <p className="mt-1 text-xs text-gray-500">{n.clientName} · {n.orderAddress}</p> : null}
+                      {n.orderPrice != null ? <p className="mt-1 text-xs font-semibold text-primary-700">{n.orderPrice.toFixed(3)} TND</p> : null}
                       <p className="mt-1 text-[10px] text-gray-400">
                         {new Date(n.createdAt).toLocaleString('fr-FR')}
                       </p>
@@ -96,6 +102,7 @@ export function NotificationPanel() {
             })
           )}
         </ul>
+        {hasMore ? <button type="button" onClick={() => void loadMore()} className="w-full border-t border-primary-100 py-3 text-sm font-semibold text-primary-700">Charger plus</button> : null}
       </div>
     </>
   );

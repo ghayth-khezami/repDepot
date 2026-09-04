@@ -10,12 +10,18 @@ export type AppNotification = {
   entityId?: string | null;
   read: boolean;
   createdAt: string;
+  clientName?: string | null;
+  clientPhone?: string | null;
+  orderAddress?: string | null;
+  productName?: string | null;
+  productImage?: string | null;
+  orderPrice?: number | null;
 };
 
 export const notificationApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getNotifications: builder.query<
-      { data: AppNotification[]; meta: { unreadCount: number; total: number } },
+      { data: AppNotification[]; meta: { unreadCount: number; total: number; totalPages: number } },
       { page?: number; limit?: number }
     >({
       query: ({ page = 1, limit = 10 }) =>
@@ -49,6 +55,7 @@ export const notificationApi = baseApi.injectEndpoints({
 
 export const {
   useGetNotificationsQuery,
+  useLazyGetNotificationsQuery,
   useGetUnreadCountQuery,
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,

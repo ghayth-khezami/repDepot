@@ -5,11 +5,12 @@ import {
   useCreateCommandMutation,
   useUpdateCommandMutation,
   useDeleteCommandMutation,
+  useDeleteAllCommandsMutation,
   CreateCommandDto,
   UpdateCommandDto,
 } from '../store/api/commandApi';
 import { useConfirmDialog } from '../components/ConfirmDialog';
-import { useGetProductsQuery } from '../store/api/productApi';
+import { useGetProductsQuery, useLazyGetProductQuery } from '../store/api/productApi';
 import { useGetClientsQuery } from '../store/api/clientApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
 import ReusableTable, { Column } from '../components/ReusableTable';
@@ -55,6 +56,8 @@ const CommandsPage = () => {
   const [productsPage, setProductsPage] = useState(1);
   const { data: productsData, isLoading: productsLoading } = useGetProductsQuery({ limit: 10, page: productsPage });
   const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [getProduct] = useLazyGetProductQuery();
+  const { showToast } = useToast();
 
   // Infinite scroll for clients
   const [clientsPage, setClientsPage] = useState(1);
@@ -75,6 +78,19 @@ const CommandsPage = () => {
       });
     }
   }, [productsData]);
+
+  useEffect(() => {
+    const productId = new URLSearchParams(window.location.search).get('productId');
+    if (!productId) return;
+    void getProduct(productId).unwrap().then((product) => {
+      setAllProducts((previous) => previous.some((item) => item.id === product.id) ? previous : [product, ...previous]);
+      setIsEditMode(false);
+      setSelectedCommand(null);
+      setSelectedProducts([product.id]);
+      setIsModalOpen(true);
+      window.history.replaceState({}, '', '/commands');
+    }).catch(() => showToast('Produit introuvable', 'error'));
+  }, [getProduct, showToast]);
 
   // Accumulate clients
   useEffect(() => {
@@ -98,7 +114,7 @@ const CommandsPage = () => {
   const [createCommand] = useCreateCommandMutation();
   const [updateCommand] = useUpdateCommandMutation();
   const [deleteCommand] = useDeleteCommandMutation();
-  const { showToast } = useToast();
+  const [deleteAllCommands] = useDeleteAllCommandsMutation();
   const isWebCommand = (command: Command | null) => {
     if (!command) return false;
     const details = (command as any).commandDetails || [];
@@ -281,6 +297,19 @@ const CommandsPage = () => {
       .catch(() => showToast('Erreur lors de l\'export PDF', 'error'));
   };
 
+  const handleDeleteAll = () => {
+    confirm({
+      title: 'Supprimer toutes les commandes',
+      message: 'Cette action supprime définitivement toutes les commandes. Continuer ?',
+      confirmLabel: 'Tout supprimer',
+      onConfirm: async () => {
+        const result = await deleteAllCommands().unwrap();
+        showToast(`${result.deleted} commandes supprimées`, 'success');
+        setPage(1);
+      },
+    });
+  };
+
   const getStatusBadge = (status: string) => {
     const statusMap = {
       NOT_DELIVERED: { label: 'Non livré', color: 'bg-orange-100 text-orange-800' },
@@ -316,6 +345,9 @@ const CommandsPage = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold sm:text-3xl">Gestion des Commandes</h1>
         <p className="bo-muted mt-2">Gérez toutes les commandes</p>
+        <button type="button" onClick={handleDeleteAll} className="mt-3 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">
+          Supprimer toutes les commandes
+        </button>
       </div>
 
       <ReusableTable

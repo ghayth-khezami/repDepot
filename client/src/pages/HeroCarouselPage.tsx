@@ -294,10 +294,8 @@ const HeroCarouselPage = () => {
         onCrop={(file, _preview, preset) => {
           if (preset === 'mobile') {
             setMobileImageFile(file);
-            setCropFile(null);
           } else {
             setImageFile(file);
-            setCropFile(null);
           }
         }}
       />

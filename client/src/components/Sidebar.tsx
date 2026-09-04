@@ -16,6 +16,7 @@ import {
   Heart,
   Image,
   Youtube,
+  QrCode,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +32,7 @@ const Sidebar = () => {
   const menuItems = [
     { path: '/', label: 'Tableau de Bord', icon: LayoutDashboard },
     { path: '/products', label: 'Produits', icon: Package },
+    { path: '/scan', label: 'Scanner QR', icon: QrCode },
     { path: '/coups-de-coeur', label: 'Coups de cœur', icon: Heart },
     { path: '/carrousel', label: 'Carrousel accueil', icon: Image },
     { path: '/youtube', label: 'Lien YouTube', icon: Youtube },

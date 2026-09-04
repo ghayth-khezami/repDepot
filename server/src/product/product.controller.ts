@@ -49,6 +49,7 @@ import {
 import {
   buildProductLabelsPdf,
   buildSingleProductLabelPdf,
+  buildProductQrPdf,
 } from "../common/barcode-label.util";
 import { memoryImageUpload } from "../common/utils/image-upload";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
@@ -183,6 +184,15 @@ export class ProductController {
   @SkipThrottle()
   getPriceRange() {
     return this.productService.getPriceRange();
+  }
+
+  @Delete("admin/all")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Admin: delete all products" })
+  removeAll() {
+    return this.productService.removeAll();
   }
 
   @Get("featured")
@@ -455,6 +465,18 @@ export class ProductController {
       "Content-Disposition",
       "attachment; filename=etiquettes-code-barres.pdf",
     );
+    res.send(buffer);
+  }
+
+  @Get("export/qr/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Export one QR code per product" })
+  async exportQrPdf(@Res() res: Response) {
+    const products = await this.productService.findAllForQrExport();
+    const buffer = await buildProductQrPdf(products);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=produits-qr.pdf");
     res.send(buffer);
   }
 

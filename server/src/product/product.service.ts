@@ -308,6 +308,13 @@ export class ProductService {
     return { min: range._min.PrixVente ?? 0, max: range._max.PrixVente ?? 0 };
   }
 
+  async findAllForQrExport() {
+    return this.prisma.product.findMany({
+      select: { id: true, productName: true, PrixVente: true },
+      orderBy: { productName: "asc" },
+    });
+  }
+
   async findOne(id: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
@@ -477,6 +484,11 @@ export class ProductService {
     });
 
     return { message: "Product deleted successfully" };
+  }
+
+  async removeAll() {
+    const result = await this.prisma.product.deleteMany();
+    return { deleted: result.count };
   }
 
   private readonly storefrontInclude = {
