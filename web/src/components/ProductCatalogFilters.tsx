@@ -235,7 +235,7 @@ export function ProductCatalogFilters({
               aria-label={fr.hideFilters}
               onClick={() => setMobileOpen(false)}
             />
-            <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl border-t border-border bg-card p-6 shadow-2xl">
+            <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl border-t border-[#F7D5DF] bg-[#FFFDFE] p-6 text-[#2D2346] shadow-2xl">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="display text-2xl text-plum-deep">{fr.showFilters}</h2>
                 <button

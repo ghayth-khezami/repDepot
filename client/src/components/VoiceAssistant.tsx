@@ -34,7 +34,8 @@ export default function VoiceAssistant() {
   const focusedFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('Cliquez dans un champ, puis parlez.');
-  const [fieldRect, setFieldRect] = useState<DOMRect | null>(null);
+  const [position, setPosition] = useState({ x: 16, y: Math.round(window.innerHeight / 2) });
+  const dragRef = useRef<{ offsetX: number; offsetY: number } | null>(null);
 
   useEffect(() => {
     const rememberField = (event: FocusEvent) => {
@@ -42,7 +43,6 @@ export default function VoiceAssistant() {
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
         if (target.type !== 'file' && target.type !== 'checkbox' && target.type !== 'radio') {
           focusedFieldRef.current = target;
-          setFieldRect(target.getBoundingClientRect());
           setMessage('Champ sélectionné. Cliquez sur Assistance vocale.');
         }
       }
@@ -114,16 +114,33 @@ export default function VoiceAssistant() {
     }
   };
 
-  const position = fieldRect
-    ? { top: `${fieldRect.bottom + 8}px`, left: `${Math.max(12, fieldRect.right - 170)}px` }
-    : undefined;
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      if (!dragRef.current) return;
+      setPosition({
+        x: Math.max(8, Math.min(window.innerWidth - 64, event.clientX - dragRef.current.offsetX)),
+        y: Math.max(72, Math.min(window.innerHeight - 72, event.clientY - dragRef.current.offsetY)),
+      });
+    };
+    const onPointerUp = () => { dragRef.current = null; };
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, []);
 
   return (
-    <div className={`voice-assistant${fieldRect ? ' voice-assistant-near-field' : ''}`} style={position} aria-live="polite">
+    <div className="voice-assistant" style={{ left: position.x, top: position.y }} aria-live="polite">
       <span className="voice-assistant-message">{message}</span>
       <button
         type="button"
-        onPointerDown={(event) => event.preventDefault()}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          const rect = event.currentTarget.getBoundingClientRect();
+          dragRef.current = { offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+        }}
         onClick={toggleListening}
         className="voice-assistant-button"
         aria-pressed={listening}

@@ -20,7 +20,6 @@ export default function Home() {
   const { categories, syncLikesForProducts } = useShop();
   const [featured, setFeatured] = useState<Product[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const run = async () => {
@@ -45,24 +44,6 @@ export default function Home() {
     void run();
   }, [syncLikesForProducts]);
 
-  useEffect(() => {
-    if (!categories.length) return;
-    const run = async () => {
-      const entries = await Promise.all(
-        categories.map(async (c) => {
-          try {
-            const res = await api.getProductsPage({ page: 1, limit: 1, categoryId: c.id });
-            return [c.id, res.meta.total] as const;
-          } catch {
-            return [c.id, 0] as const;
-          }
-        }),
-      );
-      setCategoryCounts(Object.fromEntries(entries));
-    };
-    void run();
-  }, [categories]);
-
   return (
     <div className="min-h-dvh w-full bg-[#FFFDFB] text-[#2D2346]">
       <HeroCarousel />
@@ -73,7 +54,10 @@ export default function Home() {
         </div>
 
         <div className={`${STORE_CONTAINER} home-premium-section`}>
-          <CategoriesExplorer categories={categories} counts={categoryCounts} />
+          <CategoriesExplorer
+            categories={categories}
+            counts={Object.fromEntries(categories.map((category) => [category.id, category._count?.products ?? 0]))}
+          />
         </div>
 
         <div className={STORE_CONTAINER}>

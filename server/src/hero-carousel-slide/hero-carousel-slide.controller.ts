@@ -139,6 +139,7 @@ export class HeroCarouselSlideController {
   async remove(@Param("id") id: string) {
     const existing = await this.heroCarouselSlideService.findOne(id);
     await this.cloudinary.deleteByUrl(existing.imageDoc);
+    if (existing.imageDocMobile) await this.cloudinary.deleteByUrl(existing.imageDocMobile);
     return this.heroCarouselSlideService.remove(id);
   }
 }

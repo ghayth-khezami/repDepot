@@ -1052,7 +1052,8 @@ button:not([class*="bg-"]):not(.unstyled):focus-visible,
 }
 
 .mobile-drawer {
-  background: linear-gradient(165deg, oklch(0.48 0.16 295) 0%, oklch(0.38 0.15 295) 55%, oklch(0.32 0.14 295) 100%);
+  background: linear-gradient(165deg, #fff7fa 0%, #fffdfd 58%, #fff0f4 100%);
+  border-right: 1px solid #f7d5df;
 }
 
 .mobile-drawer-link {
@@ -1063,26 +1064,27 @@ button:not([class*="bg-"]):not(.unstyled):focus-visible,
   padding: 0.85rem 1rem;
   font-size: 0.95rem;
   font-weight: 600;
-  color: rgb(255 255 255 / 0.92);
+  color: #453a56;
   transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .mobile-drawer-link:hover {
-  background: rgb(255 255 255 / 0.1);
+  background: #fdf0f5;
+  color: #e04672;
 }
 
 .mobile-drawer-link--active {
-  background: rgb(255 255 255 / 0.16);
-  color: #fff;
+  background: #fce4ec;
+  color: #e04672;
 }
 
 .mobile-drawer-logout {
-  color: oklch(0.78 0.12 25);
-  background: rgb(255 255 255 / 0.08);
+  color: #e04672;
+  background: #fff0f4;
 }
 
 .mobile-drawer-logout:hover {
-  background: rgb(255 255 255 / 0.14);
+  background: #ffe8ee;
 }
 
 .btn-ghost-hero {

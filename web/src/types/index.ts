@@ -4,6 +4,7 @@ export interface Category {
   description?: string;
   icon?: string;
   coverDoc?: string;
+  _count?: { products: number };
 }
 
 export interface ClientFeedback {

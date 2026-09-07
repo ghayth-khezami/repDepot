@@ -38,6 +38,7 @@ function mapApiSlide(slide: ApiSlide): HeroSlideData {
 }
 
 function preloadImage(src: string) {
+  if (!src) return;
   const img = new window.Image();
   img.src = src;
 }
@@ -54,7 +55,10 @@ export function HeroCarousel() {
       .then((rows) => {
         const mapped = rows.map(mapApiSlide);
         setSlides(mapped);
-        mapped.slice(0, 3).forEach((s) => preloadImage(s.image));
+        mapped.slice(0, 3).forEach((s) => {
+          preloadImage(s.image);
+          preloadImage(s.mobileImage ?? s.image);
+        });
       })
       .catch(() => setSlides([]));
   }, []);
@@ -65,6 +69,8 @@ export function HeroCarousel() {
     const prev = slides[(index - 1 + count) % count];
     if (next) preloadImage(next.image);
     if (prev) preloadImage(prev.image);
+    if (next) preloadImage(next.mobileImage ?? next.image);
+    if (prev) preloadImage(prev.mobileImage ?? prev.image);
   }, [index, slides, count]);
 
   const goTo = useCallback(

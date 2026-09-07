@@ -37,6 +37,7 @@ export class CategoryService {
         skip,
         take: actualLimit,
         orderBy: { createdAt: "desc" },
+        include: { _count: { select: { products: true } } },
       }),
       this.prisma.category.count({ where }),
     ]);

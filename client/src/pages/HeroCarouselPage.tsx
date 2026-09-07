@@ -51,6 +51,20 @@ const HeroCarouselPage = () => {
         </div>
       ),
     },
+    {
+      header: 'Image mobile',
+      accessor: 'imageDocMobile',
+      render: (v) => (
+        <div className="h-16 w-28 overflow-hidden rounded-lg border border-pink-100 bg-pink-50">
+          {v ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={imageUrl(String(v))} alt="" className="h-full w-full object-contain" />
+          ) : (
+            <span className="flex h-full items-center justify-center px-2 text-center text-[10px] text-gray-400">Même photo</span>
+          )}
+        </div>
+      ),
+    },
     { header: 'Alt', accessor: 'imageAlt' },
     { header: 'Ordre', accessor: 'sortOrder' },
     {

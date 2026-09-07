@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Heart } from "lucide-react";
+import { Eye, Heart } from "lucide-react";
 import { Product } from "@/types";
 import { useShop } from "@/context/ShopContext";
 import { useAddToCartFx } from "@/components/AddToCartFxProvider";
@@ -49,6 +49,16 @@ export function ProductCard({
       <article className={`group flex h-full flex-col overflow-hidden rounded-xl border border-[#182044]/8 bg-white shadow-[0_5px_18px_rgba(45,35,70,0.05)] transition hover:-translate-y-1 ${compact ? "product-card-compact" : ""}`}>
         <div className={`relative overflow-hidden ${compact ? "aspect-[1.08/1]" : "aspect-[4/5]"}`}>
           <ProductPhotoGallery photos={product.photos} alt={product.productName} className="h-full" />
+          <Link
+            href={`/products/${product.id}`}
+            className="absolute inset-0 z-10 flex items-center justify-center bg-[#2D2346]/12 opacity-0 backdrop-blur-[1.5px] transition-opacity duration-200 group-hover:opacity-100"
+            aria-label={`Voir le détail de ${product.productName}`}
+          >
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-[#2D2346] shadow-lg">
+              <Eye size={17} />
+              Voir le détail
+            </span>
+          </Link>
           <button
             type="button"
             onClick={(e) => {

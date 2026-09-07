@@ -19,12 +19,25 @@ const REMOTE_API_URL = getRemoteApiUrl();
 
 type HttpMethod = "GET" | "POST" | "DELETE";
 
+const GET_CACHE_TTL_MS = 5000;
+const getCache = new Map<string, { expiresAt: number; value: unknown }>();
+const getInFlight = new Map<string, Promise<unknown>>();
+
 async function request<T>(
   path: string,
   method: HttpMethod = "GET",
   body?: unknown,
   token?: string | null,
 ): Promise<T> {
+  const cacheKey = method === "GET" ? `${API_URL}${path}|${token ?? ""}` : "";
+  if (cacheKey) {
+    const cached = getCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+    const pending = getInFlight.get(cacheKey);
+    if (pending) return pending as Promise<T>;
+  }
+
+  const run = async (): Promise<T> => {
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
@@ -48,7 +61,19 @@ async function request<T>(
     const txt = await res.text();
     throw new Error(txt || `Request failed: ${res.status}`);
   }
-  return res.json();
+    const value = (await res.json()) as T;
+    if (cacheKey) getCache.set(cacheKey, { expiresAt: Date.now() + GET_CACHE_TTL_MS, value });
+    return value;
+  };
+
+  const requestPromise = run();
+  if (!cacheKey) return requestPromise;
+  getInFlight.set(cacheKey, requestPromise);
+  try {
+    return await requestPromise;
+  } finally {
+    getInFlight.delete(cacheKey);
+  }
 }
 
 export const api = {
