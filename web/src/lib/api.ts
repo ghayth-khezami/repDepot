@@ -256,26 +256,6 @@ export const api = {
         closeTime: string | null;
       }>
     >("/store-hours"),
-  getHeroSlides: () =>
-    request<
-      Array<{
-        id: string;
-        imageDoc: string;
-        imageDocMobile?: string | null;
-        imageAlt: string;
-        sortOrder: number;
-        isPublished: boolean;
-        imageOnly: boolean;
-        arabicWelcome?: string | null;
-        title?: string | null;
-        subtitle?: string | null;
-        description?: string | null;
-        ctaLabel?: string | null;
-        ctaHref?: string | null;
-        ctaType?: string | null;
-        align?: string | null;
-      }>
-    >("/hero-carousel-slides/published"),
   getSiteSettings: () =>
     request<{ youtubeUrl: string | null }>("/site-settings/public"),
   normalizePhotoUrl: (photo?: string | null) => {

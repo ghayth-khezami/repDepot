@@ -14,7 +14,6 @@ import {
   MessageSquare,
   Mail,
   Heart,
-  Image,
   Youtube,
   QrCode,
 } from 'lucide-react';
@@ -34,7 +33,6 @@ const Sidebar = () => {
     { path: '/products', label: 'Produits', icon: Package },
     { path: '/scan', label: 'Scanner QR', icon: QrCode },
     { path: '/coups-de-coeur', label: 'Coups de cœur', icon: Heart },
-    { path: '/carrousel', label: 'Carrousel accueil', icon: Image },
     { path: '/youtube', label: 'Lien YouTube', icon: Youtube },
     { path: '/categories', label: 'Catégories', icon: FolderTree },
     { path: '/clients', label: 'Clients', icon: ShoppingCart },

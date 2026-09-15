@@ -8,7 +8,7 @@ import {
   CategoriesExplorer,
   FloatingContactButtons,
   Footer,
-  HeroCarousel,
+  StaticHeroBanner,
   ProductsGrid,
   TestimonialsCarousel,
   TrustSection,
@@ -46,7 +46,7 @@ export default function Home() {
 
   return (
     <div className="min-h-dvh w-full bg-[#FFFDFB] text-[#2D2346]">
-      <HeroCarousel />
+      <StaticHeroBanner />
 
       <div className="home-content-flow space-y-16 overflow-x-clip py-12 md:space-y-24 md:py-16">
         <div className={`${STORE_CONTAINER} home-premium-section`}>

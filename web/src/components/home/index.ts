@@ -1,7 +1,6 @@
 export { Navbar } from "./Navbar";
 export { AnnouncementBar } from "./AnnouncementBar";
-export { HeroCarousel } from "./HeroCarousel";
-export { HeroSlide } from "./HeroSlide";
+export { StaticHeroBanner } from "./StaticHeroBanner";
 export { FeatureCard } from "./FeatureCard";
 export { FeatureStrip } from "./FeatureStrip";
 export { ProductCard } from "./ProductCard";

@@ -4,8 +4,10 @@ import Modal from './Modal';
 
 type CropImageModalProps = {
   file: File | null;
+  presetId?: 'web' | 'mobile';
   onCancel: () => void;
   onCrop: (file: File, previewUrl: string, preset: 'web' | 'mobile') => void;
+  onUseOriginal?: (file: File, previewUrl: string, preset: 'web' | 'mobile') => void;
 };
 
 type Point = { x: number; y: number };
@@ -29,17 +31,16 @@ const PRESETS: CropPreset[] = [
   { id: 'mobile', label: 'Mobile', width: 420, height: 560, outputWidth: 900, outputHeight: 1200 },
 ];
 
-export default function CropImageModal({ file, onCancel, onCrop }: CropImageModalProps) {
+export default function CropImageModal({ file, presetId = 'web', onCancel, onCrop, onUseOriginal }: CropImageModalProps) {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<Interaction | null>(null);
   const [sourceUrl, setSourceUrl] = useState('');
   const [zoom, setZoom] = useState(1);
-  const [step, setStep] = useState<'web' | 'mobile'>('web');
   const [selection, setSelection] = useState<Selection>({ x: 70, y: 45, width: 420, height: 220 });
   const [previewUrl, setPreviewUrl] = useState('');
 
-  const preset = PRESETS.find((item) => item.id === step) ?? PRESETS[0];
+  const preset = PRESETS.find((item) => item.id === presetId) ?? PRESETS[0];
   const viewWidth = preset.width;
   const viewHeight = preset.height;
 
@@ -47,7 +48,6 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
     if (!file) {
       setSourceUrl('');
       setZoom(1);
-      setStep('web');
       setSelection({ x: 70, y: 45, width: 420, height: 220 });
       return;
     }
@@ -55,7 +55,6 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
     const url = URL.createObjectURL(file);
     setSourceUrl(url);
     setZoom(1);
-    setStep('web');
     setSelection({ x: 70, y: 45, width: 420, height: 220 });
 
     return () => URL.revokeObjectURL(url);
@@ -224,35 +223,13 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
       <div className="space-y-5">
         <div className="flex items-center gap-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-900">
           <ImageIcon className="h-5 w-5 shrink-0 text-pink-500" />
-          <span>Étape 1 : aperçu web • Étape 2 : aperçu mobile. Ajustez la zone pour éviter les zooms et les coupures.</span>
+          <span>Photo {preset.label} : ajustez la zone, ou gardez l&apos;image entière sans recadrage.</span>
         </div>
-
-        <div className="flex items-center gap-2 rounded-full border border-rose-100 bg-rose-50 p-1">
-          {PRESETS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setStep(item.id)}
-              className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold transition ${
-                step === item.id ? 'bg-pink-500 text-white shadow-sm' : 'text-rose-700 hover:bg-white'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(['web', 'mobile'] as const).map((previewPreset) => (
-            <div key={previewPreset} className="rounded-xl border border-rose-100 bg-white p-2">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-rose-700">
-                {previewPreset === 'web' ? 'Aperçu site web' : 'Aperçu mobile'}
-              </p>
-              <div className={`overflow-hidden rounded-lg bg-slate-100 ${previewPreset === 'web' ? 'aspect-[16/9]' : 'aspect-[9/12]'}`}>
-                {previewUrl ? <img src={previewUrl} alt="Aperçu du carrousel" className="h-full w-full object-cover" /> : null}
-              </div>
-            </div>
-          ))}
+        <div className="rounded-xl border border-rose-100 bg-white p-2">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-rose-700">Aperçu {preset.label}</p>
+          <div className={`overflow-hidden rounded-lg bg-slate-100 ${preset.id === 'web' ? 'aspect-[16/9]' : 'aspect-[9/12]'}`}>
+            {previewUrl ? <img src={previewUrl} alt={`Aperçu ${preset.label}`} className="h-full w-full object-contain" /> : null}
+          </div>
         </div>
 
         <div
@@ -320,6 +297,15 @@ export default function CropImageModal({ file, onCancel, onCrop }: CropImageModa
             <X className="h-4 w-4" />
             Annuler
           </button>
+          {onUseOriginal ? (
+            <button
+              type="button"
+              onClick={() => onUseOriginal(file, sourceUrl, preset.id)}
+              className="inline-flex items-center gap-2 rounded-xl border border-pink-200 bg-pink-50 px-4 py-2.5 text-sm font-semibold text-pink-700 transition hover:bg-pink-100"
+            >
+              Image entière
+            </button>
+          ) : null}
           <button type="button" onClick={saveCrop} className="inline-flex items-center gap-2 rounded-xl bg-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-600">
             <Check className="h-4 w-4" />
             Enregistrer {preset.label}

@@ -23,7 +23,6 @@ import { NotificationModule } from "./notification/notification.module";
 import { HealthModule } from "./health/health.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.module";
 import { MediaModule } from "./media/media.module";
-import { HeroCarouselSlideModule } from "./hero-carousel-slide/hero-carousel-slide.module";
 import { SiteSettingsModule } from "./site-settings/site-settings.module";
 import { ReadAwareThrottlerGuard } from "./common/guards/read-aware-throttler.guard";
 
@@ -84,7 +83,6 @@ import { ReadAwareThrottlerGuard } from "./common/guards/read-aware-throttler.gu
     NewsletterModule,
     NotificationModule,
     HealthModule,
-    HeroCarouselSlideModule,
     SiteSettingsModule,
   ],
   providers: [

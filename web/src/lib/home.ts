@@ -34,59 +34,6 @@ export type HomeFeature = {
 
 export const HOME_FEATURES: HomeFeature[] = [];
 
-export type HeroSlideData = {
-  id: string;
-  image: string;
-  mobileImage?: string;
-  imageAlt: string;
-  imageOnly?: boolean;
-  arabicWelcome?: string;
-  title?: string;
-  subtitle?: string;
-  titleClassName?: string;
-  description?: string;
-  cta?: { type: "link" | "phone"; label: string; href?: string };
-  align?: "start" | "center";
-};
-
-export const HERO_SLIDES: HeroSlideData[] = [
-  {
-    id: "welcome",
-    image: "/car1.png",
-    imageAlt: "Mme Khezami avec bébé dans la boutique Bébé Dépôt",
-    arabicWelcome: "مرحبا بكم في",
-    title: "Bébé Dépôt",
-    subtitle: "by Mme Khezami",
-    description:
-      "Des produits de qualité, sélectionnés avec soin pour accompagner les mamans et leurs bébés à chaque étape.",
-    cta: { type: "link", label: "Découvrir la boutique", href: "/produits" },
-  },
-  {
-    id: "car-2",
-    image: "/car2.png",
-    imageAlt: "Bébé Dépôt — sélection produits",
-    imageOnly: true,
-  },
-  {
-    id: "car-3",
-    image: "/car3.png",
-    imageAlt: "Bébé Dépôt — sélection produits",
-    imageOnly: true,
-  },
-  {
-    id: "car-4",
-    image: "/car4.png",
-    imageAlt: "Bébé Dépôt — sélection produits",
-    imageOnly: true,
-  },
-  {
-    id: "car-5",
-    image: "/car5.png",
-    imageAlt: "Bébé Dépôt — sélection produits",
-    imageOnly: true,
-  },
-];
-
 export type TrustItemKey = "CreditCard" | "ArrowCounterClockwise" | "ChatCircleDots" | "ShieldCheck";
 
 export const TRUST_ITEMS: Array<{
