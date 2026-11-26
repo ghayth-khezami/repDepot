@@ -57,9 +57,12 @@ export default function GuidedFlow({
   steps,
   initial,
   doneLabel = 'Remplir le formulaire',
+  greeting,
   onDone,
   onClose,
 }: {
+  /** Said (and shown) once, before the first question. */
+  greeting?: string | null;
   title: string;
   subtitle?: string;
   steps: FlowStep[];
@@ -93,6 +96,7 @@ export default function GuidedFlow({
   const timer = useRef<number>();
   const valuesRef = useRef(values);
   valuesRef.current = values;
+  const greeted = useRef(false);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -253,16 +257,19 @@ export default function GuidedFlow({
       return;
     }
     if (mode !== 'voice' || !step) return setPhase('idle');
+    if (!greeted.current && greeting === null) return; // wait for « vous venez d'ajouter… »
     const v = valuesRef.current;
     if (muted) {
       const t = window.setTimeout(listen, 300);
       return () => window.clearTimeout(t);
     }
     setPhase('speaking');
-    cancelSpeech.current = speak(text(step.prompt, v), listen);
+    const intro = !greeted.current && greeting ? `${greeting} ` : '';
+    greeted.current = true;
+    cancelSpeech.current = speak(`${intro}${text(step.prompt, v)}`, listen);
     return () => cancelSpeech.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, mode]);
+  }, [cursor, mode, greeting === null]);
 
   useEffect(() => {
     if (dict.error && dict.error !== 'no-speech') {
@@ -401,6 +408,12 @@ export default function GuidedFlow({
               <span className="bd-orb-core" />
               {phase === 'confirmed' ? <Check size={54} strokeWidth={3} className="bd-anim-check absolute inset-0 m-auto text-white drop-shadow" /> : null}
             </div>
+            {greeting && idx === 0 && !Object.keys(v).length ? (
+              <div className="bd-anim-pop mt-5 flex w-full items-start gap-2.5 rounded-2xl bg-bd-surface px-4 py-3 text-left shadow-card">
+                <span aria-hidden className="text-xl leading-none">👋</span>
+                <p className="text-sm font-bold leading-snug text-bd-ink">{greeting}</p>
+              </div>
+            ) : null}
             <div key={`${step?.id}-${pendingCreate ?? ''}`} className="bd-anim-slide-in mt-6 w-full">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-bd-violet">{step?.section ?? title}</p>
               <h2 className="mt-2 text-balance text-2xl font-black leading-tight text-bd-ink">

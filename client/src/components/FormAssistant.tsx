@@ -6,6 +6,7 @@ import { useCreateCategoryMutation } from '../store/api/categoryApi';
 import { useCreateSubCategoryMutation } from '../store/api/subCategoryApi';
 import { useCreateSubSubCategory1Mutation } from '../store/api/subSubCategoryApi';
 import GuidedFlow, { type FlowOption, type FlowStep, type FlowValues } from './GuidedFlow';
+import { useAssistantGreeting } from '../lib/greeting';
 
 type FieldEl = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
@@ -142,6 +143,7 @@ export function AiPill({ onClick, label = "Remplir avec l'IA", className }: { on
 export function FormAssistantButton({ getRoot, title }: { getRoot: () => HTMLElement | null; title: string }): ReactNode {
   const [fields, setFields] = useState<FieldInfo[] | null>(null);
   const [available, setAvailable] = useState(false);
+  const greeting = useAssistantGreeting('generic', !!fields, title);
 
   useEffect(() => {
     const check = () => {
@@ -177,6 +179,7 @@ export function FormAssistantButton({ getRoot, title }: { getRoot: () => HTMLEle
       {fields ? (
         <GuidedFlow
           title={title}
+          greeting={greeting}
           steps={steps}
           onClose={() => setFields(null)}
           onDone={(values) => {

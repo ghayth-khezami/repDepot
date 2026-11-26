@@ -37,6 +37,12 @@ export class DepotController {
     return this.depotService.findByPhone(phone);
   }
 
+  @Get("depots/latest")
+  @ApiOperation({ summary: "Latest contract (assistant greeting)" })
+  latest() {
+    return this.depotService.latestContract();
+  }
+
   @Get("deposants/by-token/:token")
   @ApiOperation({ summary: "Déposant overview from a scanned contract QR token" })
   byToken(@Param("token") token: string) {

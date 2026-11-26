@@ -18,7 +18,7 @@ export class UserService {
 
   async findAll(query: UserQueryDto): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 10, search } = query;
-    const actualLimit = Math.min(limit || 10, 10); // Enforce max 10
+    const actualLimit = Math.min(limit || 10, 50); // Requests above 50 are clamped, never rejected
     const skip = (page - 1) * actualLimit;
 
     const where = search

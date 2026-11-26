@@ -11,12 +11,12 @@ export class DepositRequestQueryDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ default: 10, maximum: 20 })
+  @ApiPropertyOptional({ default: 10, maximum: 50 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(20)
+  @Max(50)
   limit?: number = 10;
 
   @ApiPropertyOptional()

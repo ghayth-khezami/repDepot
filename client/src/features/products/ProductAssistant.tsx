@@ -3,6 +3,7 @@ import { useGetCategoryHierarchyQuery } from '../../store/api/categoryApi';
 import { useLazySearchDeposantsQuery, useSearchDeposantsQuery } from '../../store/api/depotApi';
 import GuidedFlow, { categorySteps, type CategoryTree, type FlowStep, type FlowValues } from '../../components/GuidedFlow';
 import { AiPill, useCategoryCreators } from '../../components/FormAssistant';
+import { useAssistantGreeting } from '../../lib/greeting';
 
 export interface ProductAiResult {
   productName: string;
@@ -26,6 +27,7 @@ export default function ProductAssistant({ onApply }: { onApply: (r: ProductAiRe
   const { data: recent } = useSearchDeposantsQuery('', { skip: !open });
   const [searchDeposants] = useLazySearchDeposantsQuery();
   const creators = useCategoryCreators();
+  const greeting = useAssistantGreeting('product', open);
 
   const steps = useMemo<FlowStep[]>(
     () => [
@@ -93,7 +95,7 @@ export default function ProductAssistant({ onApply }: { onApply: (r: ProductAiRe
   return (
     <>
       <AiPill onClick={() => setOpen(true)} label="Produit par IA" />
-      {open ? <GuidedFlow title="Nouveau produit" steps={steps} doneLabel="Remplir la fiche produit" onDone={done} onClose={() => setOpen(false)} /> : null}
+      {open ? <GuidedFlow title="Nouveau produit" greeting={greeting} steps={steps} doneLabel="Remplir la fiche produit" onDone={done} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }

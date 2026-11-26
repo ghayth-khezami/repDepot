@@ -111,6 +111,29 @@ export class DepotService {
     }));
   }
 
+  /** Latest contract (assistant greeting: "vous venez d'ajouter…"). */
+  async latestContract() {
+    const c = await this.prisma.depositRequest.findFirst({
+      where: { contractNumber: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        contractNumber: true,
+        createdAt: true,
+        coClient: { select: { firstName: true, lastName: true } },
+        _count: { select: { products: true } },
+      },
+    });
+    if (!c) return null;
+    return {
+      id: c.id,
+      contractNumber: c.contractNumber,
+      createdAt: c.createdAt,
+      deposant: c.coClient ? `${c.coClient.firstName} ${c.coClient.lastName}` : null,
+      items: c._count.products,
+    };
+  }
+
   /** Backoffice "suivi déposant": articles, statuses, contracts and amounts (after a scan or from the list). */
   async deposantOverview(id: string) {
     const d = await this.prisma.coClient.findUnique({

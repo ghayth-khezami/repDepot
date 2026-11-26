@@ -113,6 +113,10 @@ export interface DeposantOverview {
 
 export const depotApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getLatestDepot: builder.query<{ id: string; contractNumber: string | null; createdAt: string; deposant: string | null; items: number } | null, void>({
+      query: () => '/depots/latest',
+      providesTags: ['DepositRequest'],
+    }),
     getDeposantOverview: builder.query<DeposantOverview, string>({
       query: (id) => `/deposants/${id}/overview`,
       providesTags: ['CoClient', 'Product'],
@@ -158,6 +162,7 @@ export const {
   useSearchDeposantsQuery,
   useLazySearchDeposantsQuery,
   useGetDeposantOverviewQuery,
+  useGetLatestDepotQuery,
   useLazyGetDeposantByTokenQuery,
   useGetDeposantByTokenQuery,
   useLazyCheckDeposantPhoneQuery,

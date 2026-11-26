@@ -33,6 +33,7 @@ import {
 } from '../../lib/speech';
 import { Waveform } from '../../components/Dictation';
 import { useCategoryCreators } from '../../components/FormAssistant';
+import { useAssistantGreeting } from '../../lib/greeting';
 import { Money, PhoneField, TextField } from '../../components/ui';
 import { SplitBar, COMMISSION_PRESETS } from './ArticlesEditor';
 import { emptyDeposant, newItem, validateDeposant, type DraftDeposant, type DraftItem } from './draft';
@@ -339,6 +340,8 @@ export default function VoiceWizard({
   const cancelSpeech = useRef<() => void>(() => {});
   const stateRef = useRef(state);
   stateRef.current = state;
+  const greeting = useAssistantGreeting('depot', open);
+  const greeted = useRef(false);
   const listenRef = useRef<() => void>(() => {});
 
   const steps = useMemo(() => buildSteps(state), [state]);
@@ -351,6 +354,7 @@ export default function VoiceWizard({
     if (!open) return;
     setState(fresh());
     setCursor('firstName');
+    greeted.current = false;
     setFeedback(null);
     setTyped('');
     retries.current = 0;
@@ -643,15 +647,18 @@ export default function VoiceWizard({
       setPhase('idle');
       return;
     }
+    if (!greeted.current && greeting === null) return; // wait for « vous venez d'ajouter… »
     if (muted) {
       const t = window.setTimeout(listen, 350);
       return () => window.clearTimeout(t);
     }
     setPhase('speaking');
-    cancelSpeech.current = speak(step.prompt, () => listen());
+    const intro = !greeted.current ? `${greeting} ` : '';
+    greeted.current = true;
+    cancelSpeech.current = speak(`${intro}${step.prompt}`, () => listen());
     return () => cancelSpeech.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, cursor, mode]);
+  }, [open, cursor, mode, greeting === null]);
 
   useEffect(
     () => () => {
@@ -793,6 +800,12 @@ export default function VoiceWizard({
             ) : null}
           </div>
 
+          {stepIndex === 0 && !state.answered.size ? (
+            <div className="bd-anim-pop mt-5 flex w-full items-start gap-2.5 rounded-2xl bg-bd-surface px-4 py-3 text-left shadow-card">
+                <span aria-hidden className="text-xl leading-none">👋</span>
+                <p className="text-sm font-bold leading-snug text-bd-ink">{greeting}</p>
+              </div>
+          ) : null}
           <div key={`${step.id}-${pendingCreate?.name ?? ''}`} className="bd-anim-slide-in mt-6 w-full">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-bd-violet">{step.section}</p>
             <h2 className="mt-2 text-balance text-2xl font-black leading-tight text-bd-ink sm:text-[26px]">
