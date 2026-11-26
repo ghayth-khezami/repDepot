@@ -1,3 +1,4 @@
+import { COMMISSION_MESSAGE, COMMISSION_VALUES } from "../../common/commission";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { PayoutStatus, ProductStatus } from "@prisma/client";
 import {
@@ -11,6 +12,7 @@ import {
   IsArray,
   IsUUID,
 } from "class-validator";
+import { IsIn } from "class-validator";
 
 export class CreateProductDto {
   @ApiProperty({ description: "Product name", example: "Laptop" })
@@ -78,7 +80,7 @@ export class CreateProductDto {
   })
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @IsIn(COMMISSION_VALUES as unknown as number[], { message: COMMISSION_MESSAGE })
   depotPercentage?: number;
 
   @ApiPropertyOptional({ description: "Surcharge amount", example: 10.5 })

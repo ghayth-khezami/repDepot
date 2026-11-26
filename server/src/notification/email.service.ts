@@ -5,6 +5,23 @@ import * as nodemailer from "nodemailer";
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
+  /** True when SMTP is configured. */
+  isConfigured() {
+    return !!(process.env.SMTP_HOST?.trim() && process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim());
+  }
+
+  /** Plain message to any recipient (déposant notifications). Throws on SMTP failure. */
+  async sendText(input: { to: string; subject: string; text: string }) {
+    if (!this.isConfigured()) throw new Error("SMTP non configuré");
+    const transport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST!.trim(),
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === "true",
+      auth: { user: process.env.SMTP_USER!.trim(), pass: process.env.SMTP_PASS!.trim() },
+    });
+    await transport.sendMail({ from: process.env.SMTP_FROM?.trim() || process.env.SMTP_USER, to: input.to, subject: input.subject, text: input.text });
+  }
+
   async sendOrderNotification(input: {
     clientName: string;
     productName: string;

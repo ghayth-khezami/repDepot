@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useGetClientsQuery, useCreateClientMutation, useDeleteClientMutation, useGetClientCommandHistoryQuery } from '../store/api/clientApi';
+import { useGetClientsQuery, useGetClientsFeedInfiniteQuery, useCreateClientMutation, useDeleteClientMutation, useGetClientCommandHistoryQuery } from '../store/api/clientApi';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import AddressMapSelector from '../components/AddressMapSelector';
@@ -18,7 +19,7 @@ const ClientsPage = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [address, setAddress] = useState('');
 
-  const { data, isLoading } = useGetClientsQuery({ page, limit, search });
+  const { data, isLoading, infinite } = useInfiniteList<Client>(useGetClientsFeedInfiniteQuery({search }));
   const [createClient] = useCreateClientMutation();
   const [deleteClient] = useDeleteClientMutation();
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -146,18 +147,7 @@ const ClientsPage = () => {
         isLoading={isLoading}
         searchPlaceholder="Rechercher par nom, email ou téléphone..."
         onSearch={setSearch}
-        pagination={
-          data?.meta
-            ? {
-                page: data.meta.page,
-                limit: data.meta.limit,
-                total: data.meta.total,
-                totalPages: data.meta.totalPages,
-                onPageChange: setPage,
-                onLimitChange: setLimit,
-              }
-            : undefined
-        }
+        infinite={infinite}
         actions={(row) => (
           <>
             <button

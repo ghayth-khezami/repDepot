@@ -1,3 +1,4 @@
+import { pagedFeed } from './feed';
 import { baseApi } from './baseApi';
 import { PaginatedResponse, QueryParams } from '../../types';
 
@@ -24,6 +25,7 @@ export interface UpdateClientFeedbackDto extends Partial<CreateClientFeedbackDto
 
 export const clientFeedbackApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getClientFeedbacksAdminFeed: pagedFeed<ClientFeedback, Record<string, unknown>>(builder, '/client-feedbacks/admin', 'ClientFeedback'),
     getClientFeedbacksAdmin: builder.query<PaginatedResponse<ClientFeedback>, QueryParams>({
       query: (params) => ({
         url: '/client-feedbacks/admin',
@@ -51,6 +53,7 @@ export const clientFeedbackApi = baseApi.injectEndpoints({
 
 export const {
   useGetClientFeedbacksAdminQuery,
+  useGetClientFeedbacksAdminFeedInfiniteQuery,
   useCreateClientFeedbackMutation,
   useUpdateClientFeedbackMutation,
   useDeleteClientFeedbackMutation,

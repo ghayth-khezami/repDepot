@@ -54,5 +54,7 @@ export class PaginatedResponse<T> {
     limit: number;
     total: number;
     totalPages: number;
+    /** Optional segment counts (e.g. déposants avec / sans articles). */
+    counts?: Record<string, number>;
   };
 }

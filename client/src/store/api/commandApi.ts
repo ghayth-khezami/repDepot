@@ -1,3 +1,4 @@
+import { pagedFeed } from './feed';
 import { baseApi } from './baseApi';
 import { PaginatedResponse, QueryParams } from '../../types';
 
@@ -40,6 +41,7 @@ export interface UpdateCommandDto {
 
 export const commandApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getCommandsFeed: pagedFeed<Command, Record<string, unknown>>(builder, '/commands', 'Command'),
     getCommands: builder.query<PaginatedResponse<Command>, QueryParams>({
       query: (params) => ({
         url: '/commands',
@@ -83,6 +85,7 @@ export const commandApi = baseApi.injectEndpoints({
 
 export const {
   useGetCommandsQuery,
+  useGetCommandsFeedInfiniteQuery,
   useGetCommandQuery,
   useCreateCommandMutation,
   useUpdateCommandMutation,

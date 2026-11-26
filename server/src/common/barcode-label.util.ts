@@ -235,3 +235,125 @@ export async function buildProductQrPdf(
 
   return Buffer.from(doc.output("arraybuffer"));
 }
+
+
+export interface QrCardProduct {
+  id: string;
+  ref?: string | null;
+  productName: string;
+  description?: string | null;
+  PrixVente: number;
+}
+
+/** Fits text on ONE line (ellipsis) at the current font size. */
+function fitLine(doc: any, text: string, maxWidth: number) {
+  const clean = (text || "").replace(/\s+/g, " ").trim();
+  if (doc.getTextWidth(clean) <= maxWidth) return clean;
+  let lo = 0;
+  let hi = clean.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (doc.getTextWidth(clean.slice(0, mid) + "…") <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return clean.slice(0, lo).trimEnd() + "…";
+}
+
+/** At most `maxLines` lines; the last one gets an ellipsis if text remains. */
+function clampLines(doc: any, text: string, maxWidth: number, maxLines: number): string[] {
+  const clean = (text || "").replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+  const lines: string[] = doc.splitTextToSize(clean, maxWidth);
+  if (lines.length <= maxLines) return lines;
+  const kept = lines.slice(0, maxLines);
+  kept[maxLines - 1] = fitLine(doc, lines.slice(maxLines - 1).join(" "), maxWidth);
+  if (!kept[maxLines - 1].endsWith("…")) kept[maxLines - 1] = fitLine(doc, kept[maxLines - 1] + " …", maxWidth);
+  return kept;
+}
+
+/** QR drawn as vector squares: no PNG encoding (≈100× faster than addImage) and razor-sharp in print. */
+function drawQrVector(doc: any, payload: string, x: number, y: number, size: number) {
+  const qr = QRCode.create(payload, { errorCorrectionLevel: "M" });
+  const n = qr.modules.size;
+  const cell = size / n;
+  doc.setFillColor(30, 22, 48);
+  for (let r = 0; r < n; r++) {
+    let c = 0;
+    while (c < n) {
+      if (!qr.modules.get(r, c)) {
+        c++;
+        continue;
+      }
+      let run = 1;
+      while (c + run < n && qr.modules.get(r, c + run)) run++;
+      doc.rect(x + c * cell, y + r * cell, run * cell + 0.01, cell + 0.01, "F");
+      c += run;
+    }
+  }
+}
+
+export const QR_CARD_GRID = { columns: 3, rows: 4, margin: 10 } as const;
+
+/**
+ * A4 sheet of equal-size QR cards (3 columns × 4 rows), dashed cut lines.
+ * Each card: QR (product ref, or id) → name (1 line) → description (max 2 lines) → price (bold).
+ * Card size never depends on content.
+ */
+export async function buildQrCardsPdf(products: QrCardProduct[]): Promise<Buffer> {
+  const doc: any = new jsPDF.jsPDF({ unit: "mm", format: "a4" });
+  const { columns, rows, margin } = QR_CARD_GRID;
+  const pageW = 210;
+  const pageH = 297;
+  const cardW = (pageW - margin * 2) / columns;
+  const cardH = (pageH - margin * 2) / rows;
+  const perPage = columns * rows;
+  const pad = 4;
+  const qr = 36;
+
+  for (let i = 0; i < products.length; i++) {
+    const pos = i % perPage;
+    if (i > 0 && pos === 0) doc.addPage();
+    if (pos === 0) {
+      // dashed cut grid for the whole page
+      doc.setLineDashPattern([1.5, 1.5], 0);
+      doc.setDrawColor(190, 180, 205);
+      doc.setLineWidth(0.2);
+      for (let c = 0; c <= columns; c++) doc.line(margin + c * cardW, margin, margin + c * cardW, margin + rows * cardH);
+      for (let r = 0; r <= rows; r++) doc.line(margin, margin + r * cardH, margin + columns * cardW, margin + r * cardH);
+      doc.setLineDashPattern([], 0);
+    }
+    const p = products[i];
+    const x = margin + (pos % columns) * cardW;
+    const y = margin + Math.floor(pos / columns) * cardH;
+    const inner = cardW - pad * 2;
+    const payload = (p.ref || p.id).trim();
+
+    drawQrVector(doc, payload, x + (cardW - qr) / 2, y + pad, qr);
+
+    let ty = y + pad + qr + 5;
+    doc.setTextColor(30, 22, 48);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(fitLine(doc, p.productName, inner), x + cardW / 2, ty, { align: "center" });
+
+    ty += 4.6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(107, 100, 120);
+    clampLines(doc, p.description ?? "", inner, 2).forEach((line, li) => doc.text(line, x + cardW / 2, ty + li * 3.4, { align: "center" }));
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(194, 24, 91);
+    doc.text(formatTnd(p.PrixVente), x + cardW / 2, y + cardH - pad - 4, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(107, 100, 120);
+    if (p.ref) doc.text(p.ref, x + cardW / 2, y + cardH - pad + 0.5, { align: "center" });
+  }
+  if (!products.length) {
+    doc.setFontSize(12);
+    doc.text("Aucun produit pour ces filtres.", pageW / 2, 40, { align: "center" });
+  }
+  return Buffer.from(doc.output("arraybuffer"));
+}

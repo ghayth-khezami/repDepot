@@ -1,8 +1,10 @@
+import { pagedFeed } from './feed';
 import { baseApi } from './baseApi';
 import { User, PaginatedResponse, CreateUserDto, UpdateUserDto, QueryParams } from '../../types';
 
 export const userApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getUsersFeed: pagedFeed<User, Record<string, unknown>>(builder, '/users', 'User'),
     getUsers: builder.query<PaginatedResponse<User>, QueryParams>({
       query: (params) => ({
         url: '/users',
@@ -32,4 +34,4 @@ export const userApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useGetUsersQuery, useGetUserQuery, useUpdateUserMutation, useDeleteUserMutation } = userApi;
+export const { useGetUsersQuery, useGetUsersFeedInfiniteQuery, useGetUserQuery, useUpdateUserMutation, useDeleteUserMutation } = userApi;

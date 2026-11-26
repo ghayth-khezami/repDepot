@@ -8,6 +8,9 @@ import { ToastProvider } from './context/ToastContext.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { ThemeProvider } from './context/ThemeContext.tsx'
 import './index.css'
+import { captureInstallPrompt } from './lib/install'
+
+captureInstallPrompt()
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

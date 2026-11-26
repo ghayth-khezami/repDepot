@@ -1,6 +1,5 @@
 import { memo, useId, useRef } from 'react';
 import { ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
-import { useGetCategoryHierarchyQuery } from '../../store/api/categoryApi';
 import { useUploadMediaMutation } from '../../store/api/depotApi';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { compressImageForUpload } from '../../lib/compressImage';
@@ -9,9 +8,12 @@ import { cn } from '../../lib/cn';
 import { useToast } from '../../context/ToastContext';
 import { Button, Card, Money, Pill } from '../../components/ui';
 import { FieldMic } from '../../components/Dictation';
+import CategoryCombobox from './CategoryCombobox';
 import { itemSplit, type DraftItem, type ItemErrors } from './draft';
 
-export const COMMISSION_PRESETS = [20, 25, 30, 40] as const;
+import { COMMISSION_VALUES } from '../../lib/commission';
+
+export const COMMISSION_PRESETS = COMMISSION_VALUES;
 
 type Patch = Partial<DraftItem> | ((it: DraftItem) => Partial<DraftItem>);
 
@@ -105,23 +107,7 @@ function PhotoTile({ item, onPatch, size = 'md' }: { item: DraftItem; onPatch: (
 }
 
 function CategorySelect({ value, onChange, error, id }: { value: string; onChange: (v: string) => void; error?: string; id: string }) {
-  const { data, isLoading } = useGetCategoryHierarchyQuery();
-  return (
-    <select
-      id={id}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-invalid={error ? true : undefined}
-      className={cn('bd-input pr-8', !value && 'text-bd-muted', error && 'border-bd-danger')}
-    >
-      <option value="">{isLoading ? 'Chargement…' : 'Catégorie…'}</option>
-      {data?.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.categoryName}
-        </option>
-      ))}
-    </select>
-  );
+  return <CategoryCombobox id={id} value={value} onChange={onChange} error={error} />;
 }
 
 function NameInput({ value, onChange, error, id, label, placeholder }: { value: string; onChange: (v: string) => void; error?: string; id: string; label: string; placeholder: string }) {
@@ -166,24 +152,24 @@ function PriceInput({ value, onChange, error, id, label }: { value: string; onCh
 }
 
 function CommissionInput({ value, onChange, id, error, label }: { value: number; onChange: (v: number) => void; id: string; error?: string; label?: string }) {
+  // Fixed values only (5 … 50 %). A legacy value stays visible until changed.
+  const values = (COMMISSION_PRESETS as readonly number[]).includes(value) ? COMMISSION_PRESETS : [value, ...COMMISSION_PRESETS];
   return (
-    <div className="relative">
-      <input
-        id={id}
-        type="number"
-        inputMode="decimal"
-        min={0}
-        max={100}
-        step={0.5}
-        aria-label={label}
-        value={Number.isFinite(value) ? value : ''}
-        onChange={(e) => onChange(e.target.value === '' ? NaN : Number(e.target.value))}
-        aria-invalid={error ? true : undefined}
-        data-dictation="off"
-        className={cn('bd-input pr-9 text-right tabular-nums', error && 'border-bd-danger')}
-      />
-      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-extrabold text-bd-muted">%</span>
-    </div>
+    <select
+      id={id}
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      aria-invalid={error ? true : undefined}
+      data-dictation="off"
+      className={cn('bd-input pr-8 text-right font-extrabold tabular-nums', error && 'border-bd-danger')}
+    >
+      {values.map((c) => (
+        <option key={c} value={c}>
+          {c} %
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -300,10 +286,10 @@ const MobileCard = memo(function MobileCard({ item, index, errors, canRemove, on
 
 export function CommissionChips({ value, onChange }: { value: number; onChange: (pct: number) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Commission pour tous les articles">
-      <span className="mr-1 text-sm font-extrabold text-bd-ink">Commission pour tous</span>
+    <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" role="group" aria-label="Commission pour tous les articles">
+      <span className="mr-1 shrink-0 text-sm font-extrabold text-bd-ink">Commission</span>
       {COMMISSION_PRESETS.map((p) => (
-        <Pill key={p} active={value === p} onClick={() => onChange(p)}>
+        <Pill key={p} active={value === p} onClick={() => onChange(p)} className="shrink-0">
           {p} %
         </Pill>
       ))}

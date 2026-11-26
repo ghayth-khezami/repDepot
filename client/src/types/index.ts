@@ -3,6 +3,8 @@ export interface PaginationMeta {
   limit: number;
   total: number;
   totalPages: number;
+  /** Optional segment counts returned by some admin lists. */
+  counts?: Record<string, number>;
 }
 
 export interface PaginatedResponse<T> {

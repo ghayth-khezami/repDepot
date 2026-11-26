@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useGetCategoriesQuery, useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation, useGetCategoryQuery } from '../store/api/categoryApi';
+import { useGetCategoriesQuery, useGetCategoriesFeedInfiniteQuery, useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation, useGetCategoryQuery } from '../store/api/categoryApi';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import SubCategoriesPanel from '../components/SubCategoriesPanel';
@@ -44,7 +45,7 @@ const CategoriesPage = () => {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [subsModalId, setSubsModalId] = useState<string | null>(null);
 
-  const { data, isLoading } = useGetCategoriesQuery({ page, limit, search });
+  const { data, isLoading, infinite } = useInfiniteList<Category>(useGetCategoriesFeedInfiniteQuery({search }));
   const { data: categoryDetail } = useGetCategoryQuery(subsModalId ?? '', { skip: !subsModalId });
   const [createCategory] = useCreateCategoryMutation();
   const [updateCategory] = useUpdateCategoryMutation();
@@ -194,18 +195,7 @@ const CategoriesPage = () => {
             setSearch(v);
             setPage(1);
           }}
-          pagination={
-            data?.meta
-              ? {
-                  page: data.meta.page,
-                  limit: data.meta.limit,
-                  total: data.meta.total,
-                  totalPages: data.meta.totalPages,
-                  onPageChange: setPage,
-                  onLimitChange: setLimit,
-                }
-              : undefined
-          }
+          infinite={infinite}
           actions={(row) => (
             <>
               <button

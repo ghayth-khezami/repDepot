@@ -29,7 +29,7 @@ export class PublicSuiviController {
   @Post(":token/push/unsubscribe")
   @ApiOperation({ summary: "Stop notifications on this device" })
   unsubscribe(@Param("token") token: string, @Body() dto: DeposantUnsubscribeDto) {
-    return this.push.unsubscribe(token, dto.endpoint);
+    return this.push.unsubscribeDevice(token, dto.endpoint);
   }
 
   @Get(":token")

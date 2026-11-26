@@ -80,6 +80,25 @@ export const productApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Product'],
     }),
+    /** Backoffice list, infinite scroll (RTK infinite query: every loaded page refetches on invalidation). */
+    getProductsFeed: builder.infiniteQuery<PaginatedResponse<Product>, ProductFeedArgs, number>({
+      infiniteQueryOptions: {
+        initialPageParam: 1,
+        getNextPageParam: (last) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
+      },
+      query: ({ queryArg, pageParam }) => ({
+        url: '/products/admin/list',
+        params: Object.fromEntries(Object.entries({ ...queryArg, page: pageParam, limit: 20 }).filter(([, v]) => v !== undefined && v !== '')),
+      }),
+      providesTags: ['Product'],
+    }),
+    changeLifecycle: builder.mutation<
+      { id: string; from: ProductStage; stage: ProductStage; notification: NotifySummary | null },
+      { id: string; to: ProductStage }
+    >({
+      query: ({ id, to }) => ({ url: `/products/${id}/lifecycle`, method: 'PATCH', body: { to } }),
+      invalidatesTags: (r, e, { id }) => [{ type: 'Product', id }, 'Product', 'CoClient'],
+    }),
     updateProduct: builder.mutation<Product, { id: string; data: UpdateProductDto }>({
       query: ({ id, data }) => ({
         url: `/products/${id}`,
@@ -95,14 +114,30 @@ export const productApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Product'],
     }),
-    deleteAllProducts: builder.mutation<{ deleted: number }, void>({
-      query: () => ({ url: '/products/admin/all', method: 'DELETE' }),
-      invalidatesTags: ['Product'],
-    }),
   }),
 });
 
+export type ProductStage = 'EN_VENTE' | 'VENDU' | 'PAYE' | 'RETIRE';
+export interface ProductFeedArgs {
+  search?: string;
+  isDepot?: boolean;
+  categoryId?: string;
+  coclientId?: string;
+  depositRequestId?: string;
+  stage?: ProductStage;
+  sort?: 'price_asc' | 'price_desc';
+}
+export interface NotifySummary {
+  sent: number;
+  failed: number;
+  skipped: number;
+  channels: string[];
+  errors: string[];
+}
+
 export const {
+  useChangeLifecycleMutation,
+  useGetProductsFeedInfiniteQuery,
   useGetProductsQuery,
   useGetProductsInfiniteQuery,
   useGetProductQuery,
@@ -111,5 +146,4 @@ export const {
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
-  useDeleteAllProductsMutation,
 } = productApi;

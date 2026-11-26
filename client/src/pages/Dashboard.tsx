@@ -41,6 +41,7 @@ import {
 import DeposantSuivi from '../features/depot/DeposantSuivi';
 import AppHeader, { DATE_RANGE_DELTA_LABEL, DATE_RANGE_LABEL, rangeFor, type DateRangeKey } from '../components/AppHeader';
 import ExcelButton from '../components/ExcelButton';
+import InstallAppButton from '../components/InstallAppButton';
 import { useGetCategoryHierarchyQuery } from '../store/api/categoryApi';
 import { Button, Card, CardTitle, EmptyState, Illustration, InfoNote, Pill, StatCard, buttonClass } from '../components/ui';
 import { downloadAuthed } from '../lib/download';
@@ -179,6 +180,7 @@ const Dashboard = () => {
   return (
     <div className="bd-ui mx-auto max-w-7xl">
       <AppHeader />
+      <InstallAppButton variant="card" className="mb-4 md:hidden" />
 
       <div className="mb-6 grid grid-cols-[1fr_1fr_auto] items-center gap-2 sm:flex sm:justify-end">
         <label className="relative min-w-0 sm:w-52">

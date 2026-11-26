@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
 import { parseTndInput, splitCommission } from '../../lib/money';
+import { isAllowedCommission } from '../../lib/commission';
 import type { DeposantSummary } from '../../store/api/depotApi';
 
 /** One form store for the whole stepper: going back never loses data (and survives a refresh). */
@@ -198,7 +199,7 @@ export function validateItem(it: DraftItem): ItemErrors {
   if (!it.name.trim()) e.name = 'Nom requis';
   const p = parseTndInput(it.price);
   if (p === null || p <= 0) e.price = 'Prix > 0 (3 déc. max)';
-  if (!(it.commission >= 0 && it.commission <= 100)) e.commission = '0 à 100 %';
+  if (!isAllowedCommission(it.commission)) e.commission = '5 à 50 % (valeurs fixes)';
   if (!it.categoryId) e.categoryId = 'Catégorie requise';
   return e;
 }

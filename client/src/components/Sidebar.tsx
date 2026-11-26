@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { cn } from '../lib/cn';
 import { Illustration } from './ui';
+import InstallAppButton from './InstallAppButton';
 import depotLogo from '../depot.jpg';
 
 export interface NavItem {
@@ -113,6 +114,7 @@ const Sidebar = () => {
 
         <div className="relative space-y-1 border-t border-bd-line/10 p-3">
           <Illustration name="teddy" className="pointer-events-none absolute -top-14 right-3 h-14 w-14 opacity-90" />
+          <InstallAppButton />
           <button
             type="button"
             onClick={toggleTheme}

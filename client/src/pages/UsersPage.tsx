@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useGetUsersQuery, useUpdateUserMutation, useDeleteUserMutation } from '../store/api/userApi';
+import { useGetUsersQuery, useGetUsersFeedInfiniteQuery, useUpdateUserMutation, useDeleteUserMutation } from '../store/api/userApi';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import { User, UpdateUserDto } from '../types';
@@ -15,7 +16,7 @@ const UsersPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  const { data, isLoading } = useGetUsersQuery({ page, limit, search });
+  const { data, isLoading, infinite } = useInfiniteList<User>(useGetUsersFeedInfiniteQuery({search }));
   const [updateUser] = useUpdateUserMutation();
   const [deleteUser] = useDeleteUserMutation();
   const { showToast } = useToast();
@@ -83,18 +84,7 @@ const UsersPage = () => {
         isLoading={isLoading}
         searchPlaceholder="Rechercher par email ou username..."
         onSearch={setSearch}
-        pagination={
-          data?.meta
-            ? {
-                page: data.meta.page,
-                limit: data.meta.limit,
-                total: data.meta.total,
-                totalPages: data.meta.totalPages,
-                onPageChange: setPage,
-                onLimitChange: setLimit,
-              }
-            : undefined
-        }
+        infinite={infinite}
         actions={(row) => (
           <>
             <button

@@ -1,4 +1,4 @@
-import { emitProductsSold } from "../common/sold-events";
+import { publishProductStatusChangedLater } from "../common/domain-events";
 import { PayoutStatus, ProductStatus } from "@prisma/client";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { CommandStatus } from "@prisma/client";
@@ -14,7 +14,7 @@ import { sanitizePlainText } from "../common/utils/sanitize-text";
 /** Sets soldAt (first sale only) and the default payout status for dépôt products. */
 async function stampSold(tx: any, productIds: string[]) {
   if (!productIds.length) return;
-  emitProductsSold(productIds);
+  publishProductStatusChangedLater({ productIds, to: "VENDU" });
   await tx.product.updateMany({
     where: { id: { in: productIds }, soldAt: null },
     data: { soldAt: new Date() },

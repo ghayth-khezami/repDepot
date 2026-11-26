@@ -42,6 +42,8 @@ export interface FlowStep {
   resolve?: (spoken: string, v: FlowValues) => Promise<FlowOption | null>;
   /** Choice not found → offer to create it. */
   create?: { noun: string; run: (name: string, v: FlowValues) => Promise<FlowOption> };
+  /** For 'percent' / 'number': only these values (also shown as tappable chips). */
+  allowed?: readonly number[];
   /** Shortcut words mapped to a value, e.g. "comme d'habitude" → 25. */
   aliases?: Array<{ match: RegExp; value: string; display?: string }>;
 }
@@ -211,6 +213,7 @@ export default function GuidedFlow({
         case 'percent': {
           const n = parseFrenchNumber(t);
           if (n === null || n < 0 || (st.kind === 'percent' && n > 100)) return setFeedback({ ok: false, text: `Nombre non compris (« ${t} »).` }), false;
+          if (st.allowed && !st.allowed.includes(n)) return setFeedback({ ok: false, text: `Choisissez : ${st.allowed.join(', ')} %.` }), false;
           accept(st, { value: String(n), display: st.kind === 'price' ? formatTnd(toMillimes(n)) : st.kind === 'percent' ? `${n} %` : String(n) });
           return true;
         }
@@ -310,7 +313,14 @@ export default function GuidedFlow({
   const listening = phase === 'listening' && dict.listening;
   const progress = (idx / Math.max(1, active.length)) * 100;
   const v = values;
-  const choices = step?.kind === 'choice' && pendingCreate === null ? (step.options?.(v) ?? []) : [];
+  const choices =
+    pendingCreate !== null
+      ? []
+      : step?.kind === 'choice'
+        ? (step.options?.(v) ?? [])
+        : step?.allowed
+          ? step.allowed.map((n) => ({ value: String(n), label: step.kind === 'percent' ? `${n} %` : String(n) }))
+          : [];
   const yesNo = step?.kind === 'yesno' || pendingCreate !== null;
 
   return createPortal(
@@ -468,7 +478,7 @@ export default function GuidedFlow({
                   <button
                     key={o.value}
                     type="button"
-                    onClick={() => accept(step!, { value: o.value, display: o.label })}
+                    onClick={() => (step!.kind === 'choice' ? accept(step!, { value: o.value, display: o.label }) : void commit(o.value))}
                     className={cn(
                       'bd-focus min-h-[40px] rounded-full px-4 text-sm font-extrabold transition active:scale-95',
                       v[step!.id]?.value === o.value ? 'bg-grad-pink-strong text-white shadow-glow-pink' : 'border border-bd-line/15 bg-bd-surface text-bd-ink',

@@ -429,3 +429,9 @@ html.dark body {
   .bd-rec-bar, .bd-wave > i, .bd-caret, .bd-stop-btn::before, .bd-stop-btn::after,
   .bd-orb-core, .bd-orb-halo, .bd-orb-ring, .bd-anim-fade-up, .bd-anim-slide-in, .bd-anim-pop, .bd-anim-shake { animation: none !important; }
 }
+
+/* Bottom sheets */
+@keyframes bd-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+.bd-sheet-in { animation: bd-sheet-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (min-width: 640px) { .bd-sheet-in { animation: bd-pop-in 0.22s var(--bd-ease) both; } }
+@media (prefers-reduced-motion: reduce) { .bd-sheet-in { animation: none; } }

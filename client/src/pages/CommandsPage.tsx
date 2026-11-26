@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  useGetCommandsQuery,
+  useGetCommandsQuery, useGetCommandsFeedInfiniteQuery,
   useGetCommandQuery,
   useCreateCommandMutation,
   useUpdateCommandMutation,
@@ -13,6 +13,7 @@ import { useConfirmDialog } from '../components/ConfirmDialog';
 import { useGetProductsQuery, useLazyGetProductQuery } from '../store/api/productApi';
 import { useGetClientsQuery } from '../store/api/clientApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import AddressMapSelector from '../components/AddressMapSelector';
@@ -43,12 +44,9 @@ const CommandsPage = () => {
   const [statusDate, setStatusDate] = useState<Date | null>(null);
   const [newStatus, setNewStatus] = useState<'NOT_DELIVERED' | 'DELIVERED'>('NOT_DELIVERED');
 
-  const { data, isLoading } = useGetCommandsQuery({
-    page,
-    limit,
-    search,
+  const { data, isLoading, infinite } = useInfiniteList<Command>(useGetCommandsFeedInfiniteQuery({search,
     status: statusFilter || undefined,
-  });
+  }));
   const { data: viewCommand, isLoading: viewLoading } = useGetCommandQuery(viewCommandId || '', {
     skip: !viewCommandId,
   });
@@ -369,18 +367,7 @@ const CommandsPage = () => {
             <option value="DELIVERED">Livré</option>
           </select>
         }
-        pagination={
-          data?.meta
-            ? {
-                page: data.meta.page,
-                limit: data.meta.limit,
-                total: data.meta.total,
-                totalPages: data.meta.totalPages,
-                onPageChange: setPage,
-                onLimitChange: setLimit,
-              }
-            : undefined
-        }
+        infinite={infinite}
         actions={(row) => (
           <>
             <button

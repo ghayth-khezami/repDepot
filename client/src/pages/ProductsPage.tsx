@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  useGetProductsQuery,
   useUpdateProductMutation,
   useDeleteProductMutation,
-  useDeleteAllProductsMutation,
 } from '../store/api/productApi';
 import { useGetCategoryHierarchyQuery } from '../store/api/categoryApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
@@ -21,6 +19,8 @@ import { apiErrorMessage } from '../lib/apiError';
 import ExcelButton from '../components/ExcelButton';
 import ProductAssistant, { type ProductAiResult } from '../features/products/ProductAssistant';
 import ProductDetailSheet from '../features/products/ProductDetailSheet';
+import ProductsList from '../features/products/ProductsList';
+import { COMMISSION_VALUES, DEFAULT_COMMISSION } from '../lib/commission';
 import { setNativeValue } from '../lib/speech';
 
 const ProductsPage = () => {
@@ -59,15 +59,7 @@ const ProductsPage = () => {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data, isLoading, refetch } = useGetProductsQuery({
-    page,
-    limit,
-    search: search || undefined,
-    categoryId: categoryFilter || undefined,
-    isDepot: isDepotFilter,
-    status: statusFilter || undefined,
-    depositRequestId: contractFilter || undefined,
-  });
+
   const { data: categoryHierarchy = [], isLoading: categoriesLoading } = useGetCategoryHierarchyQuery();
   const selectedCategories = categoryHierarchy.filter((category) => selectedCategoryIds.includes(category.id));
   const allCategories = categoryHierarchy;
@@ -147,7 +139,6 @@ const ProductsPage = () => {
   }, [isModalOpen, selectedProduct]);
   const [updateProduct] = useUpdateProductMutation();
   const [deleteProduct] = useDeleteProductMutation();
-  const [deleteAllProducts] = useDeleteAllProductsMutation();
   const { showToast } = useToast();
   const { confirm, dialog } = useConfirmDialog();
 
@@ -299,19 +290,6 @@ const ProductsPage = () => {
     });
   };
 
-  const handleDeleteAll = () => {
-    confirm({
-      title: 'Supprimer tous les produits',
-      message: 'Cette action supprime définitivement tous les produits. Continuer ?',
-      confirmLabel: 'Tout supprimer',
-      onConfirm: async () => {
-        const result = await deleteAllProducts().unwrap();
-        showToast(`${result.deleted} produits supprimés`, 'success');
-        await refetch();
-      },
-    });
-  };
-
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
@@ -456,7 +434,6 @@ const ProductsPage = () => {
       setDepotPercentage(0);
       setIsDepot(false);
       setPage(1);
-      await refetch();
     } catch (error) {
       showToast(apiErrorMessage(error, 'Erreur lors de l\'opération'), 'error', 6000);
     } finally {
@@ -500,23 +477,8 @@ const ProductsPage = () => {
       .catch(() => showToast('Erreur lors de l\'export PDF', 'error'));
   };
 
-  const handleExportQrPdf = () => {
-    const token = localStorage.getItem('token');
-    fetch(`${apiBaseUrl}/products/export/qr/pdf`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'produits-qr.pdf';
-        link.click();
-        window.URL.revokeObjectURL(url);
-        showToast('PDF QR généré', 'success');
-      })
-      .catch(() => showToast('Erreur génération PDF QR', 'error'));
-  };
 
-  const products = data?.data || [];
+
 
   const columns: Column<Product & { isSold?: boolean; photos?: any[] }>[] = [
     {
@@ -634,123 +596,16 @@ const ProductsPage = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">Gestion des Produits</h1>
-        <p className="bo-muted mt-2">Gérez tous les produits, y compris les articles déposés (réf. D-…).</p>
-        <Link to="/depots/nouveau" className="bd-ui mt-3 mr-2 inline-flex min-h-[40px] items-center gap-2 rounded-full bg-grad-pink-strong px-4 text-sm font-extrabold text-white shadow-glow-pink">
-          <Package className="h-4 w-4" /> Nouveau dépôt
-        </Link>
-        <button type="button" onClick={handleDeleteAll} className="mt-3 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">
-          Supprimer tous les produits
-        </button>
-        <button type="button" onClick={handleExportQrPdf} className="ml-2 mt-3 rounded-lg border border-primary-200 px-3 py-2 text-sm font-semibold text-primary-700">
-          PDF QR produits (achats)
-        </button>
-      </div>
-
-      <ReusableTable
-        toolbarExtra={<ExcelButton entity="products" params={{ search, status: statusFilter, categoryId: categoryFilter, isDepot: isDepotFilter }} compact />}
-        data={products}
-        columns={columns}
-        isLoading={isLoading}
-        searchPlaceholder="Rechercher par nom, réf. ou description..."
-        onSearch={setSearch}
-        filters={
-          <>
-            <InfiniteSelect
-              items={allFilterCategories}
-              getOptionLabel={(category) => category.categoryName}
-              getOptionValue={(category) => category.id}
-              value={categoryFilter}
-              onChange={(value) => setCategoryFilter(value as string)}
-              isLoading={categoriesLoading}
-              placeholder="Toutes les catégories"
-              className="text-sm"
-            />
-            <select
-              value={isDepotFilter === undefined ? '' : isDepotFilter ? 'true' : 'false'}
-              onChange={(e) => setIsDepotFilter(e.target.value === '' ? undefined : e.target.value === 'true')}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-            >
-              <option value="">Tous les dépôts</option>
-              <option value="true">En dépôt</option>
-              <option value="false">Pas en dépôt</option>
-            </select>
-            <select
-              aria-label="Filtrer par statut"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-            >
-              <option value="">Tous les statuts</option>
-              <option value="EN_VENTE">En vente</option>
-              <option value="VENDU">Vendus</option>
-              <option value="RETIRE">Retirés</option>
-            </select>
-            {contractFilter ? (
-              <span className="bd-ui inline-flex items-center gap-2 rounded-full bg-bd-lilac px-3 py-1.5 text-sm font-extrabold text-bd-ink">
-                Contrat filtré
-                <button
-                  type="button"
-                  aria-label="Retirer le filtre contrat"
-                  onClick={() => {
-                    const next = new URLSearchParams(searchParams);
-                    next.delete('contrat');
-                    setSearchParams(next);
-                  }}
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-bd-surface"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </span>
-            ) : null}
-          </>
-        }
-        pagination={
-          data?.meta
-            ? {
-                page: data.meta.page,
-                limit: data.meta.limit,
-                total: data.meta.total,
-                totalPages: data.meta.totalPages,
-                onPageChange: setPage,
-                onLimitChange: (next) => {
-                  setLimit(next);
-                  setPage(1);
-                },
-              }
-            : undefined
-        }
-        actions={(row) => (
-          <>
-            <button
-              onClick={() => handleView(row)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-green-600 transition-colors hover:bg-green-50"
-              title="Voir l'aperçu"
-            >
-              <Eye className="w-4 h-4" />
-              <span className="text-xs font-medium">Voir</span>
-            </button>
-            <button
-              onClick={() => handleEdit(row)}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Modifier"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleDelete(row.id)}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Supprimer"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </>
-        )}
+      <ProductsList
+        initialSearch={search}
+        contractId={contractFilter || undefined}
+        onClearContract={() => {
+          const next = new URLSearchParams(searchParams);
+          next.delete('contrat');
+          setSearchParams(next);
+        }}
         onAdd={handleAdd}
-        addButtonLabel="Ajouter un produit"
-        onExportCsv={handleExportCsv}
-        onExportPdf={handleExportPdf}
+        onOpen={(p) => handleView(p)}
       />
 
       <Modal
@@ -1080,7 +935,10 @@ const ProductsPage = () => {
                 <input
                   type="checkbox"
                   checked={isDepot}
-                  onChange={(e) => setIsDepot(e.target.checked)}
+                  onChange={(e) => {
+                    setIsDepot(e.target.checked);
+                    if (e.target.checked && !depotPercentage) setDepotPercentage(DEFAULT_COMMISSION);
+                  }}
                   className="sr-only"
                 />
                 <div
@@ -1115,15 +973,24 @@ const ProductsPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pourcentage dépôt (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={depotPercentage}
-                  onChange={(e) => setDepotPercentage(Number(e.target.value))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
+                <span className="block text-sm font-medium text-gray-700 mb-1">Commission dépôt</span>
+                <div className="bd-ui flex flex-wrap gap-1.5" role="radiogroup" aria-label="Commission dépôt">
+                  {COMMISSION_VALUES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      role="radio"
+                      aria-checked={depotPercentage === c}
+                      onClick={() => setDepotPercentage(c)}
+                      className={`min-h-[40px] rounded-full px-3.5 text-sm font-extrabold transition ${depotPercentage === c ? 'bg-grad-pink-strong text-white shadow-glow-pink' : 'border border-bd-line/15 bg-bd-surface text-bd-ink'}`}
+                    >
+                      {c} %
+                    </button>
+                  ))}
+                </div>
+                {depotPercentage && !COMMISSION_VALUES.includes(depotPercentage as (typeof COMMISSION_VALUES)[number]) ? (
+                  <p className="mt-1 text-xs font-bold text-amber-700">Ancienne valeur {depotPercentage} % — choisissez une valeur autorisée pour la modifier.</p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Surcharge (TND)</label>
@@ -1226,6 +1093,10 @@ const ProductsPage = () => {
           onEdit={(p) => {
             setDetailId(null);
             void handleEdit(p);
+          }}
+          onDelete={(pid) => {
+            setDetailId(null);
+            handleDelete(pid);
           }}
         />
       ) : null}

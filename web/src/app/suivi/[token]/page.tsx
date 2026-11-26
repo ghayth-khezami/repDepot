@@ -9,7 +9,7 @@ import { photoAbsoluteUrl } from "@/lib/server-api";
 import { formatTnd, frDate } from "@/components/suivi/format";
 import { ProductList } from "@/components/suivi/ProductList";
 import { OpeningHours } from "@/components/suivi/OpeningHours";
-import { SuiviAppActions, SuiviWelcome } from "@/components/suivi/SuiviApp";
+import { SuiviAppActions, SuiviIntro } from "@/components/suivi/SuiviApp";
 import SuiviUnavailable from "./unavailable";
 
 /** Installable per contract: manifest + iOS home-screen icon. */
@@ -93,7 +93,18 @@ export default async function SuiviPage({ params }: { params: Promise<{ token: s
 
   return (
     <div className="relative mx-auto w-full max-w-xl pb-10">
-      <SuiviWelcome firstName={deposant.firstName} token={token} />
+      <SuiviIntro
+        firstName={deposant.firstName}
+        token={token}
+        items={items.map((i) => ({
+          ref: i.ref,
+          name: i.name,
+          status: i.status,
+          payoutStatus: i.payoutStatus,
+          depositorMillimes: i.depositorMillimes,
+          photo: i.photo ? photoAbsoluteUrl(i.photo) : null,
+        }))}
+      />
 
       {/* Hero */}
       <header className="relative overflow-hidden bg-gradient-to-br from-bd-lilac via-[#F3ECFD] to-bd-blush px-5 pb-20 pt-[max(1.25rem,env(safe-area-inset-top))] sm:rounded-b-[40px]">

@@ -1,4 +1,7 @@
-import { emitProductsSold } from "../common/sold-events";
+import { publishProductStatusChanged } from "../common/domain-events";
+import { COMMISSION_MESSAGE, isAllowedCommission } from "../common/commission";
+import { assertTransition, ProductStage, stageData, stageOf } from "./lifecycle";
+import { deposantSearchClauses } from "./deposant-search";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PayoutStatus, ProductStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
@@ -225,6 +228,7 @@ export class ProductService {
       age,
       status,
       depositRequestId,
+      stage,
     } = query;
     const actualLimit = Math.min(limit || 10, 50);
     const skip = (page - 1) * actualLimit;
@@ -236,6 +240,8 @@ export class ProductService {
         { productName: { contains: search, mode: "insensitive" as const } },
         { description: { contains: search, mode: "insensitive" as const } },
         { ref: { contains: search.trim(), mode: "insensitive" as const } },
+        // Backoffice only: "karim" / "55863778" / "2" also find that déposant's articles.
+        ...(sanitize ? [] : deposantSearchClauses(search)),
       ];
     }
 
@@ -245,6 +251,12 @@ export class ProductService {
 
     if (depositRequestId) {
       where.depositRequestId = depositRequestId;
+    }
+
+    if (stage && !sanitize) {
+      if (stage === "PAYE") Object.assign(where, { status: ProductStatus.VENDU, payoutStatus: PayoutStatus.PAYE });
+      else if (stage === "VENDU") Object.assign(where, { status: ProductStatus.VENDU, NOT: { payoutStatus: PayoutStatus.PAYE } });
+      else where.status = stage;
     }
 
     if (categoryId) {
@@ -325,6 +337,15 @@ export class ProductService {
             ? { productName: "asc" as const }
             : { createdAt: "desc" as const };
 
+    // Backoffice segmented filter: Tous / Dépôts / Achats counts for the same filters.
+    const { isDepot: _type, ...whereAnyType } = where;
+    const countsPromise = sanitize
+      ? Promise.resolve(undefined)
+      : Promise.all([
+          this.prisma.product.count({ where: whereAnyType }),
+          this.prisma.product.count({ where: { ...whereAnyType, isDepot: true } }),
+        ]).then(([all, depot]) => ({ all, depot, achat: all - depot }));
+
     const [data, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
@@ -392,6 +413,7 @@ export class ProductService {
         limit: actualLimit,
         total,
         totalPages: Math.ceil(total / actualLimit),
+        ...(sanitize ? {} : { counts: await countsPromise }),
       },
     };
   }
@@ -585,13 +607,29 @@ export class ProductService {
       surcharge,
     });
 
-    const lifecycle = this.resolveLifecycle(updateProductDto, isDepot, existingProduct);
-    if (lifecycle.status === ProductStatus.VENDU && existingProduct.status !== ProductStatus.VENDU) emitProductsSold([id]);
+    if (
+      isDepot &&
+      updateProductDto.depotPercentage !== undefined &&
+      updateProductDto.depotPercentage !== existingProduct.depotPercentage &&
+      !isAllowedCommission(updateProductDto.depotPercentage)
+    ) {
+      throw new BadRequestException(COMMISSION_MESSAGE);
+    }
+
+    const resolved = this.resolveLifecycle(updateProductDto, isDepot, existingProduct);
+    // Same transition rules as PATCH /products/:id/lifecycle.
+    const fromStage = stageOf(existingProduct);
+    const toStage = stageOf({ status: resolved.status, payoutStatus: resolved.payoutStatus ?? null });
+    const stageChanged = fromStage !== toStage;
+    if (stageChanged) assertTransition(fromStage, toStage, isDepot);
+    const lifecycle = stageChanged
+      ? { ...resolved, ...stageData(toStage, isDepot, { soldAt: existingProduct.soldAt, paidAt: (existingProduct as any).paidAt ?? null }) }
+      : resolved;
     const split = this.computeSplit(isDepot, PrixVente, depotPercentage);
     const ref = await this.resolveRef(updateProductDto.ref, id);
 
     const { categoryIds, subCategoryIds, subSubCategory1Ids, subSubCategory2Ids, subSubCategory3Ids, ...productData } = updateProductDto;
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const product = await tx.product.update({
         where: { id },
         data: {
@@ -624,6 +662,42 @@ export class ProductService {
       await this.syncCategoryLinks(tx, id, updateProductDto);
       return product;
     });
+    if (stageChanged && (toStage === "VENDU" || toStage === "PAYE")) {
+      // After commit. The dedicated lifecycle endpoint awaits this to report "Déposant notifié".
+      void publishProductStatusChanged({ productIds: [id], to: toStage });
+    }
+    return updated;
+  }
+
+  /**
+   * EN_VENTE → VENDU → PAYE (+ reset to EN_VENTE). Validates the transition, stamps soldAt / paidAt,
+   * then publishes `product.status.changed` and returns what was sent to the déposant.
+   */
+  async changeLifecycle(id: string, to: ProductStage) {
+    const p = await this.prisma.product.findUnique({
+      where: { id },
+      select: { id: true, isDepot: true, status: true, payoutStatus: true, soldAt: true, paidAt: true },
+    });
+    if (!p) throw new NotFoundException("Produit introuvable.");
+    const from = stageOf(p);
+    assertTransition(from, to, p.isDepot);
+    if (from === to) return { id, from, stage: to, notification: null };
+    await this.prisma.product.update({ where: { id }, data: stageData(to, p.isDepot, { soldAt: p.soldAt, paidAt: p.paidAt }) });
+    const notification = to === "VENDU" || to === "PAYE" ? await publishProductStatusChanged({ productIds: [id], to }) : null;
+    return { id, from, stage: to, notification };
+  }
+
+  /** Products for the QR sheet, honouring the same filters as the admin list (max 1 000). */
+  async findForQrCards(query: ProductQueryDto) {
+    const out: any[] = [];
+    let page = 1;
+    for (;;) {
+      const res = await this.findAll({ ...query, page, limit: 50 }, { sanitize: false });
+      out.push(...res.data);
+      if (page >= res.meta.totalPages || out.length >= 1000) break;
+      page += 1;
+    }
+    return out.slice(0, 1000).map((p) => ({ id: p.id, ref: p.ref, productName: p.productName, description: p.description, PrixVente: p.PrixVente }));
   }
 
   async remove(id: string) {
@@ -636,10 +710,7 @@ export class ProductService {
     return { message: "Product deleted successfully" };
   }
 
-  async removeAll() {
-    const result = await this.prisma.product.deleteMany();
-    return { deleted: result.count };
-  }
+
 
   private readonly storefrontInclude = {
     category: {

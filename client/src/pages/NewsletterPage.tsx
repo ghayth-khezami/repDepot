@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import {
   NewsletterContact,
-  useGetNewsletterContactsQuery,
+  useGetNewsletterContactsQuery, useGetNewsletterContactsFeedInfiniteQuery,
 } from '../store/api/newsletterApi';
 import ExcelButton from '../components/ExcelButton';
 
@@ -11,11 +12,8 @@ const NewsletterPage = () => {
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
 
-  const { data, isLoading } = useGetNewsletterContactsQuery({
-    page,
-    limit,
-    search: search || undefined,
-  });
+  const { data, isLoading, infinite } = useInfiniteList<NewsletterContact>(useGetNewsletterContactsFeedInfiniteQuery({search: search || undefined,
+  }));
 
   const columns: Column<NewsletterContact>[] = [
     { header: 'Email', accessor: 'email' },
@@ -60,18 +58,7 @@ const NewsletterPage = () => {
           setSearch(v);
           setPage(1);
         }}
-        pagination={
-          data?.meta
-            ? {
-                page: data.meta.page,
-                limit: data.meta.limit,
-                total: data.meta.total,
-                totalPages: data.meta.totalPages,
-                onPageChange: setPage,
-                onLimitChange: setLimit,
-              }
-            : undefined
-        }
+        infinite={infinite}
       />
     </div>
   );

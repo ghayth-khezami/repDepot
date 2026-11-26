@@ -1,3 +1,4 @@
+import { pagedFeed } from './feed';
 import { baseApi } from './baseApi';
 import { PaginatedResponse, QueryParams } from '../../types';
 
@@ -44,6 +45,7 @@ export type DepositRequestStatus = DepositRequest['status'];
 
 export const depositRequestApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getDepositRequestsFeed: pagedFeed<DepositRequest, Record<string, unknown>>(builder, '/deposit-requests', 'DepositRequest'),
     getDepositRequests: builder.query<PaginatedResponse<DepositRequest>, QueryParams>({
       query: (params) => ({
         url: '/deposit-requests',
@@ -79,6 +81,7 @@ export const depositRequestApi = baseApi.injectEndpoints({
 
 export const {
   useGetDepositRequestsQuery,
+  useGetDepositRequestsFeedInfiniteQuery,
   useGetDepositRequestQuery,
   useUpdateDepositRequestStatusMutation,
   useCreateDepositRequestAdminMutation,

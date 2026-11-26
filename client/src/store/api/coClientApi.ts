@@ -21,6 +21,18 @@ export interface CoClientProductHistoryItem {
 
 export const coClientApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    /** Déposants list with infinite scroll; meta.counts = { all, with, without }. */
+    getCoClientsFeed: builder.infiniteQuery<PaginatedResponse<CoClient>, { search?: string; articles?: 'all' | 'with' | 'without' }, number>({
+      infiniteQueryOptions: {
+        initialPageParam: 1,
+        getNextPageParam: (last) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
+      },
+      query: ({ queryArg, pageParam }) => ({
+        url: '/co-clients',
+        params: Object.fromEntries(Object.entries({ ...queryArg, page: pageParam, limit: 20 }).filter(([, v]) => v !== undefined && v !== '')),
+      }),
+      providesTags: ['CoClient'],
+    }),
     getCoClients: builder.query<PaginatedResponse<CoClient>, QueryParams>({
       query: (params) => ({
         url: '/co-clients',
@@ -55,6 +67,7 @@ export const coClientApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetCoClientsFeedInfiniteQuery,
   useGetCoClientsQuery,
   useGetCoClientQuery,
   useGetCoClientProductHistoryQuery,

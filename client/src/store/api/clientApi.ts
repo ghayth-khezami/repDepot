@@ -1,3 +1,4 @@
+import { pagedFeed } from './feed';
 import { baseApi } from './baseApi';
 import { Client, PaginatedResponse, CreateClientDto, QueryParams } from '../../types';
 
@@ -20,6 +21,7 @@ export interface ClientCommandHistoryItem {
 
 export const clientApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getClientsFeed: pagedFeed<Client, Record<string, unknown>>(builder, '/clients', 'Client'),
     getClients: builder.query<PaginatedResponse<Client>, QueryParams>({
       query: (params) => ({
         url: '/clients',
@@ -55,6 +57,7 @@ export const clientApi = baseApi.injectEndpoints({
 
 export const {
   useGetClientsQuery,
+  useGetClientsFeedInfiniteQuery,
   useGetClientQuery,
   useGetClientCommandHistoryQuery,
   useCreateClientMutation,

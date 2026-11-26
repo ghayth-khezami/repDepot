@@ -34,6 +34,7 @@ import {
 import { Waveform } from '../../components/Dictation';
 import { useCategoryCreators } from '../../components/FormAssistant';
 import { useAssistantGreeting } from '../../lib/greeting';
+import { isAllowedCommission } from '../../lib/commission';
 import { Money, PhoneField, TextField } from '../../components/ui';
 import { SplitBar, COMMISSION_PRESETS } from './ArticlesEditor';
 import { emptyDeposant, newItem, validateDeposant, type DraftDeposant, type DraftItem } from './draft';
@@ -236,7 +237,7 @@ function ReviewEditor({
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-bold text-bd-ink">Commission</span>
                   <select value={it.commission} onChange={(e) => patchItem(i, { commission: Number(e.target.value) })} className="bd-input tabular-nums">
-                    {Array.from(new Set([...COMMISSION_PRESETS, it.commission, defaults.commission])).sort((a, b) => a - b).map((c) => (
+                    {Array.from(new Set([...COMMISSION_PRESETS, it.commission])).sort((a, b) => a - b).map((c) => (
                       <option key={c} value={c}>
                         {c} %
                       </option>
@@ -470,7 +471,7 @@ export default function VoiceWizard({
             return { ok: true, display: `${c} % (par défaut)`, apply: (x) => setItem(x, i, { commission: c }, defaults) };
           }
           const n = parseFrenchNumber(t);
-          if (n === null || n < 0 || n > 100) return { ok: false, error: 'Entre 0 et 100 %.' };
+          if (n === null || !isAllowedCommission(n)) return { ok: false, error: 'Choisissez : 5, 10, 15, 25, 30, 35, 40, 45 ou 50 %.' };
           return { ok: true, display: `${n} %`, apply: (x) => setItem(x, i, { commission: n }, defaults) };
         }
         default:

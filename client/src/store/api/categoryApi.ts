@@ -1,3 +1,4 @@
+import { pagedFeed } from './feed';
 import { baseApi } from './baseApi';
 import { Category, PaginatedResponse, CreateCategoryDto, UpdateCategoryDto, QueryParams } from '../../types';
 
@@ -41,6 +42,7 @@ function buildCategoryFormData(
 
 export const categoryApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getCategoriesFeed: pagedFeed<Category, Record<string, unknown>>(builder, '/categories', 'Category'),
     getCategories: builder.query<PaginatedResponse<Category>, QueryParams>({
       query: (params) => ({
         url: '/categories',
@@ -96,6 +98,7 @@ export const categoryApi = baseApi.injectEndpoints({
 
 export const {
   useGetCategoriesQuery,
+  useGetCategoriesFeedInfiniteQuery,
   useGetCategoryHierarchyQuery,
   useGetCategoryQuery,
   useCreateCategoryMutation,

@@ -4,6 +4,7 @@ import { useLazySearchDeposantsQuery, useSearchDeposantsQuery } from '../../stor
 import GuidedFlow, { categorySteps, type CategoryTree, type FlowStep, type FlowValues } from '../../components/GuidedFlow';
 import { AiPill, useCategoryCreators } from '../../components/FormAssistant';
 import { useAssistantGreeting } from '../../lib/greeting';
+import { COMMISSION_VALUES } from '../../lib/commission';
 
 export interface ProductAiResult {
   productName: string;
@@ -63,6 +64,7 @@ export default function ProductAssistant({ onApply }: { onApply: (r: ProductAiRe
         prompt: 'Quelle commission ?',
         hint: '« comme d’habitude » = 25 %',
         kind: 'percent',
+        allowed: COMMISSION_VALUES,
         when: (v) => v.type?.value === 'depot',
         aliases: [{ match: /habitude|habituel|défaut|defaut|normal|standard/i, value: '25', display: '25 % (par défaut)' }],
       },

@@ -5,6 +5,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CreateCoClientDto } from "./dto/create-co-client.dto";
 import { CoClientQueryDto } from "./dto/co-client-query.dto";
 import { PaginatedResponse } from "../common/dto/pagination.dto";
+import { stageOf } from "../product/lifecycle";
 
 @Injectable()
 export class CoClientService {
@@ -66,21 +67,30 @@ export class CoClientService {
   }
 
   async findAll(query: CoClientQueryDto): Promise<PaginatedResponse<any>> {
-    const { page = 1, limit = 10, search } = query;
+    const { page = 1, limit = 10, search, articles = "all" } = query;
     const actualLimit = Math.min(limit || 10, 50);
     const skip = (page - 1) * actualLimit;
 
-    const where = search
+    const term = search?.trim();
+    const searchWhere: any = term
       ? {
           OR: [
-            { firstName: { contains: search, mode: "insensitive" as const } },
-            { lastName: { contains: search, mode: "insensitive" as const } },
-            { email: { contains: search, mode: "insensitive" as const } },
-            { phoneNumber: { contains: search, mode: "insensitive" as const } },
-            { RIB: { contains: search, mode: "insensitive" as const } },
+            { firstName: { contains: term, mode: "insensitive" as const } },
+            { lastName: { contains: term, mode: "insensitive" as const } },
+            { email: { contains: term, mode: "insensitive" as const } },
+            { phoneNumber: { contains: term.replace(/\s/g, ""), mode: "insensitive" as const } },
+            { RIB: { contains: term, mode: "insensitive" as const } },
+            ...(/^\d{1,6}$/.test(term) ? [{ number: Number(term) }] : []),
           ],
         }
       : {};
+    const withArticles = { products: { some: {} } };
+    const withoutArticles = { products: { none: {} } };
+    const where = articles === "with" ? { ...searchWhere, ...withArticles } : articles === "without" ? { ...searchWhere, ...withoutArticles } : searchWhere;
+    const [countAll, countWith] = await Promise.all([
+      this.prisma.coClient.count({ where: searchWhere }),
+      this.prisma.coClient.count({ where: { ...searchWhere, ...withArticles } }),
+    ]);
 
     const [data, total] = await Promise.all([
       this.prisma.coClient.findMany({
@@ -103,10 +113,16 @@ export class CoClientService {
         limit: actualLimit,
         total,
         totalPages: Math.ceil(total / actualLimit),
+        counts: { all: countAll, with: countWith, without: countAll - countWith },
       },
     };
   }
 
+  /**
+   * Déposant detail. Products of the dépôt flow hang off the déposant (coclientId) and their lot
+   * (depositRequestId) — the old include only had `depositRequests.items` (web-form requests), so
+   * the detail came back without any product. Products are returned flat AND grouped by lot.
+   */
   async findOne(id: string) {
     const coClient = await this.prisma.coClient.findUnique({
       where: { id },
@@ -116,6 +132,22 @@ export class CoClientService {
           orderBy: { createdAt: "desc" },
           include: { items: true },
         },
+        products: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            ref: true,
+            productName: true,
+            PrixVente: true,
+            status: true,
+            payoutStatus: true,
+            soldAt: true,
+            paidAt: true,
+            depositRequestId: true,
+            depositorAmountMillimes: true,
+            photos: { select: { photoDoc: true }, take: 1 },
+          },
+        },
       },
     });
 
@@ -123,7 +155,19 @@ export class CoClientService {
       throw new NotFoundException(`CoClient with ID ${id} not found`);
     }
 
-    return coClient;
+    const products = coClient.products.map((p) => ({ ...p, stage: stageOf(p), photo: p.photos[0]?.photoDoc ?? null }));
+    const lots = coClient.depositRequests
+      .map((c) => ({
+        id: c.id,
+        contractNumber: c.contractNumber,
+        createdAt: c.createdAt,
+        products: products.filter((p) => p.depositRequestId === c.id),
+      }))
+      .filter((l) => l.products.length || l.contractNumber);
+    const loose = products.filter((p) => !p.depositRequestId || !coClient.depositRequests.some((c) => c.id === p.depositRequestId));
+    if (loose.length) lots.push({ id: "sans-lot", contractNumber: null, createdAt: coClient.createdAt, products: loose });
+
+    return { ...coClient, products, lots };
   }
 
   async getProductHistory(coClientId: string) {

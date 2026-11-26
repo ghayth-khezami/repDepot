@@ -1,3 +1,4 @@
+import { COMMISSION_MESSAGE, COMMISSION_VALUES } from "../../common/commission";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
@@ -104,11 +105,9 @@ export class DepotItemDto {
   @Max(1_000_000)
   price: number;
 
-  @ApiProperty({ example: 25 })
+  @ApiProperty({ example: 25, enum: COMMISSION_VALUES })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(100)
+  @IsIn(COMMISSION_VALUES as unknown as number[], { message: COMMISSION_MESSAGE })
   commissionPercent: number;
 
   @ApiProperty({ description: "Category id (Product.categoryId is required)" })

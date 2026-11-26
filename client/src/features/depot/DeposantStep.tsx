@@ -83,7 +83,7 @@ export default function DeposantStep({
       </div>
 
       {draft.mode === 'existing' ? (
-        <DeposantsList onPick={pickExisting} onNew={() => dispatch({ type: 'mode', mode: 'new' })} />
+        <DeposantsList onPick={pickExisting} onNew={() => dispatch({ type: 'mode', mode: 'new' })} onDictate={() => undefined} />
       ) : (
         <form
           noValidate

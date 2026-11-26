@@ -20,6 +20,6 @@ import { EmailService } from "./email.service";
   ],
   controllers: [NotificationController],
   providers: [NotificationService, NotificationsGateway, PushService, EmailService],
-  exports: [NotificationService],
+  exports: [NotificationService, EmailService],
 })
 export class NotificationModule {}

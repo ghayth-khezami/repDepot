@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileSignature, Package, PackagePlus } from 'lucide-react';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import {
   DepositRequest,
   DepositRequestStatus,
-  useGetDepositRequestsQuery,
+  useGetDepositRequestsQuery, useGetDepositRequestsFeedInfiniteQuery,
   useGetDepositRequestQuery,
   useUpdateDepositRequestStatusMutation,
 } from '../store/api/depositRequestApi';
@@ -48,12 +49,9 @@ const DepositRequestsPage = () => {
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const { showToast } = useToast();
-  const { data, isLoading } = useGetDepositRequestsQuery({
-    page,
-    limit,
-    search,
+  const { data, isLoading, infinite } = useInfiniteList<DepositRequest>(useGetDepositRequestsFeedInfiniteQuery({search,
     status: status || undefined,
-  });
+  }));
   const [updateStatus] = useUpdateDepositRequestStatusMutation();
   const { data: detail, isLoading: detailLoading } = useGetDepositRequestQuery(detailId || '', {
     skip: !detailId,
@@ -142,18 +140,7 @@ const DepositRequestsPage = () => {
             <option value="CLOSED">Clos</option>
           </select>
         }
-        pagination={
-          data?.meta
-            ? {
-                page: data.meta.page,
-                limit: data.meta.limit,
-                total: data.meta.total,
-                totalPages: data.meta.totalPages,
-                onPageChange: setPage,
-                onLimitChange: setLimit,
-              }
-            : undefined
-        }
+        infinite={infinite}
         actions={(row) => (
           <div className="flex flex-wrap gap-2">
             <button

@@ -1,3 +1,4 @@
+import { pagedFeed } from './feed';
 import { baseApi } from './baseApi';
 import { PaginatedResponse } from '../../types';
 
@@ -10,6 +11,7 @@ export interface NewsletterContact {
 
 export const newsletterApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getNewsletterContactsFeed: pagedFeed<NewsletterContact, Record<string, unknown>>(builder, '/newsletter/contacts', 'Newsletter'),
     getNewsletterContacts: builder.query<
       PaginatedResponse<NewsletterContact>,
       { page?: number; limit?: number; search?: string }
@@ -24,4 +26,4 @@ export const newsletterApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useGetNewsletterContactsQuery } = newsletterApi;
+export const { useGetNewsletterContactsQuery, useGetNewsletterContactsFeedInfiniteQuery } = newsletterApi;

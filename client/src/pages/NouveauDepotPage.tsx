@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronRight, RotateCcw, Sparkles } from 'lucide-react';
+import { RotateCcw, Sparkles } from 'lucide-react';
 import { useCreateDepotMutation, useGetDeposantOverviewQuery, useGetDepotQuery, type CreateDepotInput } from '../store/api/depotApi';
 import { useToast } from '../context/ToastContext';
 import { apiErrorCode, apiErrorMessage, apiErrorPayload } from '../lib/apiError';
@@ -8,6 +8,7 @@ import { fromMillimes, parseTndInput } from '../lib/money';
 import { Button, Card, Skeleton, Stepper } from '../components/ui';
 import { useDepotDraft, validateDeposant, type DepotDraft } from '../features/depot/draft';
 import VoiceWizard, { type VoiceWizardResult } from '../features/depot/VoiceWizard';
+import DeposantsList from '../features/depot/DeposantsList';
 import DeposantStep from '../features/depot/DeposantStep';
 import ArticlesStep from '../features/depot/ArticlesStep';
 import ContractView from '../features/depot/ContractView';
@@ -166,6 +167,35 @@ export default function NouveauDepotPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const wizard = (
+    <VoiceWizard
+      open={wizardOpen}
+      onClose={() => setWizardOpen(false)}
+      defaultCommission={draft.defaultCommission}
+      lastCategoryId={draft.lastCategoryId}
+      onReview={wizardReview}
+      onGenerate={(r) => void wizardGenerate(r)}
+      generating={submitting !== null}
+    />
+  );
+
+  // First screen of "Dépôt": the déposants list (mockup). Picking one goes to the articles.
+  if (!created && draft.step === 0 && draft.mode === 'existing') {
+    return (
+      <>
+        <DeposantsList
+          onPick={(d) => {
+            dispatch({ type: 'existing', deposant: d });
+            goTo(1);
+          }}
+          onNew={() => dispatch({ type: 'mode', mode: 'new' })}
+          onDictate={() => setWizardOpen(true)}
+        />
+        {wizard}
+      </>
+    );
+  }
+
   return (
     <div className="bd-ui mx-auto max-w-6xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -173,11 +203,18 @@ export default function NouveauDepotPage() {
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-bd-pink-strong">Dépôt-vente</p>
           <h1 className="text-3xl font-black text-bd-ink">Nouveau dépôt</h1>
         </div>
-        {!created && (draft.deposant.firstName || draft.items.some((i) => i.name || i.price)) ? (
-          <Button variant="ghost" size="sm" icon={RotateCcw} onClick={restart}>
-            Recommencer
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {!created && (draft.deposant.firstName || draft.items.some((i) => i.name || i.price)) ? (
+            <Button variant="ghost" size="sm" icon={RotateCcw} onClick={restart}>
+              Recommencer
+            </Button>
+          ) : null}
+          {!created && draft.step < 2 ? (
+            <Button variant="violet" size="sm" icon={Sparkles} onClick={() => setWizardOpen(true)}>
+              Dicter
+            </Button>
+          ) : null}
+        </div>
       </header>
 
       <Card className="px-4 py-3 sm:px-6">
@@ -189,33 +226,8 @@ export default function NouveauDepotPage() {
         />
       </Card>
 
-      {!created && draft.step < 2 ? (
-        <button
-          type="button"
-          onClick={() => setWizardOpen(true)}
-          className="bd-focus group relative flex w-full items-center gap-4 overflow-hidden rounded-[24px] bg-[linear-gradient(120deg,#6D28D9_0%,#9333EA_55%,#DB2777_120%)] p-4 text-left text-white shadow-glow-violet transition active:scale-[0.99] sm:p-5"
-        >
-          <span aria-hidden className="pointer-events-none absolute -right-10 -top-16 h-44 w-44 rounded-full bg-white/10 blur-2xl transition group-hover:scale-125" />
-          <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#FBCFE8,#EC4899_55%,#9333EA)] shadow-[0_0_0_4px_rgba(255,255,255,0.18)]">
-            <Sparkles size={24} aria-hidden />
-          </span>
-          <span className="relative min-w-0 flex-1">
-            <span className="block text-lg font-black leading-tight">Dicter avec l'assistant IA</span>
-            <span className="block text-sm font-semibold text-white/85">Il pose les questions une à une, articles compris.</span>
-          </span>
-          <ChevronRight size={22} className="relative shrink-0 transition group-hover:translate-x-1" aria-hidden />
-        </button>
-      ) : null}
 
-      <VoiceWizard
-        open={wizardOpen}
-        onClose={() => setWizardOpen(false)}
-        defaultCommission={draft.defaultCommission}
-        lastCategoryId={draft.lastCategoryId}
-        onReview={wizardReview}
-        onGenerate={(r) => void wizardGenerate(r)}
-        generating={submitting !== null}
-      />
+      {wizard}
 
       {draft.step === 0 ? (
         <DeposantStep draft={draft} dispatch={dispatch} onNext={() => goTo(1)} />

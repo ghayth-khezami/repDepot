@@ -103,6 +103,8 @@ export interface DeposantOverview {
     depositorMillimes: number;
     status: 'EN_VENTE' | 'VENDU' | 'RETIRE';
     payoutStatus: 'A_PERCEVOIR' | 'PAYE' | null;
+    stage: 'EN_VENTE' | 'VENDU' | 'PAYE' | 'RETIRE';
+    paidAt: string | null;
     soldAt: string | null;
     createdAt: string;
     contractId: string | null;

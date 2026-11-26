@@ -1,3 +1,4 @@
+import { stageOf } from "../product/lifecycle";
 import {
   BadRequestException,
   ConflictException,
@@ -149,6 +150,7 @@ export class DepotService {
             status: true,
             soldAt: true,
             payoutStatus: true,
+            paidAt: true,
             depotPercentage: true,
             shopAmountMillimes: true,
             depositorAmountMillimes: true,
@@ -201,6 +203,8 @@ export class DepotService {
         depositorMillimes: share(p),
         status: p.status,
         payoutStatus: p.payoutStatus,
+        stage: stageOf(p),
+        paidAt: p.paidAt,
         soldAt: p.soldAt,
         createdAt: p.createdAt,
         contractId: p.depositRequestId,

@@ -10,14 +10,17 @@ import { getClientApiUrl } from "@/lib/api-url";
 const WELCOME_MS = 5000;
 
 /** Full-screen welcome for the déposant(e): logo, name, sparkles, 5-second progress — then the page. */
-export function SuiviWelcome({ firstName, token }: { firstName: string; token: string }) {
+export function SuiviWelcome({ firstName, token, onDone }: { firstName: string; token: string; onDone?: () => void }) {
   const [show, setShow] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     const key = `bd-suivi-welcome-${token}`;
     try {
-      if (sessionStorage.getItem(key)) return;
+      if (sessionStorage.getItem(key)) {
+        onDone?.();
+        return;
+      }
       sessionStorage.setItem(key, "1");
     } catch {
       /* private mode: still show */
@@ -26,11 +29,16 @@ export function SuiviWelcome({ firstName, token }: { firstName: string; token: s
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const total = reduce ? 1500 : WELCOME_MS;
     const t1 = window.setTimeout(() => setLeaving(true), total - 500);
-    const t2 = window.setTimeout(() => setShow(false), total);
+    const t2 = window.setTimeout(() => {
+      setShow(false);
+      onDone?.();
+    }, total);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
+    // onDone is a stable parent setter; re-running on its identity would replay the welcome.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   if (!show) return null;
@@ -73,7 +81,14 @@ export function SuiviWelcome({ firstName, token }: { firstName: string; token: s
         <div className="h-1.5 overflow-hidden rounded-full bg-white/25">
           <div className="suivi-progress h-full rounded-full bg-white" />
         </div>
-        <button type="button" onClick={() => setShow(false)} className="unstyled mt-4 w-full text-sm font-extrabold text-white/80">
+        <button
+          type="button"
+          onClick={() => {
+            setShow(false);
+            onDone?.();
+          }}
+          className="unstyled mt-4 w-full text-sm font-extrabold text-white/80"
+        >
           Passer
         </button>
       </div>
@@ -270,5 +285,105 @@ export function SuiviAppActions({ token }: { token: string }) {
         </div>
       ) : null}
     </section>
+  );
+}
+
+/* ───────────────────────── "Bonne nouvelle" on return ───────────────────────── */
+
+export interface NewsItem {
+  ref: string;
+  name: string;
+  status: "EN_VENTE" | "VENDU" | "RETIRE";
+  payoutStatus: "A_PERCEVOIR" | "PAYE" | null;
+  depositorMillimes: number;
+  photo: string | null;
+}
+
+const fmtTnd = (m: number) => `${Math.floor(m / 1000)}.${String(m % 1000).padStart(3, "0")} TND`;
+
+/**
+ * Remembers (per contract, on this device) which articles were sold / paid at the last visit.
+ * When the déposant(e) comes back and something changed: confetti + the list of good news.
+ */
+function SuiviNews({ token, items, firstName }: { token: string; items: NewsItem[]; firstName: string }) {
+  const [news, setNews] = useState<{ sold: NewsItem[]; paid: NewsItem[] } | null>(null);
+
+  useEffect(() => {
+    const key = `bd-suivi-seen-${token}`;
+    const sold = items.filter((i) => i.status === "VENDU").map((i) => i.ref);
+    const paid = items.filter((i) => i.status === "VENDU" && i.payoutStatus === "PAYE").map((i) => i.ref);
+    let prev: { sold: string[]; paid: string[] } | null = null;
+    try {
+      prev = JSON.parse(localStorage.getItem(key) || "null");
+      localStorage.setItem(key, JSON.stringify({ sold, paid }));
+    } catch {
+      return; // storage blocked: no history to compare, show nothing
+    }
+    if (!prev) return; // first visit on this device
+    const before = prev;
+    const newPaid = items.filter((i) => paid.includes(i.ref) && !before.paid.includes(i.ref));
+    const newSold = items.filter((i) => sold.includes(i.ref) && !before.sold.includes(i.ref) && !newPaid.includes(i));
+    if (newSold.length || newPaid.length) setNews({ sold: newSold, paid: newPaid });
+  }, [token, items]);
+
+  if (!news) return null;
+  const total = [...news.sold, ...news.paid].reduce((t, i) => t + i.depositorMillimes, 0);
+  const rows = [...news.paid.map((i) => ({ i, paid: true })), ...news.sold.map((i) => ({ i, paid: false }))];
+  return (
+    <div role="dialog" aria-label="Bonne nouvelle" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/45 p-3 sm:items-center" onClick={() => setNews(null)}>
+      {["🎉", "💰", "✨", "🎊", "💖", "⭐", "🎉", "💜", "✨", "🎊"].map((e, i) => (
+        <span key={i} aria-hidden className="suivi-float" style={{ left: `${4 + i * 9.5}%`, animationDelay: `${(i % 5) * 0.25}s`, fontSize: `${20 + (i % 3) * 8}px` }}>
+          {e}
+        </span>
+      ))}
+      <div className="suivi-sheet relative w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-gradient-to-br from-[#6D28D9] via-[#9333EA] to-[#DB2777] px-6 pb-6 pt-7 text-center text-white">
+          <p className="suivi-logo text-5xl" aria-hidden>
+            {news.paid.length ? "💰" : "🎉"}
+          </p>
+          <h2 className="mt-3 text-2xl font-black">Bonne nouvelle {firstName} !</h2>
+          <p className="mt-1 text-sm font-bold text-white/90">
+            {news.paid.length && news.sold.length
+              ? "Des articles vendus et un paiement prêt depuis votre dernière visite."
+              : news.paid.length
+                ? `Votre paiement est prêt (${news.paid.length} article${news.paid.length > 1 ? "s" : ""}).`
+                : `${news.sold.length} article${news.sold.length > 1 ? "s" : ""} vendu${news.sold.length > 1 ? "s" : ""} depuis votre dernière visite.`}
+          </p>
+          <p className="mt-3 text-3xl font-black tabular-nums">+{fmtTnd(total)}</p>
+        </div>
+        <ul className="max-h-[40dvh] space-y-2 overflow-y-auto p-4">
+          {rows.map(({ i, paid }, idx) => (
+            <li key={i.ref} className="suivi-rise flex items-center gap-3 rounded-2xl bg-bd-bg p-2.5" style={{ animationDelay: `${0.15 + idx * 0.08}s` }}>
+              <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-bd-lilac text-xl">
+                {i.photo ? <Image src={i.photo} alt="" fill sizes="48px" className="object-cover" /> : paid ? "💰" : "🎉"}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-black text-bd-ink">{i.name}</span>
+                <span className={`block text-xs font-extrabold ${paid ? "text-bd-violet-strong" : "text-bd-success"}`}>
+                  {paid ? "Paiement prêt ✅" : "Vendu 🎉"} · {fmtTnd(i.depositorMillimes)}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <p className="mb-3 text-center text-xs font-bold text-bd-muted">📞 Contactez Madame Khezami pour organiser votre paiement.</p>
+          <button type="button" onClick={() => setNews(null)} className="unstyled flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-grad-pink-strong text-base font-black text-white shadow-glow-pink">
+            Voir mes articles
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Welcome (once per visit) → then the "Bonne nouvelle" screen if something sold / was paid since last time. */
+export function SuiviIntro({ token, firstName, items }: { token: string; firstName: string; items: NewsItem[] }) {
+  const [welcomeDone, setWelcomeDone] = useState(false);
+  return (
+    <>
+      <SuiviWelcome firstName={firstName} token={token} onDone={() => setWelcomeDone(true)} />
+      {welcomeDone ? <SuiviNews token={token} items={items} firstName={firstName} /> : null}
+    </>
   );
 }

@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Edit, Star, Trash2 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { useConfirmDialog } from '../components/ConfirmDialog';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import ReusableTable, { Column } from '../components/ReusableTable';
 import {
   ClientFeedback,
   useCreateClientFeedbackMutation,
   useDeleteClientFeedbackMutation,
-  useGetClientFeedbacksAdminQuery,
+  useGetClientFeedbacksAdminQuery, useGetClientFeedbacksAdminFeedInfiniteQuery,
   useUpdateClientFeedbackMutation,
 } from '../store/api/clientFeedbackApi';
 import { useToast } from '../context/ToastContext';
@@ -28,11 +29,8 @@ const ClientFeedbacksPage = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState('');
-  const { data, isLoading } = useGetClientFeedbacksAdminQuery({
-    page,
-    limit,
-    search: search || undefined,
-  });
+  const { data, isLoading, infinite } = useInfiniteList<ClientFeedback>(useGetClientFeedbacksAdminFeedInfiniteQuery({search: search || undefined,
+  }));
   const [createFeedback] = useCreateClientFeedbackMutation();
   const [updateFeedback] = useUpdateClientFeedbackMutation();
   const [deleteFeedback] = useDeleteClientFeedbackMutation();
@@ -113,18 +111,7 @@ const ClientFeedbacksPage = () => {
           setSearch(v);
           setPage(1);
         }}
-        pagination={
-          data?.meta
-            ? {
-                page: data.meta.page,
-                limit: data.meta.limit,
-                total: data.meta.total,
-                totalPages: data.meta.totalPages,
-                onPageChange: setPage,
-                onLimitChange: setLimit,
-              }
-            : undefined
-        }
+        infinite={infinite}
         actions={(row) => (
           <>
             <button

@@ -32,6 +32,7 @@ import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ProductQueryDto } from "./dto/product-query.dto";
+import { ChangeLifecycleDto } from "./dto/change-lifecycle.dto";
 import { SetFeaturedProductsDto } from "./dto/set-featured-products.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -52,6 +53,7 @@ import {
   buildProductQrPdf,
 } from "../common/barcode-label.util";
 import { memoryImageUpload } from "../common/utils/image-upload";
+import { buildQrCardsPdf } from "../common/barcode-label.util";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 
 const productPhotoUpload = memoryImageUpload({ fileSize: 5 * 1024 * 1024 });
@@ -188,15 +190,6 @@ export class ProductController {
   @SkipThrottle()
   getPriceRange() {
     return this.productService.getPriceRange();
-  }
-
-  @Delete("admin/all")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Admin: delete all products" })
-  removeAll() {
-    return this.productService.removeAll();
   }
 
   @Get("featured")
@@ -482,6 +475,38 @@ export class ProductController {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=produits-qr.pdf");
     res.send(buffer);
+  }
+
+  @Get("export/qr-cards/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "A4 sheet of QR cards (3×4) for the products matching the current filters" })
+  async exportQrCards(@Query() query: ProductQueryDto, @Res() res: Response) {
+    const products = await this.productService.findForQrCards(query);
+    const buffer = await buildQrCardsPdf(products);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="qr-produits.pdf"');
+    res.send(buffer);
+  }
+
+  @Get(":id/qr-card/pdf")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "QR card for one product (same card format as the sheet)" })
+  async exportOneQrCard(@Param("id") id: string, @Res() res: Response) {
+    const p = await this.productService.findOne(id);
+    const buffer = await buildQrCardsPdf([{ id: p.id, ref: p.ref, productName: p.productName, description: p.description, PrixVente: p.PrixVente }]);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="qr-${(p.ref || p.id).replace(/[^\w-]/g, "")}.pdf"`);
+    res.send(buffer);
+  }
+
+  @Patch(":id/lifecycle")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Change status: EN_VENTE → VENDU → PAYE (or reset). Notifies the déposant." })
+  changeLifecycle(@Param("id") id: string, @Body() dto: ChangeLifecycleDto) {
+    return this.productService.changeLifecycle(id, dto.to);
   }
 
   @Get("lookup/:code")

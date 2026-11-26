@@ -1,5 +1,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { InfiniteSentinel } from './ui/mobile';
 import { Search, ChevronLeft, ChevronRight, Download, FileText, Grid, List } from 'lucide-react';
 
 export interface Column<T> {
@@ -30,6 +31,8 @@ interface ReusableTableProps<T> {
   onExportPdf?: () => void;
   /** Extra toolbar actions (e.g. Excel export) shown before CSV/PDF. */
   toolbarExtra?: ReactNode;
+  /** Infinite scroll instead of page numbers. */
+  infinite?: { hasNextPage: boolean; isFetchingNextPage: boolean; fetchNextPage: () => void; total?: number };
 }
 
 function ReusableTable<T extends { id: string }>({
@@ -46,6 +49,7 @@ function ReusableTable<T extends { id: string }>({
   onExportCsv,
   onExportPdf,
   toolbarExtra,
+  infinite,
 }: ReusableTableProps<T>) {
   const [searchValue, setSearchValue] = useState('');
   const debouncedSearch = useDebouncedValue(searchValue, 1000);
@@ -293,7 +297,13 @@ function ReusableTable<T extends { id: string }>({
       )}
 
       {/* Pagination */}
-      {pagination && (
+      {infinite ? (
+        <div className="bd-ui">
+          <InfiniteSentinel onReach={() => infinite.hasNextPage && !infinite.isFetchingNextPage && infinite.fetchNextPage()} disabled={!infinite.hasNextPage} loading={infinite.isFetchingNextPage} />
+          {!infinite.hasNextPage && infinite.total ? <p className="pb-2 text-center text-xs font-bold text-bd-muted">{infinite.total} résultat{infinite.total > 1 ? 's' : ''}</p> : null}
+        </div>
+      ) : null}
+      {!infinite && pagination && (
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Affichage de {(pagination.page - 1) * pagination.limit + 1} à{' '}

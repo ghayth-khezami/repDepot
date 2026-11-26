@@ -269,6 +269,10 @@ model Product {
   depositRequestId       String?
   /// Set once the déposant has been notified (push) that this article sold.
   soldNotifiedAt         DateTime?
+  /// When the déposant was paid for this article (status VENDU + payoutStatus PAYE).
+  paidAt                 DateTime?
+  /// Set once the déposant has been notified that the payment is ready.
+  paidNotifiedAt         DateTime?
   depositRequest         DepositRequest?          @relation(fields: [depositRequestId], references: [id], onDelete: SetNull)
   subSubCategory1Id      String?
   subSubCategory2Id      String?
@@ -460,6 +464,25 @@ model DeposantPush {
 
   @@index([coClientId])
   @@map("deposant_push_subscriptions")
+}
+
+/// Every message sent (or attempted) to a déposant about one of their articles.
+model DeposantNotification {
+  id         String   @id @default(uuid())
+  productId  String
+  coClientId String
+  /// VENDU | PAYE
+  event      String
+  /// push | email | sms
+  channel    String
+  /// sent | failed | skipped
+  status     String
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([productId])
+  @@index([coClientId, createdAt])
+  @@map("deposant_notifications")
 }
 
 model PushSubscription {

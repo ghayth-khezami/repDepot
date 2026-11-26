@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, IsBoolean, IsNumber, IsEnum, IsUUID } from "class-validator";
+import { IsOptional, IsString, IsBoolean, IsNumber, IsEnum, IsUUID , IsIn } from "class-validator";
 import { ProductStatus } from "@prisma/client";
 import { Type } from "class-transformer";
 import { PaginationDto } from "../../common/dto/pagination.dto";
@@ -87,4 +87,9 @@ export class ProductQueryDto extends PaginationDto {
   @IsOptional()
   @IsUUID("4")
   depositRequestId?: string;
+
+  @ApiPropertyOptional({ enum: ["EN_VENTE", "VENDU", "PAYE", "RETIRE"], description: "Admin: visible stage (PAYE = VENDU + payé)" })
+  @IsOptional()
+  @IsIn(["EN_VENTE", "VENDU", "PAYE", "RETIRE"])
+  stage?: "EN_VENTE" | "VENDU" | "PAYE" | "RETIRE";
 }
