@@ -190,7 +190,7 @@ function CategoryTreeItem({ category }: { category: Category }) {
             ))}
           {!loading && subs.length === 0 && (
             <Link
-              href={`/categories/${category.id}`}
+              href={`/produits?categoryId=${category.id}`}
               className="block py-2 text-sm text-white/70 hover:text-white"
             >
               Parcourir la catégorie →

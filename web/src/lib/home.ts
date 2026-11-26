@@ -48,7 +48,7 @@ export const FOOTER_LINKS = [
   { href: "/magasin", label: "Magasin" },
   { href: "/cart", label: "Panier" },
   { href: "/login", label: "Mon compte" },
-  { href: "/categories", label: "Catégories" },
+  { href: "/#categories", label: "Catégories" },
 ] as const;
 
 export const STORE_CONTAINER =

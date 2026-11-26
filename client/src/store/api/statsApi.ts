@@ -6,6 +6,8 @@ export interface StatsQueryParams {
   categoryId?: string;
   period?: 'month' | 'year' | 'all';
   limit?: number;
+  /** Calendar year for monthly charts. */
+  year?: number;
 }
 
 export interface KPIs {

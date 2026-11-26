@@ -1,3 +1,9 @@
+import defaultTheme from 'tailwindcss/defaultTheme';
+
+/** Bébé-Dépôt design tokens live in src/index.css (:root CSS variables).
+ *  Tailwind only maps names → variables so every screen shares one source of truth. */
+const token = (name) => `rgb(var(--bd-${name}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
@@ -7,7 +13,29 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Nunito', ...defaultTheme.fontFamily.sans],
+      },
       colors: {
+        bd: {
+          bg: token('bg'),
+          surface: token('surface'),
+          ink: token('ink'),
+          muted: token('muted'),
+          lilac: token('lilac'),
+          blush: token('blush'),
+          line: token('line'),
+          pink: token('pink'),
+          'pink-strong': token('pink-strong'),
+          violet: token('violet'),
+          'violet-strong': token('violet-strong'),
+          amber: token('amber'),
+          'amber-ink': token('amber-ink'),
+          success: token('success'),
+          'success-bg': token('success-bg'),
+          danger: token('danger'),
+          'danger-bg': token('danger-bg'),
+        },
         primary: {
           50: '#fff1f6',
           100: '#ffe4ef',
@@ -56,6 +84,31 @@ export default {
           800: '#742a2a',
           900: '#63171b',
         },
+      },
+      borderRadius: {
+        card: '24px',
+      },
+      boxShadow: {
+        card: 'var(--bd-shadow-card)',
+        'glow-pink': 'var(--bd-glow-pink)',
+        'glow-violet': 'var(--bd-glow-violet)',
+      },
+      backgroundImage: {
+        // Decorative (icons on top, no body text): spec colours.
+        'grad-pink': 'var(--bd-grad-pink)',
+        'grad-violet': 'var(--bd-grad-violet)',
+        'grad-amber': 'var(--bd-grad-amber)',
+        'grad-purple': 'var(--bd-grad-purple)',
+        'grad-rose': 'var(--bd-grad-rose)',
+        'grad-green': 'var(--bd-grad-green)',
+        'grad-gray': 'var(--bd-grad-gray)',
+        // Text-bearing (buttons, active pills): darker stops so white text stays ≥ 4.5:1.
+        'grad-pink-strong': 'var(--bd-grad-pink-strong)',
+        'grad-violet-strong': 'var(--bd-grad-violet-strong)',
+        'grad-brand': 'var(--bd-grad-brand)',
+      },
+      transitionDuration: {
+        DEFAULT: '180ms',
       },
     },
   },

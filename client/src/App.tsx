@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import './store/api/featuredProductApi';
@@ -5,20 +6,22 @@ import './store/api/siteSettingsApi';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
-import Dashboard from './pages/Dashboard';
-import UsersPage from './pages/UsersPage';
-import ClientsPage from './pages/ClientsPage';
-import CoClientsPage from './pages/CoClientsPage';
-import CategoriesPage from './pages/CategoriesPage';
-import ProductsPage from './pages/ProductsPage';
-import CommandsPage from './pages/CommandsPage';
-import DepositRequestsPage from './pages/DepositRequestsPage';
-import HorairesPage from './pages/HorairesPage';
-import ClientFeedbacksPage from './pages/ClientFeedbacksPage';
-import NewsletterPage from './pages/NewsletterPage';
-import FeaturedProductsPage from './pages/FeaturedProductsPage';
-import SiteSettingsPage from './pages/SiteSettingsPage';
-import QrScannerPage from './pages/QrScannerPage';
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
+const ClientsPage = lazy(() => import('./pages/ClientsPage'));
+const CoClientsPage = lazy(() => import('./pages/CoClientsPage'));
+const CategoriesPage = lazy(() => import('./pages/CategoriesPage'));
+const ProductsPage = lazy(() => import('./pages/ProductsPage'));
+const CommandsPage = lazy(() => import('./pages/CommandsPage'));
+const DepositRequestsPage = lazy(() => import('./pages/DepositRequestsPage'));
+const HorairesPage = lazy(() => import('./pages/HorairesPage'));
+const ClientFeedbacksPage = lazy(() => import('./pages/ClientFeedbacksPage'));
+const NewsletterPage = lazy(() => import('./pages/NewsletterPage'));
+const FeaturedProductsPage = lazy(() => import('./pages/FeaturedProductsPage'));
+const SiteSettingsPage = lazy(() => import('./pages/SiteSettingsPage'));
+const QrScannerPage = lazy(() => import('./pages/QrScannerPage'));
+const NouveauDepotPage = lazy(() => import('./pages/NouveauDepotPage'));
+const DepotContractPage = lazy(() => import('./pages/DepotContractPage'));
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, bootstrapping } = useAuth();
@@ -35,6 +38,7 @@ function App() {
         element={
           <ProtectedRoute>
             <Layout>
+              <Suspense fallback={<div className="h-[60vh] animate-pulse rounded-card bg-bd-lilac/50" aria-busy="true" aria-label="Chargement" />}>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/users" element={<UsersPage />} />
@@ -46,11 +50,15 @@ function App() {
                 <Route path="/coups-de-coeur" element={<FeaturedProductsPage />} />
                 <Route path="/commands" element={<CommandsPage />} />
                 <Route path="/deposit-requests" element={<DepositRequestsPage />} />
+                <Route path="/depots/nouveau" element={<NouveauDepotPage />} />
+                <Route path="/depots/:id" element={<DepotContractPage />} />
+                <Route path="/depots/:id/articles" element={<DepotContractPage mode="add" />} />
                 <Route path="/horaires" element={<HorairesPage />} />
                 <Route path="/avis-clients" element={<ClientFeedbacksPage />} />
                 <Route path="/youtube" element={<SiteSettingsPage />} />
                 <Route path="/newsletter" element={<NewsletterPage />} />
               </Routes>
+              </Suspense>
             </Layout>
           </ProtectedRoute>
         }

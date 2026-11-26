@@ -24,6 +24,9 @@ import { HealthModule } from "./health/health.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.module";
 import { MediaModule } from "./media/media.module";
 import { SiteSettingsModule } from "./site-settings/site-settings.module";
+import { DepotModule } from "./depot/depot.module";
+import { PublicSuiviModule } from "./public-suivi/public-suivi.module";
+import { ExportModule } from "./export/export.module";
 import { ReadAwareThrottlerGuard } from "./common/guards/read-aware-throttler.guard";
 
 @Module({
@@ -84,6 +87,9 @@ import { ReadAwareThrottlerGuard } from "./common/guards/read-aware-throttler.gu
     NotificationModule,
     HealthModule,
     SiteSettingsModule,
+    DepotModule,
+    PublicSuiviModule,
+    ExportModule,
   ],
   providers: [
     {

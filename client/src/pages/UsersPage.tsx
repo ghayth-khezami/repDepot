@@ -6,6 +6,7 @@ import { User, UpdateUserDto } from '../types';
 import { Edit, Trash2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useConfirmDialog } from '../components/ConfirmDialog';
+import ExcelButton from '../components/ExcelButton';
 
 const UsersPage = () => {
   const [page, setPage] = useState(1);
@@ -76,6 +77,7 @@ const UsersPage = () => {
       </div>
 
       <ReusableTable
+        toolbarExtra={<ExcelButton entity="users" params={{ search }} compact />}
         data={data?.data || []}
         columns={columns}
         isLoading={isLoading}

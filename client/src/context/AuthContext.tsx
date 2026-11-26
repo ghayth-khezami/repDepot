@@ -18,6 +18,28 @@ interface AuthContextType {
   isAdmin: boolean;
   showWelcomeOverlay: boolean;
   bootstrapping: boolean;
+  /** Saved session reopened in a new app/tab session: quick PIN required. */
+  locked: boolean;
+  unlock: (code: string) => boolean;
+}
+
+/** Quick-unlock code asked when the app is reopened (the session itself stays logged in). */
+const QUICK_PIN = '180125';
+const UNLOCK_KEY = 'bd-unlocked';
+
+function readUnlocked() {
+  try {
+    return sessionStorage.getItem(UNLOCK_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function markUnlocked() {
+  try {
+    sessionStorage.setItem(UNLOCK_KEY, '1');
+  } catch {
+    /* ignore */
+  }
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [showWelcomeOverlay, setShowWelcomeOverlay] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
+  const [locked, setLocked] = useState(() => !!localStorage.getItem('token') && !readUnlocked());
   const navigate = useNavigate();
   const [fetchMe] = useLazyGetMeQuery();
 
@@ -73,8 +96,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           window.setTimeout(() => setShowWelcomeOverlay(false), 1000);
         }
       })
-      .catch(() => {
-        if (!cancelled) clearSession();
+      .catch((err: { status?: number | string }) => {
+        if (cancelled) return;
+        // Stay signed in through network errors / server restarts; only a rejected token logs out.
+        if (err?.status === 401 || err?.status === 403) {
+          clearSession();
+          return;
+        }
+        try {
+          const stored = JSON.parse(localStorage.getItem('user') || 'null') as User | null;
+          if (stored?.role === 'ADMIN') setUser(stored);
+          else clearSession();
+        } catch {
+          clearSession();
+        }
       })
       .finally(() => {
         if (!cancelled) setBootstrapping(false);
@@ -87,7 +122,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const unlock = (code: string) => {
+    if (code !== QUICK_PIN) return false;
+    markUnlocked();
+    window.setTimeout(() => setLocked(false), 450);
+    return true;
+  };
+
   const login = (newToken: string, newUser: User) => {
+    markUnlocked();
+    setLocked(false);
     setToken(newToken);
     setUser(newUser);
     localStorage.setItem('token', newToken);
@@ -101,6 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     clearSession();
+    setLocked(false);
     setShowWelcomeOverlay(false);
     sessionStorage.removeItem('welcome_overlay_shown');
     navigate('/login');
@@ -117,6 +162,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAdmin: user?.role === 'ADMIN',
         showWelcomeOverlay,
         bootstrapping,
+        locked,
+        unlock,
       }}
     >
       {children}

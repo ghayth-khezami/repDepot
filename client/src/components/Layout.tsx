@@ -1,37 +1,89 @@
 import { ReactNode } from 'react';
-import Sidebar from './Sidebar';
+import Sidebar, { isNavActive } from './Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { PostLoginLoadingOverlay } from './PostLoginLoadingOverlay';
-import VoiceAssistant from './VoiceAssistant';
+import { AutoFieldMic } from './Dictation';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, QrCode, ShoppingCart } from 'lucide-react';
+import { Home, Package, PackagePlus, QrCode, ShoppingCart } from 'lucide-react';
+import { cn } from '../lib/cn';
+import { Blobs } from './ui';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
+const mobileNav = [
+  { path: '/', label: 'Accueil', icon: Home },
+  { path: '/products', label: 'Produits', icon: Package },
+  { path: '/depots/nouveau', label: 'Dépôt', icon: PackagePlus, raised: true },
+  { path: '/scan', label: 'Scanner', icon: QrCode },
+  { path: '/commands', label: 'Commandes', icon: ShoppingCart },
+] as const;
+
+/** Mobile bottom navigation (≤ 768px): 5 tabs, raised centre "Dépôt" action. */
+function MobileTabBar() {
+  const { pathname } = useLocation();
+  return (
+    <nav
+      aria-label="Navigation rapide"
+      className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 grid grid-cols-5 items-end rounded-[28px] border border-bd-line/10 bg-bd-surface/90 px-1.5 pb-1.5 pt-1 shadow-[0_12px_40px_rgba(76,29,149,0.18)] backdrop-blur-xl md:hidden"
+    >
+      {mobileNav.map((item) => {
+        const Icon = item.icon;
+        const active = isNavActive(pathname, item.path);
+        if ('raised' in item && item.raised) {
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              aria-current={active ? 'page' : undefined}
+              className="bd-focus -mt-7 flex flex-col items-center gap-1 rounded-2xl text-[11px] font-extrabold text-bd-ink"
+            >
+              <span
+                className={cn(
+                  'flex h-14 w-14 items-center justify-center rounded-full bg-grad-pink-strong text-white shadow-glow-pink ring-4 ring-bd-surface transition active:scale-95',
+                  active && 'scale-105',
+                )}
+              >
+                <Icon size={26} strokeWidth={2.2} aria-hidden />
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          );
+        }
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'bd-focus flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-extrabold transition',
+              active ? 'bg-bd-blush text-bd-pink-strong' : 'text-bd-muted',
+            )}
+          >
+            <Icon size={22} strokeWidth={2} aria-hidden />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 const Layout = ({ children }: LayoutProps) => {
   const { showWelcomeOverlay } = useAuth();
-  const location = useLocation();
-  const mobileNav = [
-    ['/', 'Dashboard', LayoutDashboard],
-    ['/products', 'Produits', Package],
-    ['/scan', 'Scanner', QrCode],
-    ['/commands', 'Commandes', ShoppingCart],
-  ] as const;
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-slate-950">
+    <div className="relative isolate flex h-[100dvh] bg-bd-bg">
+      <Blobs />
       <Sidebar />
       <main className="relative flex flex-1 flex-col overflow-hidden">
         <PostLoginLoadingOverlay isOpen={showWelcomeOverlay} />
         <div className="bo-page flex-1 overflow-y-auto pt-16 md:pt-0">
-          <div className="p-4 md:p-8">{children}</div>
+          <div className="p-4 pb-32 md:p-8 md:pb-8">{children}</div>
         </div>
-        <VoiceAssistant />
-        <nav className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-4 rounded-3xl border border-white/50 bg-white/75 p-2 shadow-2xl backdrop-blur-xl md:hidden">
-          {mobileNav.map(([path, label, Icon]) => <Link key={path} to={path} className={`flex flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-semibold ${location.pathname === path ? 'bg-primary-100 text-primary-700' : 'text-gray-500'}`}><Icon size={18} /><span>{label}</span></Link>)}
-        </nav>
+        <AutoFieldMic />
+        <MobileTabBar />
       </main>
     </div>
   );

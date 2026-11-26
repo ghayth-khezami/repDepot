@@ -64,6 +64,10 @@ export const productApi = baseApi.injectEndpoints({
         return currentArg?.page !== previousArg?.page;
       },
     }),
+    lookupProduct: builder.query<Product, string>({
+      query: (code) => `/products/lookup/${encodeURIComponent(code)}`,
+      providesTags: (result) => (result ? [{ type: 'Product', id: result.id }] : []),
+    }),
     getProduct: builder.query<Product, string>({
       query: (id) => `/products/${id}/full`,
       providesTags: (result, error, id) => [{ type: 'Product', id }],
@@ -102,6 +106,7 @@ export const {
   useGetProductsQuery,
   useGetProductsInfiniteQuery,
   useGetProductQuery,
+  useLazyLookupProductQuery,
   useLazyGetProductQuery,
   useCreateProductMutation,
   useUpdateProductMutation,

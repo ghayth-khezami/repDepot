@@ -1,3 +1,4 @@
+import { PayoutStatus, ProductStatus } from "@prisma/client";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { CommandStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
@@ -8,6 +9,19 @@ import { UpdateCommandDto } from "./dto/update-command.dto";
 import { CommandQueryDto } from "./dto/command-query.dto";
 import { PaginatedResponse } from "../common/dto/pagination.dto";
 import { sanitizePlainText } from "../common/utils/sanitize-text";
+
+/** Sets soldAt (first sale only) and the default payout status for dépôt products. */
+async function stampSold(tx: any, productIds: string[]) {
+  if (!productIds.length) return;
+  await tx.product.updateMany({
+    where: { id: { in: productIds }, soldAt: null },
+    data: { soldAt: new Date() },
+  });
+  await tx.product.updateMany({
+    where: { id: { in: productIds }, isDepot: true, payoutStatus: null },
+    data: { payoutStatus: PayoutStatus.A_PERCEVOIR },
+  });
+}
 
 @Injectable()
 export class CommandService {
@@ -64,11 +78,12 @@ export class CommandService {
 
       const locked = await tx.product.updateMany({
         where: { id: { in: productIds }, isDispo: true },
-        data: { isDispo: false },
+        data: { isDispo: false, status: ProductStatus.VENDU },
       });
       if (locked.count !== productIds.length) {
         throw new BadRequestException("One or more products are already ordered.");
       }
+      await stampSold(tx, productIds);
 
       const PrixVente = products.reduce((sum, p) => sum + p.PrixVente, 0);
       const PrixAchat = products.reduce((sum, p) => {
@@ -190,8 +205,9 @@ export class CommandService {
     if (!options?.productsAlreadyLocked) {
       await tx.product.updateMany({
         where: { id: { in: productIds } },
-        data: { isDispo: false },
+        data: { isDispo: false, status: ProductStatus.VENDU },
       });
+      await stampSold(tx, productIds);
     }
 
     return tx.command.findUnique({
@@ -374,7 +390,7 @@ export class CommandService {
         if (oldProductIds.length > 0) {
           await tx.product.updateMany({
             where: { id: { in: oldProductIds } },
-            data: { isDispo: true },
+            data: { isDispo: true, status: ProductStatus.EN_VENTE, soldAt: null, payoutStatus: null },
           });
         }
         await tx.commandDetail.deleteMany({ where: { commandId: id } });
@@ -392,8 +408,9 @@ export class CommandService {
         );
         await tx.product.updateMany({
           where: { id: { in: productIds } },
-          data: { isDispo: false },
+          data: { isDispo: false, status: ProductStatus.VENDU },
         });
+        await stampSold(tx, productIds);
       });
     }
 
@@ -407,10 +424,9 @@ export class CommandService {
           where: {
             id: { in: productIdsToLock },
           },
-          data: {
-            isDispo: false,
-          },
+          data: { isDispo: false, status: ProductStatus.VENDU },
         });
+        await stampSold(this.prisma, productIdsToLock);
       }
     }
 

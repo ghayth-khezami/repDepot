@@ -7,6 +7,7 @@ import { Client, CreateClientDto } from '../types';
 import { Edit, Trash2, Eye } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useConfirmDialog } from '../components/ConfirmDialog';
+import ExcelButton from '../components/ExcelButton';
 
 const ClientsPage = () => {
   const [page, setPage] = useState(1);
@@ -139,6 +140,7 @@ const ClientsPage = () => {
       </div>
 
       <ReusableTable
+        toolbarExtra={<ExcelButton entity="clients" params={{ search }} compact />}
         data={data?.data || []}
         columns={columns}
         isLoading={isLoading}

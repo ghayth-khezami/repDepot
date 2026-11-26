@@ -5,5 +5,6 @@ import { StoreHoursService } from "./store-hours.service";
 @Module({
   controllers: [StoreHoursController],
   providers: [StoreHoursService],
+  exports: [StoreHoursService],
 })
 export class StoreHoursModule {}

@@ -1675,3 +1675,63 @@ a.btn-dark-glass:focus-visible {
   outline: 3px solid oklch(0.72 0.2 350 / 0.55);
   outline-offset: 3px;
 }
+
+/* ───────────── Bébé-Dépôt shared design tokens (same values as the admin) ─────────────
+   Used by the déposant tracking page (/suivi). Text-bearing gradients use darker stops so
+   white text stays ≥ 4.5:1 (spec #EC4899 → #F472B6 is 3.5:1 / 2.6:1 with white).
+   `static`: always emit the variables (plain CSS below reads them, not only utilities). */
+@theme static {
+  --color-bd-bg: #F7F3FD;
+  --color-bd-surface: #FFFFFF;
+  --color-bd-ink: #1E1B4B;
+  --color-bd-muted: #6B6889;
+  --color-bd-lilac: #E9DDFB;
+  --color-bd-blush: #FCE7F3;
+  --color-bd-line: #7C3AED;
+  --color-bd-pink: #EC4899;
+  --color-bd-pink-strong: #BE185D;
+  --color-bd-violet: #7C3AED;
+  --color-bd-violet-strong: #6D28D9;
+  --color-bd-amber: #F59E0B;
+  --color-bd-success: #15803D;
+  --color-bd-success-bg: #DCFCE7;
+  --color-bd-danger: #B91C1C;
+  --color-bd-danger-bg: #FEE2E2;
+  --radius-card: 24px;
+  --shadow-card: 0 10px 30px rgba(76, 29, 149, 0.06);
+  --shadow-glow-pink: 0 8px 24px rgba(236, 72, 153, 0.35);
+  --shadow-glow-violet: 0 8px 24px rgba(124, 58, 237, 0.3);
+}
+
+@utility bg-grad-pink { background-image: linear-gradient(135deg, #EC4899 0%, #F472B6 100%); }
+@utility bg-grad-pink-strong { background-image: linear-gradient(135deg, #BE185D 0%, #DB2777 100%); }
+@utility bg-grad-violet { background-image: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%); }
+@utility bg-grad-violet-strong { background-image: linear-gradient(135deg, #6D28D9 0%, #7C3AED 100%); }
+@utility bg-grad-green { background-image: linear-gradient(135deg, #16A34A 0%, #4ADE80 100%); }
+@utility bg-grad-green-strong { background-image: linear-gradient(135deg, #15803D 0%, #16A34A 100%); }
+@utility bg-grad-gray { background-image: linear-gradient(135deg, #9CA3AF 0%, #D1D5DB 100%); }
+@utility bg-grad-amber { background-image: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%); }
+
+.suivi-root {
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  background: #F7F3FD;
+  color: var(--color-bd-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The storefront sets serif display headings globally; the tracking page uses Nunito only. */
+.suivi-root :is(h1, h2, h3, h4) {
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suivi-root *,
+  .suivi-root *::before,
+  .suivi-root *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

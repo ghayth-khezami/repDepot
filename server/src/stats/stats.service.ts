@@ -6,6 +6,7 @@ export interface StatsQueryDto {
   endDate?: string;
   categoryId?: string;
   period?: "month" | "year" | "all";
+  year?: number;
 }
 
 @Injectable()
@@ -253,6 +254,7 @@ export class StatsService {
 
     if (query.categoryId) {
       productWhere.categoryId = query.categoryId;
+      commandWhere.commandDetails = { some: { product: { categoryId: query.categoryId } } };
     }
 
     const dateFilter = this.buildDateFilter(query);
@@ -400,16 +402,16 @@ export class StatsService {
 
     // Get current year
     const now = new Date();
-    const currentYear = now.getFullYear();
+    const currentYear = query.year ?? now.getFullYear();
 
-    // Get all commands for current year
+    // Get all commands for the requested calendar year
     const commands = await this.prisma.command.findMany({
       where: {
         ...where.command,
         status: "DELIVERED",
         createdAt: {
           gte: new Date(currentYear, 0, 1),
-          lte: now,
+          lt: new Date(currentYear + 1, 0, 1),
         },
       },
       select: {

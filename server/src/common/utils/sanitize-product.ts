@@ -5,6 +5,11 @@ const SENSITIVE_PRODUCT_KEYS = [
   "depotPercentage",
   "coclientId",
   "commandDetails",
+  "shopAmountMillimes",
+  "depositorAmountMillimes",
+  "payoutStatus",
+  "depositRequestId",
+  "depositRequest",
 ] as const;
 
 export function sanitizeProductForStorefront<T extends Record<string, unknown>>(product: T) {

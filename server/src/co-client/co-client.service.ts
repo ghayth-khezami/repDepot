@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { PrismaService } from "../prisma/prisma.service";
@@ -12,16 +12,30 @@ export class CoClientService {
 
   async create(createCoClientDto: CreateCoClientDto) {
     const { password, ...data } = createCoClientDto;
-    const email = data.email.trim().toLowerCase();
+    const email = data.email?.trim().toLowerCase() || null;
 
-    const existingUser = await this.prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      throw new BadRequestException("Un compte existe déjà avec cet email.");
+    const samePhone = await this.prisma.coClient.findUnique({
+      where: { phoneNumber: data.phoneNumber },
+      select: { id: true },
+    });
+    if (samePhone) {
+      throw new ConflictException("Un déposant existe déjà avec ce numéro de téléphone.");
+    }
+    if (email) {
+      const sameEmail = await this.prisma.coClient.findUnique({ where: { email }, select: { id: true } });
+      if (sameEmail) throw new ConflictException("Un déposant existe déjà avec cet email.");
+    }
+    if (password) {
+      if (!email) throw new BadRequestException("Un email est requis pour créer un accès.");
+      const existingUser = await this.prisma.user.findUnique({ where: { email } });
+      if (existingUser) {
+        throw new BadRequestException("Un compte existe déjà avec cet email.");
+      }
     }
 
-  return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       let userId: string | undefined;
-      if (password) {
+      if (password && email) {
         const passwordHash = await bcrypt.hash(password, 10);
         const user = await tx.user.create({
           data: {
@@ -37,7 +51,13 @@ export class CoClientService {
 
       return tx.coClient.create({
         data: {
-          ...data,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phoneNumber: data.phoneNumber,
+          address: data.address ?? null,
+          lat: data.lat ?? null,
+          lng: data.lng ?? null,
+          RIB: data.RIB ?? null,
           email,
           userId,
         },
@@ -133,6 +153,10 @@ export class CoClientService {
       surcharge: p.surcharge,
       gain: p.gain,
       isDispo: p.isDispo,
+      ref: p.ref,
+      status: p.status,
+      soldAt: p.soldAt,
+      payoutStatus: p.payoutStatus,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       category: p.category,

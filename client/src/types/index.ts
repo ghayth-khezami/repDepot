@@ -31,12 +31,13 @@ export interface Client {
 
 export interface CoClient {
   id: string;
+  number?: number;
   firstName: string;
   lastName: string;
-  address: string;
-  email: string;
+  address: string | null;
+  email: string | null;
   phoneNumber: string;
-  RIB: string;
+  RIB: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -80,6 +81,15 @@ export interface Product {
   surcharge?: number;
   gain?: number;
   isDispo?: boolean;
+  /** Unique human reference (D-143-01 for dépôt items, P-00042 otherwise). */
+  ref?: string;
+  status?: 'EN_VENTE' | 'VENDU' | 'RETIRE';
+  soldAt?: string | null;
+  payoutStatus?: 'A_PERCEVOIR' | 'PAYE' | null;
+  shopAmountMillimes?: number | null;
+  depositorAmountMillimes?: number | null;
+  depositRequestId?: string | null;
+  depositRequest?: { id: string; contractNumber: string | null } | null;
   coclientId?: string;
   categoryId: string;
   subCategoryId?: string | null;
@@ -130,10 +140,10 @@ export interface CreateClientDto {
 export interface CreateCoClientDto {
   firstName: string;
   lastName: string;
-  address: string;
-  email: string;
+  address?: string;
+  email?: string;
   phoneNumber: string;
-  RIB: string;
+  RIB?: string;
   password?: string;
 }
 

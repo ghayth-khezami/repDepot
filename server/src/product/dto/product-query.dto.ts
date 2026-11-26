@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, IsBoolean, IsNumber } from "class-validator";
+import { IsOptional, IsString, IsBoolean, IsNumber, IsEnum, IsUUID } from "class-validator";
+import { ProductStatus } from "@prisma/client";
 import { Type } from "class-transformer";
 import { PaginationDto } from "../../common/dto/pagination.dto";
 
@@ -69,4 +70,21 @@ export class ProductQueryDto extends PaginationDto {
   @IsOptional()
   @IsString()
   sort?: string;
+
+  @ApiPropertyOptional({
+    description: "Filter by shop-by-age group: 0-6 | 6-12 | 12-24 | 2-3 | 4plus",
+  })
+  @IsOptional()
+  @IsString()
+  age?: string;
+
+  @ApiPropertyOptional({ enum: ProductStatus })
+  @IsOptional()
+  @IsEnum(ProductStatus)
+  status?: ProductStatus;
+
+  @ApiPropertyOptional({ description: "Filter by dépôt contract (deposit request) id" })
+  @IsOptional()
+  @IsUUID("4")
+  depositRequestId?: string;
 }

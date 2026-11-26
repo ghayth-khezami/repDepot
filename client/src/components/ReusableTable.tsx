@@ -28,6 +28,8 @@ interface ReusableTableProps<T> {
   addButtonLabel?: string;
   onExportCsv?: () => void;
   onExportPdf?: () => void;
+  /** Extra toolbar actions (e.g. Excel export) shown before CSV/PDF. */
+  toolbarExtra?: ReactNode;
 }
 
 function ReusableTable<T extends { id: string }>({
@@ -43,6 +45,7 @@ function ReusableTable<T extends { id: string }>({
   addButtonLabel = 'Ajouter',
   onExportCsv,
   onExportPdf,
+  toolbarExtra,
 }: ReusableTableProps<T>) {
   const [searchValue, setSearchValue] = useState('');
   const debouncedSearch = useDebouncedValue(searchValue, 1000);
@@ -122,6 +125,7 @@ function ReusableTable<T extends { id: string }>({
                 {viewMode === 'table' ? <Grid className="w-5 h-5" /> : <List className="w-5 h-5" />}
               </button>
             )}
+            {toolbarExtra}
             {onExportCsv && (
               <button
                 onClick={onExportCsv}

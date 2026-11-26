@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { PayoutStatus, ProductStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { fromMillimes, splitCommission, toMillimes } from "../common/utils/money";
 import { normalizeEan13 } from "../common/barcode-label.util";
 import { sanitizeProductForStorefront } from "../common/utils/sanitize-product";
 import { CreateProductDto } from "./dto/create-product.dto";
@@ -22,6 +24,16 @@ export class ProductService {
     throw new BadRequestException("Impossible de générer un code-barres unique.");
   }
 
+  /** Optional explicit ref (admin edit). Omitted means DB default P-xxxxx (the dépôt flow sets D-x-y). */
+  private async resolveRef(explicit?: string | null, excludeId?: string): Promise<string | undefined> {
+    if (explicit === undefined || explicit === null) return undefined;
+    const ref = explicit.trim().toUpperCase();
+    if (!ref) throw new BadRequestException("La référence ne peut pas être vide.");
+    const taken = await this.prisma.product.findUnique({ where: { ref }, select: { id: true } });
+    if (taken && taken.id !== excludeId) throw new BadRequestException(`La référence ${ref} est déjà utilisée.`);
+    return ref;
+  }
+
   private async resolveBarcode(explicit?: string | null): Promise<string> {
     const trimmed = explicit?.trim();
     if (trimmed) {
@@ -30,6 +42,42 @@ export class ProductService {
       return trimmed;
     }
     return this.generateUniqueBarcode();
+  }
+
+  /**
+   * Single place where status, legacy isDispo, soldAt and payoutStatus are kept consistent.
+   * isDispo (used by the storefront and orders) is true only while the product is EN_VENTE.
+   */
+  private resolveLifecycle(
+    dto: { status?: ProductStatus; isDispo?: boolean; payoutStatus?: PayoutStatus | null },
+    isDepot: boolean,
+    existing?: { status: ProductStatus; soldAt: Date | null; payoutStatus: PayoutStatus | null },
+  ) {
+    let status: ProductStatus = existing?.status ?? ProductStatus.EN_VENTE;
+    if (dto.status) status = dto.status;
+    else if (dto.isDispo !== undefined) {
+      status = dto.isDispo
+        ? ProductStatus.EN_VENTE
+        : existing?.status === ProductStatus.RETIRE
+          ? ProductStatus.RETIRE
+          : ProductStatus.VENDU;
+    }
+    const sold = status === ProductStatus.VENDU;
+    return {
+      status,
+      isDispo: status === ProductStatus.EN_VENTE,
+      soldAt: sold ? (existing?.soldAt ?? new Date()) : null,
+      payoutStatus: sold
+        ? (dto.payoutStatus ?? existing?.payoutStatus ?? (isDepot ? PayoutStatus.A_PERCEVOIR : null))
+        : null,
+    };
+  }
+
+  /** Millime-exact commission split for dépôt products (null for shop-owned products). */
+  private computeSplit(isDepot: boolean, PrixVente: number, depotPercentage?: number | null) {
+    if (!isDepot) return { shopAmountMillimes: null, depositorAmountMillimes: null };
+    const split = splitCommission(toMillimes(PrixVente), depotPercentage ?? 0);
+    return { shopAmountMillimes: split.shopMillimes, depositorAmountMillimes: split.depositorMillimes };
   }
 
   private computeGain(payload: {
@@ -41,8 +89,8 @@ export class ProductService {
   }) {
     const surcharge = payload.surcharge || 0;
     if (payload.isDepot) {
-      const depotGain = payload.PrixVente * ((payload.depotPercentage || 0) / 100);
-      return depotGain - surcharge;
+      const { shopMillimes } = splitCommission(toMillimes(payload.PrixVente), payload.depotPercentage || 0);
+      return fromMillimes(shopMillimes - toMillimes(surcharge));
     }
     return payload.PrixVente - surcharge - (payload.PrixAchat || 0);
   }
@@ -69,8 +117,10 @@ export class ProductService {
 
   async create(createProductDto: CreateProductDto) {
     const gain = this.computeGain(createProductDto);
-    const isDispo = createProductDto.isDispo ?? true;
+    const lifecycle = this.resolveLifecycle(createProductDto, createProductDto.isDepot);
+    const split = this.computeSplit(createProductDto.isDepot, createProductDto.PrixVente, createProductDto.depotPercentage);
     const barcode = await this.resolveBarcode(createProductDto.barcode);
+    const ref = await this.resolveRef(createProductDto.ref);
 
     const { categoryIds, subCategoryIds, subSubCategory1Ids, subSubCategory2Ids, subSubCategory3Ids, ...productData } = createProductDto;
     return this.prisma.$transaction(async (tx) => {
@@ -78,9 +128,11 @@ export class ProductService {
       data: {
         ...productData,
         barcode,
+        ...(ref ? { ref } : {}),
         gain: gain || 0,
         surcharge: createProductDto.surcharge || 0,
-        isDispo,
+        ...lifecycle,
+        ...split,
       },
       include: {
         category: {
@@ -109,17 +161,21 @@ export class ProductService {
     photoDocs: string[],
   ) {
     const gain = this.computeGain(createProductDto);
-    const isDispo = createProductDto.isDispo ?? true;
+    const lifecycle = this.resolveLifecycle(createProductDto, createProductDto.isDepot);
+    const split = this.computeSplit(createProductDto.isDepot, createProductDto.PrixVente, createProductDto.depotPercentage);
     const barcode = await this.resolveBarcode(createProductDto.barcode);
+    const ref = await this.resolveRef(createProductDto.ref);
     const { categoryIds, subCategoryIds, subSubCategory1Ids, subSubCategory2Ids, subSubCategory3Ids, ...productData } = createProductDto;
     return this.prisma.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
           ...productData,
           barcode,
+          ...(ref ? { ref } : {}),
           gain: gain || 0,
           surcharge: createProductDto.surcharge || 0,
-          isDispo,
+          ...lifecycle,
+          ...split,
         },
       });
 
@@ -165,6 +221,9 @@ export class ProductService {
       maxPrice,
       isDispo,
       sort,
+      age,
+      status,
+      depositRequestId,
     } = query;
     const actualLimit = Math.min(limit || 10, 50);
     const skip = (page - 1) * actualLimit;
@@ -175,7 +234,16 @@ export class ProductService {
       where.OR = [
         { productName: { contains: search, mode: "insensitive" as const } },
         { description: { contains: search, mode: "insensitive" as const } },
+        { ref: { contains: search.trim(), mode: "insensitive" as const } },
       ];
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (depositRequestId) {
+      where.depositRequestId = depositRequestId;
     }
 
     if (categoryId) {
@@ -221,6 +289,32 @@ export class ProductService {
       where.isDispo = isDispo;
     }
 
+    const AGE_TITLES: Record<string, string[]> = {
+      "0-6": ["0-3 mois", "3-6 mois", "0-6 mois", "0-6"],
+      "6-12": ["6-9 mois", "9-12 mois", "6-12 mois", "6-12"],
+      "12-24": ["12-24 mois", "12-24"],
+      "2-3": ["24-36 mois", "2-3 ans", "2 ans", "3 ans"],
+      "4plus": ["4 ans", "5 ans", "6 ans", "4 ans et plus"],
+    };
+    const ageTitles = age ? AGE_TITLES[age] : undefined;
+    if (ageTitles?.length) {
+      where.AND = [
+        ...(where.AND ?? []),
+        {
+          OR: [
+            { subSubCategory1: { title: { in: ageTitles } } },
+            { subSubCategory2: { title: { in: ageTitles } } },
+            { subSubCategory3: { title: { in: ageTitles } } },
+            { subCategory: { title: { in: ageTitles } } },
+            ...ageTitles.flatMap((title) => [
+              { productName: { contains: title, mode: "insensitive" as const } },
+              { description: { contains: title, mode: "insensitive" as const } },
+            ]),
+          ],
+        },
+      ];
+    }
+
     const orderBy =
       sort === "price_asc"
         ? { PrixVente: "asc" as const }
@@ -258,6 +352,7 @@ export class ProductService {
               lastName: true,
             },
           },
+          depositRequest: { select: { id: true, contractNumber: true } },
           photos: {
             select: {
               id: true,
@@ -310,7 +405,7 @@ export class ProductService {
 
   async findAllForQrExport() {
     return this.prisma.product.findMany({
-      select: { id: true, productName: true, PrixVente: true },
+      select: { id: true, productName: true, PrixVente: true, ref: true },
       orderBy: { productName: "asc" },
     });
   }
@@ -344,6 +439,7 @@ export class ProductService {
             email: true,
           },
         },
+        depositRequest: { select: { id: true, contractNumber: true } },
         photos: true,
       },
     });
@@ -378,6 +474,35 @@ export class ProductService {
       }
     }
     return [...candidates].filter(Boolean);
+  }
+
+  /** Scanner / manual entry: accepts a QR payload (URL or id), a ref ("P-00012", "p12", "12") or a barcode. */
+  async lookup(raw: string) {
+    const input = decodeURIComponent(raw ?? "").trim();
+    if (!input) throw new BadRequestException("Saisissez une référence.");
+    const uuid = input.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0];
+    if (uuid) {
+      const byId = await this.prisma.product.findUnique({ where: { id: uuid }, select: { id: true } });
+      if (byId) return this.findOne(byId.id);
+    }
+    const compact = input.toUpperCase().replace(/\s+/g, "");
+    const refCandidates = new Set<string>([compact]);
+    const pNum = compact.match(/^P-?0*(\d{1,7})$/) ?? compact.match(/^0*(\d{1,5})$/);
+    if (pNum) refCandidates.add(`P-${pNum[1].padStart(5, "0")}`);
+    const byRef = await this.prisma.product.findFirst({
+      where: { ref: { in: [...refCandidates], mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (byRef) return this.findOne(byRef.id);
+    if (/^\d{6,14}$/.test(compact)) {
+      try {
+        const p = await this.findByBarcode(compact);
+        return this.findOne(p.id);
+      } catch {
+        /* fall through */
+      }
+    }
+    throw new NotFoundException(`Aucun produit pour « ${input} ».`);
   }
 
   async findByBarcode(barcode: string) {
@@ -437,10 +562,9 @@ export class ProductService {
       surcharge,
     });
 
-    const isDispo =
-      updateProductDto.isDispo !== undefined
-        ? updateProductDto.isDispo
-        : existingProduct.isDispo;
+    const lifecycle = this.resolveLifecycle(updateProductDto, isDepot, existingProduct);
+    const split = this.computeSplit(isDepot, PrixVente, depotPercentage);
+    const ref = await this.resolveRef(updateProductDto.ref, id);
 
     const { categoryIds, subCategoryIds, subSubCategory1Ids, subSubCategory2Ids, subSubCategory3Ids, ...productData } = updateProductDto;
     return this.prisma.$transaction(async (tx) => {
@@ -450,7 +574,9 @@ export class ProductService {
           ...productData,
           gain,
           surcharge: surcharge || 0,
-          isDispo,
+          ...(ref ? { ref } : {}),
+          ...lifecycle,
+          ...split,
         },
         include: {
         category: {

@@ -223,18 +223,18 @@ export class CoClientController {
         coClient.lastName.length > 12
           ? coClient.lastName.substring(0, 9) + "..."
           : coClient.lastName,
-        coClient.email.length > 18
-          ? coClient.email.substring(0, 15) + "..."
-          : coClient.email,
+        (coClient.email ?? "").length > 18
+          ? (coClient.email ?? "").substring(0, 15) + "..."
+          : coClient.email ?? "",
         coClient.phoneNumber.length > 12
           ? coClient.phoneNumber.substring(0, 9) + "..."
           : coClient.phoneNumber,
-        coClient.RIB.length > 12
-          ? coClient.RIB.substring(0, 9) + "..."
-          : coClient.RIB,
-        coClient.address.length > 15
-          ? coClient.address.substring(0, 12) + "..."
-          : coClient.address,
+        (coClient.RIB ?? "").length > 12
+          ? (coClient.RIB ?? "").substring(0, 9) + "..."
+          : coClient.RIB ?? "",
+        (coClient.address ?? "").length > 15
+          ? (coClient.address ?? "").substring(0, 12) + "..."
+          : coClient.address ?? "",
       ];
 
       rowData.forEach((cell, i) => {

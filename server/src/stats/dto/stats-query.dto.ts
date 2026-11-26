@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, IsEnum } from "class-validator";
+import { IsOptional, IsString, IsEnum, IsInt, Min, Max } from "class-validator";
+import { Type } from "class-transformer";
 
 export class StatsQueryDto {
   @ApiPropertyOptional({
@@ -30,4 +31,12 @@ export class StatsQueryDto {
   @IsOptional()
   @IsEnum(["month", "year", "all"])
   period?: "month" | "year" | "all";
+
+  @ApiPropertyOptional({ description: "Calendar year for monthly charts", example: 2026 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  year?: number;
 }

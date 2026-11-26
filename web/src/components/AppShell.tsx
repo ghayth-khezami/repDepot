@@ -38,6 +38,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isHomePage = pathname === "/";
 
+  // Déposant tracking pages are standalone (own hero + contact block, no shop chrome).
+  if (pathname?.startsWith("/suivi")) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="relative flex min-h-dvh flex-col">
       <LogoLoader visible={routeLoading} />

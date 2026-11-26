@@ -8,6 +8,7 @@ export { FloatingStickers } from "./FloatingStickers";
 export { ProductsGrid } from "./ProductsGrid";
 export { CategoryCard } from "./CategoryCard";
 export { CategoriesExplorer } from "./CategoriesExplorer";
+export { ShopByAgeSection } from "./ShopByAgeSection";
 export { CategoriesGrid } from "./CategoriesGrid";
 export { TrustSection } from "./TrustSection";
 export { TestimonialCard } from "./TestimonialCard";

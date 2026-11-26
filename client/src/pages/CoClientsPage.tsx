@@ -7,6 +7,8 @@ import { CoClient, CreateCoClientDto } from '../types';
 import { Trash2, Eye, Package } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useConfirmDialog } from '../components/ConfirmDialog';
+import { apiErrorMessage } from '../lib/apiError';
+import ExcelButton from '../components/ExcelButton';
 
 const CoClientsPage = () => {
   const [page, setPage] = useState(1);
@@ -92,28 +94,33 @@ const CoClientsPage = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const opt = (k: string) => ((formData.get(k) as string) || '').trim() || undefined;
     const data: CreateCoClientDto = {
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
-      address: address || (formData.get('address') as string),
-      email: formData.get('email') as string,
-      phoneNumber: formData.get('phoneNumber') as string,
-      RIB: formData.get('RIB') as string,
+      firstName: (formData.get('firstName') as string).trim(),
+      lastName: (formData.get('lastName') as string).trim(),
+      address: address.trim() || undefined,
+      email: opt('email'),
+      phoneNumber: ((formData.get('phoneNumber') as string) || '').replace(/\D/g, '').slice(-8),
+      RIB: opt('RIB')?.replace(/\s/g, ''),
       password: password || undefined,
     };
 
-    if (!data.password || data.password.length < 6) {
+    if (data.password && data.password.length < 6) {
       showToast('Le mot de passe doit contenir au moins 6 caractères', 'error');
+      return;
+    }
+    if (data.password && !data.email) {
+      showToast('Un email est requis pour créer un accès avec mot de passe', 'error');
       return;
     }
 
     try {
-      await createCoClient(data);
+      await createCoClient(data).unwrap();
       showToast('Déposant créé avec succès', 'success');
       setIsModalOpen(false);
       setSelectedCoClient(null);
     } catch (error) {
-      showToast('Erreur lors de la création', 'error');
+      showToast(apiErrorMessage(error, 'Erreur lors de la création'), 'error', 6000);
     }
   };
 
@@ -133,6 +140,7 @@ const CoClientsPage = () => {
       </div>
 
       <ReusableTable
+        toolbarExtra={<ExcelButton entity="co-clients" params={{ search }} compact />}
         data={data?.data || []}
         columns={columns}
         isLoading={isLoading}
@@ -181,7 +189,7 @@ const CoClientsPage = () => {
           setSelectedCoClient(null);
           setAddress('');
         }}
-        title="Ajouter un co-client"
+        title="Ajouter un déposant"
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -206,19 +214,21 @@ const CoClientsPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400">(optionnel)</span></label>
             <input
               type="email"
               name="email"
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone (8 chiffres, sans +216)</label>
             <input
               type="tel"
               name="phoneNumber"
+              inputMode="numeric"
+              pattern="(\+?216)?\s?\d{2}\s?\d{3}\s?\d{3}"
+              placeholder="55 863 578"
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
@@ -227,19 +237,16 @@ const CoClientsPage = () => {
             <AddressMapSelector
               value={address}
               onChange={(addr) => setAddress(addr)}
-              onPositionConfirm={(lat, lng) => {
-                console.log('Position confirmed:', lat, lng);
-              }}
+              onPositionConfirm={() => undefined}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe (connexion déposant)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe <span className="text-gray-400">(optionnel — le suivi se fait par le QR du contrat)</span></label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
                 minLength={6}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="Minimum 6 caractères"
@@ -259,11 +266,11 @@ const CoClientsPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">RIB</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">RIB <span className="text-gray-400">(optionnel, 20 chiffres)</span></label>
             <input
               type="text"
               name="RIB"
-              required
+              inputMode="numeric"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>

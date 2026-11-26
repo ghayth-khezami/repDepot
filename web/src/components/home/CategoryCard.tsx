@@ -23,7 +23,7 @@ export function CategoryCard({
       className="h-full"
     >
       <Link
-        href={`/categories/${category.id}`}
+        href={`/produits?categoryId=${category.id}`}
         className="group relative flex h-full min-h-[220px] overflow-hidden rounded-[1.75rem] bg-[#2D2346] shadow-[0_8px_32px_rgba(45,35,70,0.12)] sm:min-h-[240px]"
       >
         <div className="absolute inset-0">

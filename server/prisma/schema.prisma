@@ -134,12 +134,19 @@ model Client {
 
 model CoClient {
   id              String           @id @default(uuid())
+  /// Human-friendly déposant number, used in product refs (D-{number}-{seq}).
+  number          Int              @unique @default(autoincrement())
+  /// Last product sequence used for this déposant's refs (incremented atomically).
+  refSeq          Int              @default(0)
   firstName       String
   lastName        String
-  address         String
-  email           String           @unique
-  phoneNumber     String
-  RIB             String
+  address         String?
+  lat             Float?
+  lng             Float?
+  email           String?          @unique
+  /// 8 digits, stored without +216.
+  phoneNumber     String           @unique
+  RIB             String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   userId          String?          @unique
@@ -250,6 +257,17 @@ model Product {
   subCategoryId          String?
   /// Unique store barcode for label scanning (EAN-13 style numeric).
   barcode                String?                  @unique
+  /// Human-readable unique reference printed on labels and contracts.
+  ref                    String                   @unique @default(dbgenerated("('P-'::text || lpad((nextval('product_ref_seq'::regclass))::text, 5, '0'::text))"))
+  status                 ProductStatus            @default(EN_VENTE)
+  soldAt                 DateTime?
+  payoutStatus           PayoutStatus?
+  /// Shop commission in millimes (server-computed for dépôt products).
+  shopAmountMillimes     Int?
+  /// Déposant share in millimes (server-computed for dépôt products).
+  depositorAmountMillimes Int?
+  depositRequestId       String?
+  depositRequest         DepositRequest?          @relation(fields: [depositRequestId], references: [id], onDelete: SetNull)
   subSubCategory1Id      String?
   subSubCategory2Id      String?
   subSubCategory3Id      String?
@@ -269,6 +287,8 @@ model Product {
   ProductSubSubCategory2 ProductSubSubCategory2[]
   ProductSubSubCategory3 ProductSubSubCategory3[]
 
+  @@index([status])
+  @@index([depositRequestId])
   @@map("products")
 }
 
@@ -323,7 +343,15 @@ model DepositRequest {
   userId        String?
   coClientId    String?
   contractDoc   String?
+  /// e.g. DV-2026-0143
+  contractNumber String?             @unique
+  /// Random, unguessable token for the public /suivi page.
+  trackingToken  String?             @unique
+  durationMonths Int?
+  internalNote   String?
+  signedAt       DateTime?
   items         DepositRequestItem[]
+  products      Product[]
   coClient      CoClient?            @relation(fields: [coClientId], references: [id])
   user          User?                @relation(fields: [userId], references: [id])
 
@@ -430,8 +458,14 @@ model PushSubscription {
 }
 
 model SiteSettings {
-  id         String   @id @default("default")
-  youtubeUrl String?
+  id           String   @id @default("default")
+  youtubeUrl   String?
+  shopPhone    String?
+  shopWhatsapp String?
+  shopAddress  String?
+  shopMapsUrl  String?
+  /// One condition per line, printed on dépôt contracts.
+  contractTerms String?
   updatedAt  DateTime @updatedAt
 
   @@map("site_settings")
@@ -454,6 +488,17 @@ enum DepositRequestStatus {
   CONTACTED
   CLOSED
   CONFIRMED
+}
+
+enum ProductStatus {
+  EN_VENTE
+  VENDU
+  RETIRE
+}
+
+enum PayoutStatus {
+  A_PERCEVOIR
+  PAYE
 }
 
 enum Weekday {

@@ -35,6 +35,12 @@ const nextConfig: NextConfig = {
     remotePatterns: remotePatterns(),
     formats: ["image/avif", "image/webp"],
   },
+  async redirects() {
+    return [
+      { source: "/categories", destination: "/produits", permanent: false },
+      { source: "/categories/:id", destination: "/produits?categoryId=:id", permanent: false },
+    ];
+  },
   async rewrites() {
     // Local dev: proxy browser calls to remote Nest API (avoids CORS from localhost:3001)
     if (process.env.NODE_ENV === "development" && !isLocalApi(apiUrl)) {

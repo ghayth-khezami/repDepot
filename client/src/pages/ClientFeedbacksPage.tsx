@@ -11,6 +11,7 @@ import {
   useUpdateClientFeedbackMutation,
 } from '../store/api/clientFeedbackApi';
 import { useToast } from '../context/ToastContext';
+import ExcelButton from '../components/ExcelButton';
 
 const Stars = ({ count }: { count: number }) => (
   <div className="flex gap-0.5">
@@ -103,6 +104,7 @@ const ClientFeedbacksPage = () => {
       </div>
 
       <ReusableTable
+        toolbarExtra={<ExcelButton entity="feedbacks" params={{ search }} compact />}
         data={data?.data || []}
         columns={columns}
         isLoading={isLoading}

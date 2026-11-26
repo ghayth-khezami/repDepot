@@ -4,6 +4,7 @@ import {
   NewsletterContact,
   useGetNewsletterContactsQuery,
 } from '../store/api/newsletterApi';
+import ExcelButton from '../components/ExcelButton';
 
 const NewsletterPage = () => {
   const [page, setPage] = useState(1);
@@ -50,6 +51,7 @@ const NewsletterPage = () => {
       </div>
 
       <ReusableTable
+        toolbarExtra={<ExcelButton entity="newsletter" params={{ search }} compact />}
         data={data?.data || []}
         columns={columns}
         isLoading={isLoading}

@@ -20,7 +20,21 @@ export interface DepositRequest {
   contractDoc?: string | null;
   coClientId?: string | null;
   status: 'PENDING' | 'CONTACTED' | 'CONFIRMED' | 'CLOSED';
+  /** Set for contracts made with the unified "Nouveau dépôt" flow (or generated on first PDF). */
+  contractNumber?: string | null;
+  durationMonths?: number | null;
+  signedAt?: string | null;
   items?: DepositRequestItem[];
+  products?: Array<{
+    id: string;
+    ref: string;
+    productName: string;
+    PrixVente: number;
+    depotPercentage: number | null;
+    depositorAmountMillimes: number | null;
+    status: 'EN_VENTE' | 'VENDU' | 'RETIRE';
+    photos: Array<{ photoDoc: string }>;
+  }>;
   coClient?: { id: string; firstName: string; lastName: string; phoneNumber?: string };
   createdAt: string;
   updatedAt: string;

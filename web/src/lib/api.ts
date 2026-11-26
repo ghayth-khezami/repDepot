@@ -141,6 +141,7 @@ export const api = {
       minPrice?: number;
       maxPrice?: number;
       sort?: "newest" | "price_asc" | "price_desc" | "name_asc";
+      age?: string;
     },
     token?: string | null,
   ) => {
@@ -158,6 +159,7 @@ export const api = {
     if (opts?.minPrice !== undefined) params.set("minPrice", String(opts.minPrice));
     if (opts?.maxPrice !== undefined) params.set("maxPrice", String(opts.maxPrice));
     if (opts?.sort) params.set("sort", opts.sort);
+    if (opts?.age) params.set("age", opts.age);
     return request<ApiPaginated<Product>>(`/products?${params.toString()}`, "GET", undefined, token);
   },
   getFeaturedProducts: () => request<Product[]>("/products/featured"),

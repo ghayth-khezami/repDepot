@@ -36,7 +36,7 @@ import { SetFeaturedProductsDto } from "./dto/set-featured-products.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
-import { UserRole } from "@prisma/client";
+import { ProductStatus, UserRole } from "@prisma/client";
 import * as Papa from "papaparse";
 import * as jsPDF from "jspdf";
 import { join } from "path";
@@ -153,6 +153,10 @@ export class ProductController {
       subSubCategory2Ids: parseIds(body.subSubCategory2Ids),
       subSubCategory3Id: body.subSubCategory3Id || undefined,
       subSubCategory3Ids: parseIds(body.subSubCategory3Ids),
+      status: (Object.values(ProductStatus) as string[]).includes(body.status)
+        ? (body.status as ProductStatus)
+        : undefined,
+      ref: body.ref?.trim() || undefined,
     };
     const photoDocs = await this.cloudinary.uploadFiles(
       files?.photos || [],
@@ -478,6 +482,14 @@ export class ProductController {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=produits-qr.pdf");
     res.send(buffer);
+  }
+
+  @Get("lookup/:code")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Admin: find product by QR payload, id, ref (P-00012 / 12) or barcode" })
+  lookup(@Param("code") code: string) {
+    return this.productService.lookup(code);
   }
 
   @Get("by-barcode/:code")

@@ -1,4 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Award,
+  Box,
+  CalendarRange,
+  RotateCcw,
+  SlidersHorizontal,
+  Tag,
+  DollarSign,
+  Download,
+  FileText,
+  Info,
+  MapPin,
+  Package,
+  PackagePlus,
+  QrCode,
+  Search,
+  ShoppingBag,
+  ShoppingCart,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   useGetRevenueBreakdownQuery,
   useGetMonthlySoldProductsQuery,
@@ -7,25 +32,16 @@ import {
   useGetTotalSurchargeQuery,
   useGetTopProductsQuery,
 } from '../store/api/statsApi';
-import {
-  DollarSign,
-  ShoppingBag,
-  Package,
-  TrendingUp,
-  MapPin,
-  Receipt,
-  Award,
-  FolderTree,
-  Users,
-  FileText,
-  Heart,
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import AppHeader, { DATE_RANGE_DELTA_LABEL, DATE_RANGE_LABEL, rangeFor, type DateRangeKey } from '../components/AppHeader';
+import ExcelButton from '../components/ExcelButton';
+import { useGetCategoryHierarchyQuery } from '../store/api/categoryApi';
+import { cn } from '../lib/cn';
+import { Button, Card, CardTitle, EmptyState, Illustration, InfoNote, Pill, StatCard, buttonClass } from '../components/ui';
+import { downloadAuthed } from '../lib/download';
+import { formatTnd, toMillimes } from '../lib/money';
+import { uploadUrl } from '../lib/apiBase';
+import { useToast } from '../context/ToastContext';
 
-// Fix for default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -33,538 +49,379 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+const tnd = (v?: number) => formatTnd(toMillimes(v ?? 0));
+const pctDelta = (cur?: number, prev?: number) => {
+  if (cur === undefined || prev === undefined) return null;
+  if (prev === 0) return cur === 0 ? 0 : 100;
+  return ((cur - prev) / Math.abs(prev)) * 100;
+};
+
 const Dashboard = () => {
-  const { data: revenueData, isLoading: revenueLoading } = useGetRevenueBreakdownQuery({ period: 'all' });
-  const { data: monthlySoldData, isLoading: monthlyLoading } = useGetMonthlySoldProductsQuery({ period: 'all' });
-  const { data: depotVsBuyingData, isLoading: depotLoading } = useGetDepotVsBuyingQuery({ period: 'all' });
-  const { data: locationsData, isLoading: locationsLoading } = useGetCommandLocationsQuery({ period: 'all' });
-  const { data: surchargeData, isLoading: surchargeLoading } = useGetTotalSurchargeQuery({ period: 'all' });
-  const { data: topProductsData, isLoading: topProductsLoading } = useGetTopProductsQuery({ period: 'all', limit: 5 });
-
-  const [animatedValues, setAnimatedValues] = useState({
-    totalRevenue: 0,
-    buyingRevenue: 0,
-    depotRevenue: 0,
-    totalSurcharge: 0,
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [range, setRange] = useState<DateRangeKey | 'custom'>(() => {
+    try {
+      return (localStorage.getItem('bd-dash-range') as DateRangeKey | 'custom' | null) ?? 'month';
+    } catch {
+      return 'month';
+    }
   });
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const thisYear = new Date().getFullYear();
+  const [year, setYear] = useState(thisYear);
+  const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const { data: categories } = useGetCategoryHierarchyQuery();
 
-  // Animate numbers
-  useEffect(() => {
-    if (revenueData) {
-      const duration = 1500;
-      const steps = 60;
-      const stepDuration = duration / steps;
-      
-      const animate = (start: number, end: number, setter: (val: number) => void) => {
-        let currentStep = 0;
-        const increment = (end - start) / steps;
-        
-        const interval = setInterval(() => {
-          currentStep++;
-          const value = start + increment * currentStep;
-          setter(value);
-          
-          if (currentStep >= steps) {
-            setter(end);
-            clearInterval(interval);
-          }
-        }, stepDuration);
-      };
-
-      animate(0, revenueData.totalRevenue, (val) => {
-        setAnimatedValues((prev) => ({ ...prev, totalRevenue: val }));
-      });
-      animate(0, revenueData.buyingRevenue, (val) => {
-        setAnimatedValues((prev) => ({ ...prev, buyingRevenue: val }));
-      });
-      animate(0, revenueData.depotRevenue, (val) => {
-        setAnimatedValues((prev) => ({ ...prev, depotRevenue: val }));
-      });
+  const pickRange = (r: DateRangeKey | 'custom') => {
+    setRange(r);
+    try {
+      localStorage.setItem('bd-dash-range', r);
+    } catch {
+      /* ignore */
     }
-  }, [revenueData]);
-
-  // Animate surcharge
-  useEffect(() => {
-    if (surchargeData) {
-      const duration = 1500;
-      const steps = 60;
-      const stepDuration = duration / steps;
-      
-      let currentStep = 0;
-      const increment = surchargeData.totalSurcharge / steps;
-      
-      const interval = setInterval(() => {
-        currentStep++;
-        const value = increment * currentStep;
-        setAnimatedValues((prev) => ({ ...prev, totalSurcharge: value }));
-        
-        if (currentStep >= steps) {
-          setAnimatedValues((prev) => ({ ...prev, totalSurcharge: surchargeData.totalSurcharge }));
-          clearInterval(interval);
-        }
-      }, stepDuration);
-      
-      return () => clearInterval(interval);
-    }
-  }, [surchargeData]);
-
-  // Format month names
-  const formatMonth = (monthStr: string) => {
-    const [year, month] = monthStr.split('-');
-    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-    return monthNames[parseInt(month) - 1];
   };
 
-  // Get max count for bar chart scaling
-  const maxCount = monthlySoldData
-    ? Math.max(...monthlySoldData.map((item) => item.count), 1)
-    : 1;
+  const { current, previous } = useMemo(() => {
+    if (range !== 'custom') return rangeFor(range);
+    if (!customFrom && !customTo) return { current: {}, previous: null };
+    const start = customFrom ? new Date(`${customFrom}T00:00:00`) : new Date(2000, 0, 1);
+    const end = customTo ? new Date(`${customTo}T23:59:59.999`) : new Date();
+    const span = end.getTime() - start.getTime();
+    return {
+      current: { startDate: start.toISOString(), endDate: end.toISOString() },
+      previous: customFrom ? { startDate: new Date(start.getTime() - span - 1).toISOString(), endDate: new Date(start.getTime() - 1).toISOString() } : null,
+    };
+  }, [range, customFrom, customTo]);
+  const cat = categoryId || undefined;
+  const cur = useMemo(() => ({ ...current, categoryId: cat }), [current, cat]);
+  const prev = useMemo(() => (previous ? { ...previous, categoryId: cat } : null), [previous, cat]);
+  const { data: revenue, isLoading: revenueLoading, isFetching: revenueFetching } = useGetRevenueBreakdownQuery(cur);
+  const { data: prevRevenue } = useGetRevenueBreakdownQuery(prev ?? {}, { skip: !prev });
+  const { data: surcharge, isLoading: surchargeLoading } = useGetTotalSurchargeQuery(cur);
+  const { data: prevSurcharge } = useGetTotalSurchargeQuery(prev ?? {}, { skip: !prev });
+  const { data: monthly, isLoading: monthlyLoading } = useGetMonthlySoldProductsQuery({ year, categoryId: cat });
+  const { data: depotVsBuying, isLoading: depotLoading } = useGetDepotVsBuyingQuery(cur);
+  const { data: locations, isLoading: locationsLoading } = useGetCommandLocationsQuery(cur);
+  const { data: topProducts } = useGetTopProductsQuery({ ...cur, limit: 5 });
 
+  const deltaLabel = range === 'custom' ? 'vs période préc.' : DATE_RANGE_DELTA_LABEL[range];
+  const filtersActive = range !== 'all' || !!categoryId;
+  const d = (a?: number, b?: number) => (previous ? pctDelta(a, b) : null);
+  const spark = monthly?.map((m) => m.count);
+  const maxCount = Math.max(1, ...(monthly?.map((m) => m.count) ?? [1]));
+  const thisMonthSales = monthly?.find((m) => Number(m.month.split('-')[1]) === new Date().getMonth() + 1 && year === thisYear)?.count ?? 0;
+
+  const download = async (key: string, path: string, filename: string) => {
+    setBusy(key);
+    try {
+      await downloadAuthed(path, filename);
+    } catch (e) {
+      showToast((e as Error).message || 'Téléchargement impossible', 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // Geocode order addresses (cached, throttled to Nominatim's 1 req/s policy).
   const geoCacheRef = useRef<Record<string, [number, number]>>({});
-  const [mapTick, setMapTick] = useState(0);
-
+  const [, setMapTick] = useState(0);
   useEffect(() => {
-    if (!locationsData?.length) return;
+    if (!locations?.length) return;
     let cancelled = false;
-
-    const geocode = async () => {
-      for (const loc of locationsData) {
+    void (async () => {
+      for (const loc of locations) {
         if (cancelled) break;
         const addr = loc.address?.trim();
         if (!addr || geoCacheRef.current[addr]) continue;
-
         try {
-          const q = encodeURIComponent(`${addr}, Tunisia`);
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`,
-            { headers: { 'Accept-Language': 'fr' } },
-          );
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${addr}, Tunisia`)}`, {
+            headers: { 'Accept-Language': 'fr' },
+          });
           const json = await res.json();
-          if (cancelled || !json?.[0]) continue;
-          const lat = parseFloat(json[0].lat);
-          const lon = parseFloat(json[0].lon);
-          if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-          geoCacheRef.current[addr] = [lat, lon];
-          setMapTick((t) => t + 1);
+          const lat = parseFloat(json?.[0]?.lat);
+          const lon = parseFloat(json?.[0]?.lon);
+          if (!cancelled && Number.isFinite(lat) && Number.isFinite(lon)) {
+            geoCacheRef.current[addr] = [lat, lon];
+            setMapTick((t) => t + 1);
+          }
         } catch {
           /* ignore geocode errors */
         }
         await new Promise((r) => setTimeout(r, 1100));
       }
-    };
-
-    void geocode();
+    })();
     return () => {
       cancelled = true;
     };
-  }, [locationsData]);
+  }, [locations]);
 
-  const getCoordinates = (address: string): [number, number] => {
-    void mapTick;
-    return geoCacheRef.current[address] || [34.0, 9.0];
-  };
+  const depotPct = depotVsBuying?.total ? (depotVsBuying.depot / depotVsBuying.total) * 100 : 0;
+  const buyPct = depotVsBuying?.total ? (depotVsBuying.buying / depotVsBuying.total) * 100 : 0;
+  const C = 2 * Math.PI * 70;
 
   return (
-    <div className="min-h-screen rounded-2xl bg-gradient-to-br from-[#FFF4F7] via-[#FFFDFB] to-[#FFF4EF] p-4 sm:p-6 lg:p-8 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="mb-2 text-3xl font-bold sm:text-4xl">Tableau de Bord</h1>
-          <p className="bo-muted">Vue d'ensemble de votre activité</p>
+    <div className="bd-ui mx-auto max-w-7xl">
+      <AppHeader />
+
+      <Card className="mb-6 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 hidden items-center gap-1.5 text-sm font-extrabold text-bd-ink sm:inline-flex">
+            <SlidersHorizontal size={16} className="text-bd-violet" aria-hidden /> Filtres
+          </span>
+          <div className="-mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-0.5" role="group" aria-label="Période">
+            {([...(Object.keys(DATE_RANGE_LABEL) as DateRangeKey[]), 'custom'] as const).map((k) => (
+              <Pill key={k} active={range === k} onClick={() => pickRange(k)} className="shrink-0 whitespace-nowrap">
+                {k === 'custom' ? (
+                  <>
+                    <CalendarRange size={15} aria-hidden /> Dates
+                  </>
+                ) : (
+                  DATE_RANGE_LABEL[k]
+                )}
+              </Pill>
+            ))}
+          </div>
+          <label className="relative ml-auto min-w-[170px] flex-1 sm:flex-none">
+            <span className="sr-only">Catégorie</span>
+            <Tag size={16} aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-bd-muted" />
+            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={cn('bd-input min-h-[40px] pl-10 pr-8 text-sm font-bold', !categoryId && 'text-bd-muted')}>
+              <option value="">Toutes les catégories</option>
+              {categories?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.categoryName}
+                </option>
+              ))}
+            </select>
+          </label>
+          {filtersActive ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={RotateCcw}
+              aria-label="Réinitialiser les filtres"
+              onClick={() => {
+                pickRange('all');
+                setCategoryId('');
+                setCustomFrom('');
+                setCustomTo('');
+              }}
+            >
+              <span className="hidden sm:inline">Réinitialiser</span>
+            </Button>
+          ) : null}
+          <ExcelButton entity="dashboard" label="Exporter" params={{ ...cur, year }} />
         </div>
-
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {[
-            { href: '/products', label: 'Produits', icon: Package },
-            { href: '/coups-de-coeur', label: 'Coups de cœur', icon: Heart },
-            { href: '/categories', label: 'Catégories', icon: FolderTree },
-            { href: '/co-clients', label: 'Déposants', icon: Users },
-            { href: '/commands', label: 'Commandes', icon: ShoppingBag },
-            { href: '/deposit-requests', label: 'Demandes de dépôt', icon: FileText },
-          ].map(({ href, label, icon: Icon }) => (
-            <Link key={href} to={href} className="bo-panel flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lg">
-              <Icon className="h-5 w-5 text-pink-600" />
-              <span className="text-sm font-semibold">{label}</span>
-            </Link>
-          ))}
-        </div>
-
-        {/* Revenue Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Revenue Card */}
-          <div className="bg-gradient-to-br from-[#F78AA9] to-[#E04672] rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 animate-slide-up">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-white/20 rounded-lg p-3">
-                <DollarSign className="w-8 h-8" />
-              </div>
-              <TrendingUp className="w-6 h-6 opacity-80" />
-            </div>
-            <h3 className="text-sm font-medium opacity-90 mb-1">Revenu Total</h3>
-            <p className="text-3xl font-bold">
-              {revenueLoading ? '...' : `${animatedValues.totalRevenue.toFixed(2)} TND`}
-            </p>
-            <div className="mt-4 pt-4 border-t border-white/20">
-              <p className="text-xs opacity-75">Tous les revenus combinés</p>
-            </div>
+        {range === 'custom' ? (
+          <div className="bd-anim-pop mt-3 grid grid-cols-2 gap-2 sm:max-w-md">
+            <label className="text-xs font-extrabold text-bd-muted">
+              Du
+              <input type="date" data-dictation="off" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} className="bd-input mt-1 min-h-[40px] text-sm" />
+            </label>
+            <label className="text-xs font-extrabold text-bd-muted">
+              Au
+              <input type="date" data-dictation="off" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} className="bd-input mt-1 min-h-[40px] text-sm" />
+            </label>
           </div>
-
-          {/* Buying Revenue Card */}
-          <div className="bg-gradient-to-br from-[#FFB0C7] to-[#F06292] rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-white/20 rounded-lg p-3">
-                <ShoppingBag className="w-8 h-8" />
-              </div>
-              <TrendingUp className="w-6 h-6 opacity-80" />
-            </div>
-            <h3 className="text-sm font-medium opacity-90 mb-1">Revenu d'Achat</h3>
-            <p className="text-3xl font-bold">
-              {revenueLoading ? '...' : `${animatedValues.buyingRevenue.toFixed(2)} TND`}
-            </p>
-            <div className="mt-4 pt-4 border-t border-white/20">
-              <p className="text-xs opacity-75">Revenus des produits achetés</p>
-            </div>
+        ) : null}
+        {revenueFetching ? (
+          <div aria-hidden className="mt-3 h-0.5 overflow-hidden rounded-full bg-bd-lilac">
+            <div className="h-full w-1/3 animate-pulse bg-grad-pink" />
           </div>
+        ) : null}
+      </Card>
 
-          {/* Depot Revenue Card */}
-          <div className="bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-white/20 rounded-lg p-3">
-                <Package className="w-8 h-8" />
-              </div>
-              <TrendingUp className="w-6 h-6 opacity-80" />
-            </div>
-            <h3 className="text-sm font-medium opacity-90 mb-1">Revenu de Dépôt</h3>
-            <p className="text-3xl font-bold">
-              {revenueLoading ? '...' : `${animatedValues.depotRevenue.toFixed(2)} TND`}
-            </p>
-            <div className="mt-4 pt-4 border-t border-white/20">
-              <p className="text-xs opacity-75">Revenus des produits en dépôt</p>
-            </div>
-          </div>
+      <section aria-label="Indicateurs" className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={DollarSign} tone="pink" label="Revenu Total" value={tnd(revenue?.totalRevenue)} loading={revenueLoading} delta={d(revenue?.totalRevenue, prevRevenue?.totalRevenue)} deltaLabel={deltaLabel} spark={spark} />
+        <StatCard icon={ShoppingBag} tone="violet" label="Revenu d'Achat" value={tnd(revenue?.buyingRevenue)} loading={revenueLoading} delta={d(revenue?.buyingRevenue, prevRevenue?.buyingRevenue)} deltaLabel={deltaLabel} spark={spark} />
+        <StatCard icon={Box} tone="amber" label="Revenu de Dépôt" value={tnd(revenue?.depotRevenue)} loading={revenueLoading} delta={d(revenue?.depotRevenue, prevRevenue?.depotRevenue)} deltaLabel={deltaLabel} spark={spark} />
+        <StatCard icon={Wallet} tone="purple" label="Surcharge Totale" value={tnd(surcharge?.totalSurcharge)} loading={surchargeLoading} delta={d(surcharge?.totalSurcharge, prevSurcharge?.totalSurcharge)} deltaLabel={deltaLabel} spark={spark} />
+      </section>
 
-          {/* Total Surcharge Card */}
-          <div className="bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-white/20 rounded-lg p-3">
-                <Receipt className="w-8 h-8" />
-              </div>
-              <TrendingUp className="w-6 h-6 opacity-80" />
-            </div>
-            <h3 className="text-sm font-medium opacity-90 mb-1">Surcharge Totale</h3>
-            <p className="text-3xl font-bold">
-              {surchargeLoading ? '...' : `${animatedValues.totalSurcharge.toFixed(2)} TND`}
-            </p>
-            <div className="mt-4 pt-4 border-t border-white/20">
-              <p className="text-xs opacity-75">Total des surcharges</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Top 5 Products Section */}
-        {topProductsData && topProductsData.length > 0 && (
-          <div className="bo-panel mb-8 transform p-6 transition-all duration-300 animate-fade-in hover:shadow-xl">
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
-              <Award className="w-6 h-6 text-yellow-600" />
-              Top 5 Produits les Plus Vendus
-            </h2>
-            {topProductsLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600"></div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                {topProductsData.map((product, index) => (
-                  <div
-                    key={product.productId}
-                    className="group relative bg-gradient-to-br from-gray-50 to-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden animate-card-enter"
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    {/* Ranking Badge */}
-                    <div className="absolute top-2 left-2 z-10">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg ${
-                        index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
-                        index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
-                        index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                        'bg-gradient-to-br from-[#F7A8BF] to-[#E04672]'
-                      }`}>
-                        {product.rank || index + 1}
-                      </div>
-                    </div>
-
-                    {/* Product Photo */}
-                    <div className="w-full h-48 bg-gradient-to-br from-gray-200 to-gray-300 overflow-hidden relative">
-                      {product.photo ? (
-                        <img
-                          src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${
-                            product.photo.startsWith('/') ? product.photo : '/' + product.photo
-                          }`}
-                          alt={product.productName}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <Package className="w-16 h-16" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    </div>
-
-                    {/* Product Info */}
-                    <div className="p-4">
-                      <h3 className="font-bold text-gray-900 text-sm mb-1 line-clamp-2 min-h-[2.5rem]">
-                        {product.productName}
-                      </h3>
-                      <p className="text-xs text-gray-500 mb-2">{product.categoryName}</p>
-                      
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                        <div>
-                          <p className="text-xs text-gray-500">Valeur Totale</p>
-                          <p className="text-lg font-bold text-[#E04672]">
-                            {product.totalValue?.toFixed(2) || product.PrixVente?.toFixed(2) || '0.00'} TND
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500">Vendu</p>
-                          <p className="text-sm font-semibold text-gray-700">{product.count}x</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <Card className="p-5 sm:p-6 lg:col-span-3">
+          <CardTitle
+            icon={TrendingUp}
+            title="Produits Vendus par Mois"
+            action={
+              <div className="flex gap-1.5" role="group" aria-label="Année">
+                {[thisYear - 1, thisYear, thisYear + 1].map((y) => (
+                  <Pill key={y} active={y === year} onClick={() => setYear(y)}>
+                    {y}
+                  </Pill>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Bar Chart - Monthly Sold Products */}
-          <div className="bo-panel p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in">
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
-              <TrendingUp className="w-6 h-6 text-[#E04672]" />
-              Produits Vendus par Mois
-            </h2>
+            }
+          />
+          <div className="grid gap-6 sm:grid-cols-[1fr_auto]">
             {monthlyLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E04672]"></div>
-              </div>
-            ) : monthlySoldData && monthlySoldData.length > 0 ? (
-              <div className="space-y-4">
-                {monthlySoldData.map((item, index) => {
-                  const percentage = (item.count / maxCount) * 100;
+              <div className="space-y-3">{Array.from({ length: 12 }, (_, i) => <div key={i} className="h-3 animate-pulse rounded-full bg-bd-lilac" />)}</div>
+            ) : (
+              <ul className="space-y-2.5">
+                {(monthly ?? []).map((m) => {
+                  const idx = Number(m.month.split('-')[1]) - 1;
                   return (
-                    <div key={item.month} className="animate-slide-right" style={{ animationDelay: `${index * 0.05}s` }}>
-                      <div className="flex items-center gap-4 mb-2">
-                        <span className="w-12 text-sm font-medium text-gray-700 dark:text-gray-300">{formatMonth(item.month)}</span>
-                        <div className="h-8 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
-                          <div
-                            className="bg-gradient-to-r from-[#E04672] to-[#F7A8BF] h-full rounded-full flex items-center justify-end pr-3 transition-all duration-1000 ease-out"
-                            style={{ width: `${percentage}%` }}
-                          >
-                            {item.count > 0 && (
-                              <span className="text-white text-xs font-semibold">{item.count}</span>
-                            )}
-                          </div>
-                        </div>
+                    <li key={m.month} className="flex items-center gap-3">
+                      <span className="w-9 text-sm font-bold text-bd-ink">{MONTHS[idx]}</span>
+                      <div className="h-3 flex-1 overflow-hidden rounded-full bg-bd-lilac/70" role="img" aria-label={`${MONTHS[idx]} : ${m.count} vente(s)`}>
+                        <div className="h-full rounded-full bg-grad-pink transition-[width] duration-700" style={{ width: `${Math.max(3, (m.count / maxCount) * 100)}%` }} />
                       </div>
-                    </div>
+                      <span className="w-8 text-right text-sm font-extrabold tabular-nums text-bd-ink">{m.count}</span>
+                    </li>
                   );
                 })}
-              </div>
-            ) : (
-              <p className="bo-muted py-8 text-center">Aucune donnée disponible</p>
+              </ul>
             )}
-          </div>
-
-          {/* Pie Chart - Depot vs Buying */}
-          <div className="bo-panel p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
-              <Package className="w-6 h-6 text-pink-600" />
-              Produits Dépôt vs Achat
-            </h2>
-            {depotLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
-              </div>
-            ) : depotVsBuyingData ? (
-              <div className="flex flex-col items-center justify-center">
-                {/* SVG Pie Chart */}
-                <svg width="300" height="300" viewBox="0 0 300 300" className="mb-6">
-                  <circle
-                    cx="150"
-                    cy="150"
-                    r="100"
-                    fill="none"
-                    stroke="#e5e7eb"
-                    strokeWidth="40"
-                  />
-                  {depotVsBuyingData.total > 0 && (
-                    <>
-                      <circle
-                        cx="150"
-                        cy="150"
-                        r="100"
-                        fill="none"
-                        stroke="#ec4899"
-                        strokeWidth="40"
-                        strokeDasharray={`${(depotVsBuyingData.depot / depotVsBuyingData.total) * 628.32} 628.32`}
-                        strokeDashoffset="0"
-                        transform="rotate(-90 150 150)"
-                        className="animate-draw-circle"
-                      />
-                      <circle
-                        cx="150"
-                        cy="150"
-                        r="100"
-                        fill="none"
-                        stroke="#3b82f6"
-                        strokeWidth="40"
-                        strokeDasharray={`${(depotVsBuyingData.buying / depotVsBuyingData.total) * 628.32} 628.32`}
-                        strokeDashoffset={`-${(depotVsBuyingData.depot / depotVsBuyingData.total) * 628.32}`}
-                        transform="rotate(-90 150 150)"
-                        className="animate-draw-circle"
-                        style={{ animationDelay: '0.3s' }}
-                      />
-                    </>
-                  )}
-                </svg>
-                
-                {/* Legend */}
-                <div className="space-y-4 w-full">
-                  <div className="flex items-center justify-between p-4 bg-pink-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded-full bg-pink-500"></div>
-                      <span className="font-medium text-gray-900">En Dépôt</span>
-                    </div>
-                    <span className="text-lg font-bold text-gray-900">
-                      {depotVsBuyingData.depot} ({depotVsBuyingData.total > 0 ? ((depotVsBuyingData.depot / depotVsBuyingData.total) * 100).toFixed(1) : 0}%)
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                      <span className="font-medium text-gray-900">Achat</span>
-                    </div>
-                    <span className="text-lg font-bold text-gray-900">
-                      {depotVsBuyingData.buying} ({depotVsBuyingData.total > 0 ? ((depotVsBuyingData.buying / depotVsBuyingData.total) * 100).toFixed(1) : 0}%)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="bo-muted py-8 text-center">Aucune donnée disponible</p>
-            )}
-          </div>
-        </div>
-
-        {/* Map */}
-        <div className="bo-panel p-6 transform hover:shadow-xl transition-all duration-300 animate-fade-in mb-8">
-          <h2 className="mb-6 flex items-center gap-2 text-xl font-bold">
-            <MapPin className="w-6 h-6 text-green-600" />
-            Localisation des Commandes en Tunisie
-          </h2>
-          {locationsLoading ? (
-            <div className="flex items-center justify-center h-96">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+            <div className="hidden flex-col items-center justify-between gap-4 sm:flex">
+              <Illustration name="chart" className="h-32 w-32 text-[48px]" />
+              <span className="inline-flex items-center gap-2 rounded-2xl bg-bd-blush px-4 py-3 text-sm font-extrabold text-bd-pink-strong">
+                <ShoppingCart size={18} aria-hidden />
+                <span className="tabular-nums">{thisMonthSales}</span> ventes ce mois-ci
+              </span>
             </div>
-          ) : locationsData && locationsData.length > 0 ? (
-            <div className="h-96 rounded-lg overflow-hidden">
-              <MapContainer
-                center={[34.0, 9.0]}
-                zoom={6}
-                style={{ height: '100%', width: '100%' }}
-                className="z-0"
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                {locationsData.map((location) => {
-                  const [lat, lng] = getCoordinates(location.address);
-                  return (
-                    <Marker key={location.id} position={[lat, lng]}>
-                      <Popup>
-                        <div className="p-2 space-y-1">
-                          <p className="font-semibold text-sm">{location.client}</p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(location.date).toLocaleDateString('fr-FR')}
-                          </p>
-                          <p className="text-xs text-[#E04672] font-medium">{location.revenue.toFixed(2)} TND</p>
-                          <p className="text-xs text-gray-600">{location.address}</p>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
-              </MapContainer>
-            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5 sm:p-6 lg:col-span-2">
+          <CardTitle icon={Package} title="Produits Dépôt vs Achat" />
+          {depotLoading ? (
+            <div className="mx-auto h-44 w-44 animate-pulse rounded-full bg-bd-lilac" />
           ) : (
-            <p className="text-gray-500 text-center py-8">Aucune commande avec adresse disponible</p>
+            <div className="flex flex-col items-center gap-5 sm:flex-row lg:flex-col xl:flex-row">
+              <div className="relative h-44 w-44 shrink-0">
+                <svg viewBox="0 0 180 180" className="h-full w-full -rotate-90" role="img" aria-label={`Dépôt ${depotPct.toFixed(0)} %, achat ${buyPct.toFixed(0)} %`}>
+                  <defs>
+                    <linearGradient id="dv-pink" x1="0" x2="1"><stop offset="0" stopColor="#EC4899" /><stop offset="1" stopColor="#F472B6" /></linearGradient>
+                    <linearGradient id="dv-violet" x1="0" x2="1"><stop offset="0" stopColor="#7C3AED" /><stop offset="1" stopColor="#A78BFA" /></linearGradient>
+                  </defs>
+                  <circle cx="90" cy="90" r="70" fill="none" stroke="rgb(var(--bd-lilac))" strokeWidth="24" />
+                  {depotVsBuying?.total ? (
+                    <>
+                      <circle cx="90" cy="90" r="70" fill="none" stroke="url(#dv-pink)" strokeWidth="24" strokeLinecap="round" strokeDasharray={`${(depotPct / 100) * C} ${C}`} />
+                      <circle cx="90" cy="90" r="70" fill="none" stroke="url(#dv-violet)" strokeWidth="24" strokeLinecap="round" strokeDasharray={`${(buyPct / 100) * C} ${C}`} strokeDashoffset={-(depotPct / 100) * C} />
+                    </>
+                  ) : null}
+                </svg>
+                <Illustration name="box" className="absolute inset-0 m-auto h-16 w-16 text-[36px]" />
+              </div>
+              <ul className="w-full space-y-2.5">
+                {[
+                  { label: 'En Dépôt', value: depotVsBuying?.depot ?? 0, pct: depotPct, dot: 'bg-grad-pink' },
+                  { label: 'Achat', value: depotVsBuying?.buying ?? 0, pct: buyPct, dot: 'bg-grad-violet' },
+                ].map((row) => (
+                  <li key={row.label} className="flex min-h-[48px] items-center justify-between rounded-2xl bg-bd-bg px-4">
+                    <span className="flex items-center gap-2.5 font-extrabold text-bd-ink">
+                      <span aria-hidden className={`h-3 w-3 rounded-full ${row.dot}`} />
+                      {row.label}
+                    </span>
+                    <span className="font-extrabold tabular-nums text-bd-ink">
+                      {row.value} ({row.pct.toFixed(0)}%)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-        </div>
+          {!depotLoading && !depotVsBuying?.total ? (
+            <InfoNote icon={Info} className="mt-4">Aucune donnée disponible pour le moment</InfoNote>
+          ) : null}
+        </Card>
       </div>
 
-      <style>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <Card className="relative overflow-hidden p-5 sm:p-6 lg:col-span-3">
+          <CardTitle icon={Package} title="Gestion des Produits" subtitle="Gérez tous les produits de votre boutique" />
+          <div className="flex flex-wrap gap-2.5 pr-0 sm:pr-28">
+            <Link to="/depots/nouveau" className={buttonClass('primary')}>
+              <PackagePlus size={18} aria-hidden /> Nouveau dépôt
+            </Link>
+            <Button variant="secondary" icon={QrCode} loading={busy === 'qr'} onClick={() => download('qr', '/products/export/qr/pdf', 'produits-qr.pdf')}>
+              Générer PDF QR produits
+            </Button>
+          </div>
+          <Illustration name="bag" className="absolute bottom-3 right-4 hidden h-24 w-24 text-[56px] sm:inline-flex" />
+        </Card>
 
-        @keyframes slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
+        <Card className="p-5 sm:p-6 lg:col-span-2">
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              navigate(`/products${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`);
+            }}
+            className="flex flex-wrap items-center gap-2.5"
+          >
+            <label className="relative min-w-[180px] flex-1">
+              <span className="sr-only">Rechercher un produit</span>
+              <Search size={18} aria-hidden className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-bd-muted" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par nom ou réf…" className="bd-input pl-11" />
+            </label>
+            <Button variant="primary" size="icon" aria-label="Exporter CSV" title="Exporter CSV" loading={busy === 'csv'} onClick={() => download('csv', '/products/export/csv', 'produits.csv')}>
+              {busy === 'csv' ? null : <Download size={18} aria-hidden />}
+            </Button>
+            <Button variant="violet" size="icon" aria-label="Exporter PDF" title="Exporter PDF" loading={busy === 'pdf'} onClick={() => download('pdf', '/products/export/pdf', 'produits.pdf')}>
+              {busy === 'pdf' ? null : <FileText size={18} aria-hidden />}
+            </Button>
+          </form>
+          <Link to="/products" className={buttonClass('primary', 'md', 'mt-3 w-full')}>
+            Gérer les produits
+          </Link>
+        </Card>
+      </div>
 
-        @keyframes slide-right {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
+      {topProducts?.length ? (
+        <Card className="mb-6 p-5 sm:p-6">
+          <CardTitle icon={Award} tone="amber" title="Top 5 des produits les plus vendus" subtitle={range === 'custom' ? 'Période personnalisée' : DATE_RANGE_LABEL[range]} />
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {topProducts.map((p, i) => (
+              <li key={p.productId} className="overflow-hidden rounded-2xl border border-bd-line/10 bg-bd-bg">
+                <div className="relative aspect-square bg-bd-lilac/60">
+                  {p.photo ? <img src={uploadUrl(p.photo)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Package className="absolute inset-0 m-auto h-10 w-10 text-bd-violet/60" aria-hidden />}
+                  <span className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-grad-violet-strong text-sm font-black text-white">{p.rank || i + 1}</span>
+                </div>
+                <div className="p-3">
+                  <p className="line-clamp-2 min-h-[2.5rem] text-sm font-extrabold text-bd-ink">{p.productName}</p>
+                  <p className="mt-1 flex items-center justify-between text-xs font-bold text-bd-muted">
+                    <span className="tabular-nums text-bd-pink-strong">{tnd(p.totalValue ?? p.PrixVente)}</span>
+                    <span className="tabular-nums">{p.count}×</span>
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
-        @keyframes draw-circle {
-          from {
-            stroke-dasharray: 0 628.32;
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.6s ease-out;
-        }
-
-        .animate-slide-up {
-          animation: slide-up 0.6s ease-out forwards;
-          opacity: 0;
-        }
-
-        .animate-slide-right {
-          animation: slide-right 0.5s ease-out forwards;
-          opacity: 0;
-        }
-
-        .animate-draw-circle {
-          animation: draw-circle 1.5s ease-out forwards;
-        }
-      `}</style>
+      <Card className="p-5 sm:p-6">
+        <CardTitle icon={MapPin} tone="green" title="Localisation des commandes" />
+        {locationsLoading ? (
+          <div className="h-80 animate-pulse rounded-2xl bg-bd-lilac" />
+        ) : locations?.length ? (
+          <div className="h-80 overflow-hidden rounded-2xl sm:h-96">
+            <MapContainer center={[34.0, 9.0]} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
+              {locations.map((loc) => {
+                const pos = geoCacheRef.current[loc.address] || [34.0, 9.0];
+                return (
+                  <Marker key={loc.id} position={pos}>
+                    <Popup>
+                      <p className="text-sm font-bold">{loc.client}</p>
+                      <p className="text-xs">{new Date(loc.date).toLocaleDateString('fr-FR')}</p>
+                      <p className="text-xs font-bold">{tnd(loc.revenue)}</p>
+                      <p className="text-xs">{loc.address}</p>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MapContainer>
+          </div>
+        ) : (
+          <EmptyState icon={MapPin} title="Aucune commande avec adresse" />
+        )}
+      </Card>
     </div>
   );
 };

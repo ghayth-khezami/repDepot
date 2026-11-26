@@ -14,6 +14,7 @@ export type ProductCatalogFilters = {
   minPrice?: number;
   maxPrice?: number;
   sort?: "newest" | "price_asc" | "price_desc" | "name_asc";
+  age?: string;
 };
 
 export function useInfiniteProducts(opts?: ProductCatalogFilters) {

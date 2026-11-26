@@ -59,7 +59,7 @@ export function CategoriesExplorer({
                   className="h-full"
                 >
                   <Link
-                    href={`/categories/${cat.id}`}
+                    href={`/produits?categoryId=${cat.id}`}
                     className="group relative flex h-full min-h-[170px] overflow-hidden rounded-xl border border-[#182044]/8 bg-transparent shadow-[0_5px_18px_rgba(45,35,70,0.05)] transition hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(45,35,70,0.1)] md:min-h-[190px]"
                   >
                     <div className="absolute inset-0 overflow-hidden rounded-xl bg-transparent">

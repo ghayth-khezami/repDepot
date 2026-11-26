@@ -3,8 +3,23 @@ import { baseApi } from './baseApi';
 export interface SiteSettings {
   id: string;
   youtubeUrl: string | null;
+  shopPhone: string | null;
+  shopWhatsapp: string | null;
+  shopAddress: string | null;
+  shopMapsUrl: string | null;
+  /** One condition per line, printed on dépôt contracts. */
+  contractTerms: string | null;
   updatedAt: string;
 }
+
+export type SiteSettingsPatch = Partial<Omit<SiteSettings, 'id' | 'updatedAt'>>;
+
+/** Same default as server/src/depot/contract-pdf.ts (used until the admin edits the terms). */
+export const DEFAULT_CONTRACT_TERMS = [
+  'Une commission de 25 % du prix de vente réalisé sera reversée au dépositaire par le déposant.',
+  'Les articles ayant dépassé 3 mois de dépôt seront retournés au déposant et ne seront plus maintenus en dépôt.',
+  "Les articles d'une valeur supérieure à 50 TND verront leur prix réduit de 50 % après 2 mois de dépôt, et seront retournés au déposant à l'issue de 3 mois.",
+].join('\n');
 
 export const siteSettingsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -12,7 +27,7 @@ export const siteSettingsApi = baseApi.injectEndpoints({
       query: () => '/site-settings/admin',
       providesTags: ['SiteSettings'],
     }),
-    updateSiteSettings: builder.mutation<SiteSettings, { youtubeUrl: string | null }>({
+    updateSiteSettings: builder.mutation<SiteSettings, SiteSettingsPatch>({
       query: (body) => ({
         url: '/site-settings',
         method: 'PATCH',

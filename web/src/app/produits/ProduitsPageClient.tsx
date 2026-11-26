@@ -11,6 +11,8 @@ import { fr } from "@/lib/fr";
 import { getCategoryCardImage } from "@/lib/category-images";
 import Image from "next/image";
 import { LOGO_SRC } from "@/lib/fr";
+import { api } from "@/lib/api";
+import { isShopAgeSlug, resolveAgeFilter } from "@/lib/shop-ages";
 
 const DEFAULT_FILTERS: CatalogFilterState = { sort: "newest" };
 
@@ -26,13 +28,30 @@ export function ProduitsPageClient() {
     const subSubCategory1Id = searchParams.get("subSubCategory1Id");
     const subSubCategory2Id = searchParams.get("subSubCategory2Id");
     const subSubCategory3Id = searchParams.get("subSubCategory3Id");
+    const age = searchParams.get("age");
     if (categoryId) next.categoryId = categoryId;
     if (subCategoryId) next.subCategoryId = subCategoryId;
     if (subSubCategory1Id) next.subSubCategory1Id = subSubCategory1Id;
     if (subSubCategory2Id) next.subSubCategory2Id = subSubCategory2Id;
     if (subSubCategory3Id) next.subSubCategory3Id = subSubCategory3Id;
-    if (categoryId || subCategoryId || subSubCategory1Id || subSubCategory2Id || subSubCategory3Id)
+    if (isShopAgeSlug(age)) next.age = age;
+    if (!isShopAgeSlug(age)) {
       setFilters(next);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getCategoryHierarchy()
+      .then((tree) => {
+        if (cancelled) return;
+        setFilters({ ...next, ...resolveAgeFilter(tree, age) });
+      })
+      .catch(() => {
+        if (!cancelled) setFilters(next);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams]);
 
   const queryOpts = useMemo(() => {

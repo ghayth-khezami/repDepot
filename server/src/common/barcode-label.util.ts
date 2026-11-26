@@ -200,7 +200,7 @@ export function buildSingleProductLabelPdf(product: LabelProduct): Buffer {
 }
 
 export async function buildProductQrPdf(
-  products: Array<{ id: string; productName: string; PrixVente: number }>,
+  products: Array<{ id: string; productName: string; PrixVente: number; ref?: string | null }>,
 ): Promise<Buffer> {
   const doc = new jsPDF.jsPDF({ unit: "mm", format: "a4" });
   const cellWidth = 60;
@@ -219,12 +219,18 @@ export async function buildProductQrPdf(
     const x = marginX + (position % columns) * cellWidth;
     const y = marginY + Math.floor(position / columns) * cellHeight;
     const dataUrl = await QRCode.toDataURL(products[index].id, { margin: 1, width: 320 });
-    doc.addImage(dataUrl, "PNG", x + 8, y, 44, 44);
+    doc.addImage(dataUrl, "PNG", x + 8, y, 44, 44, undefined, "FAST");
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.text(truncateName(products[index].productName, 24), x + cellWidth / 2, y + 51, { align: "center", maxWidth: cellWidth - 4 });
     doc.setFont("helvetica", "normal");
     doc.text(formatTnd(products[index].PrixVente), x + cellWidth / 2, y + 59, { align: "center" });
+    const ref = products[index].ref?.trim();
+    if (ref) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(ref, x + cellWidth / 2, y + 66, { align: "center" });
+    }
   }
 
   return Buffer.from(doc.output("arraybuffer"));

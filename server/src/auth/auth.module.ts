@@ -14,7 +14,7 @@ import { getJwtSecret } from "../config/security.config";
     JwtModule.register({
       secret: getJwtSecret(),
       signOptions: {
-        expiresIn: "1d",
+        expiresIn: "365d",
       },
     }),
   ],

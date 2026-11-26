@@ -22,6 +22,7 @@ import DatePicker from 'react-datepicker';
 import { Edit, Eye, Trash2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { Command } from '../store/api/commandApi';
+import ExcelButton from '../components/ExcelButton';
 
 const CommandsPage = () => {
   const [page, setPage] = useState(1);
@@ -351,6 +352,7 @@ const CommandsPage = () => {
       </div>
 
       <ReusableTable
+        toolbarExtra={<ExcelButton entity="commands" params={{ search, status: statusFilter }} compact />}
         data={data?.data || []}
         columns={columns}
         isLoading={isLoading}

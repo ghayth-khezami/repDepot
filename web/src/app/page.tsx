@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { Product } from "@/types";
 import {
   CategoriesExplorer,
+  ShopByAgeSection,
   FloatingContactButtons,
   Footer,
   StaticHeroBanner,
@@ -58,6 +59,10 @@ export default function Home() {
             categories={categories}
             counts={Object.fromEntries(categories.map((category) => [category.id, category._count?.products ?? 0]))}
           />
+        </div>
+
+        <div className={`${STORE_CONTAINER} home-premium-section`}>
+          <ShopByAgeSection />
         </div>
 
         <div className={STORE_CONTAINER}>

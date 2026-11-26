@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { PayoutStatus, ProductStatus } from "@prisma/client";
 import {
+  IsEnum,
+  MaxLength,
   IsString,
   IsNumber,
   IsBoolean,
@@ -147,4 +150,20 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   barcode?: string;
+
+  @ApiPropertyOptional({ enum: ProductStatus, description: "EN_VENTE | VENDU | RETIRE (isDispo is derived)" })
+  @IsOptional()
+  @IsEnum(ProductStatus)
+  status?: ProductStatus;
+
+  @ApiPropertyOptional({ enum: PayoutStatus, description: "Only meaningful when status is VENDU" })
+  @IsOptional()
+  @IsEnum(PayoutStatus)
+  payoutStatus?: PayoutStatus;
+
+  @ApiPropertyOptional({ description: "Unique human reference (auto-generated if omitted)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  ref?: string;
 }

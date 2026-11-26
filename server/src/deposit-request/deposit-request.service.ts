@@ -92,6 +92,7 @@ export class DepositRequestService {
         { fullName: { contains: search, mode: "insensitive" } },
         { phoneNumber: { contains: search, mode: "insensitive" } },
         { message: { contains: search, mode: "insensitive" } },
+        { contractNumber: { contains: search, mode: "insensitive" } },
       ];
     }
     if (status) where.status = status;
@@ -105,6 +106,19 @@ export class DepositRequestService {
         include: {
           coClient: { select: { id: true, firstName: true, lastName: true } },
           items: true,
+          products: {
+            orderBy: { ref: "asc" },
+            select: {
+              id: true,
+              ref: true,
+              productName: true,
+              PrixVente: true,
+              depotPercentage: true,
+              depositorAmountMillimes: true,
+              status: true,
+              photos: { select: { photoDoc: true }, take: 1 },
+            },
+          },
         },
       }),
       this.prisma.depositRequest.count({ where }),
@@ -127,6 +141,19 @@ export class DepositRequestService {
       include: {
         coClient: true,
         items: true,
+        products: {
+          orderBy: { ref: "asc" },
+          select: {
+            id: true,
+            ref: true,
+            productName: true,
+            PrixVente: true,
+            depotPercentage: true,
+            depositorAmountMillimes: true,
+            status: true,
+            photos: { select: { photoDoc: true }, take: 1 },
+          },
+        },
       },
     });
     if (!req) throw new NotFoundException("Deposit request not found.");

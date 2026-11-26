@@ -14,14 +14,20 @@ import { useConfirmDialog } from '../components/ConfirmDialog';
 import { Product, UpdateProductDto } from '../types';
 import { Edit, Trash2, X, Upload, Eye, Package, Monitor, Smartphone, Heart, ShoppingCart, Loader2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import ProductStatusControl from '../features/products/ProductStatusControl';
+import { formatTnd, splitCommission, toMillimes } from '../lib/money';
+import { apiErrorMessage } from '../lib/apiError';
+import ExcelButton from '../components/ExcelButton';
 
 const ProductsPage = () => {
   const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
+  const [statusFilter, setStatusFilter] = useState<'' | 'EN_VENTE' | 'VENDU' | 'RETIRE'>('');
+  const contractFilter = searchParams.get('contrat') ?? '';
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isDepotFilter, setIsDepotFilter] = useState<boolean | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -55,6 +61,8 @@ const ProductsPage = () => {
     search: search || undefined,
     categoryId: categoryFilter || undefined,
     isDepot: isDepotFilter,
+    status: statusFilter || undefined,
+    depositRequestId: contractFilter || undefined,
   });
   const { data: categoryHierarchy = [], isLoading: categoriesLoading } = useGetCategoryHierarchyQuery();
   const selectedCategories = categoryHierarchy.filter((category) => selectedCategoryIds.includes(category.id));
@@ -274,22 +282,6 @@ const ProductsPage = () => {
     });
   };
 
-  const handleToggleAvailability = async (row: Product) => {
-    try {
-      const nextIsDispo = !(row.isDispo !== false);
-      await updateProduct({
-        id: row.id,
-        data: {
-          isDispo: nextIsDispo,
-        },
-      });
-      showToast(nextIsDispo ? 'Produit marque disponible' : 'Produit marque en rupture', 'success');
-      await refetch();
-    } catch {
-      showToast('Erreur lors du changement de statut', 'error');
-    }
-  };
-
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
@@ -340,7 +332,12 @@ const ProductsPage = () => {
       subSubCategory3Id: selectedSubSubCategory3Id || undefined,
       subSubCategory3Ids: selectedSubSubCategory3Ids,
       coclientId: selectedCoClientId || undefined,
+      ref: ((formData.get('ref') as string) || '').trim() || undefined,
+      status: (formData.get('status') as string) || undefined,
     };
+    if (baseData.status === 'VENDU' && formData.get('payoutStatus')) {
+      baseData.payoutStatus = formData.get('payoutStatus') as string;
+    }
 
     if (isDepot) {
       baseData.depotPercentage = depotPercentage;
@@ -351,7 +348,7 @@ const ProductsPage = () => {
     try {
       let productId: string;
       if (isEditMode && selectedProduct) {
-        await updateProduct({ id: selectedProduct.id, data: baseData as UpdateProductDto });
+        await updateProduct({ id: selectedProduct.id, data: baseData as UpdateProductDto }).unwrap();
         productId = selectedProduct.id;
         showToast('Produit modifié avec succès', 'success');
       } else {
@@ -363,6 +360,8 @@ const ProductsPage = () => {
         if (baseData.facebookLink) createFormData.append('facebookLink', String(baseData.facebookLink));
         if (baseData.tiktokLink) createFormData.append('tiktokLink', String(baseData.tiktokLink));
         createFormData.append('PrixVente', String(baseData.PrixVente));
+        if (baseData.ref) createFormData.append('ref', String(baseData.ref));
+        if (baseData.status) createFormData.append('status', String(baseData.status));
         if (baseData.PrixAchat !== undefined) createFormData.append('PrixAchat', String(baseData.PrixAchat));
         createFormData.append('isDepot', String(baseData.isDepot));
         if (baseData.depotPercentage !== undefined) createFormData.append('depotPercentage', String(baseData.depotPercentage));
@@ -389,7 +388,8 @@ const ProductsPage = () => {
           body: createFormData,
         });
         if (!createResponse.ok) {
-          throw new Error('Erreur lors de la création avec photos');
+          const body = await createResponse.json().catch(() => null);
+          throw { data: body };
         }
         const result = await createResponse.json();
         productId = result.id;
@@ -428,8 +428,7 @@ const ProductsPage = () => {
       setPage(1);
       await refetch();
     } catch (error) {
-      console.error('Error:', error);
-      showToast('Erreur lors de l\'opération', 'error');
+      showToast(apiErrorMessage(error, 'Erreur lors de l\'opération'), 'error', 6000);
     } finally {
       setIsSubmitting(false);
     }
@@ -519,8 +518,21 @@ const ProductsPage = () => {
         );
       },
     },
+    {
+      header: 'Réf.',
+      accessor: (row) => (
+        <div className="min-w-[84px]">
+          <span className="font-extrabold tabular-nums text-bd-ink">{row.ref || '—'}</span>
+          {row.depositRequest?.contractNumber ? (
+            <Link to={`/depots/${row.depositRequest.id}`} className="block text-[11px] font-bold text-bd-violet-strong hover:underline">
+              {row.depositRequest.contractNumber}
+            </Link>
+          ) : null}
+        </div>
+      ),
+    },
     { header: 'Nom du produit', accessor: 'productName' },
-    { header: 'Prix de vente', accessor: 'PrixVente', render: (value) => `${value} TND` },
+    { header: 'Prix de vente', accessor: 'PrixVente', render: (value) => <span className="tabular-nums">{formatTnd(toMillimes(Number(value)))}</span> },
     {
       header: 'Prix d\'achat',
       accessor: (row) => {
@@ -533,26 +545,31 @@ const ProductsPage = () => {
     {
       header: 'Dépôt',
       accessor: (row) => {
-        if (row.isDepot && row.depotPercentage && row.gain !== null && row.gain !== undefined) {
-          return `${row.gain} TND (${row.depotPercentage}%)`;
-        }
-        return '-';
+        if (!row.isDepot) return '-';
+        const split =
+          row.shopAmountMillimes != null && row.depositorAmountMillimes != null
+            ? { shopMillimes: row.shopAmountMillimes, depositorMillimes: row.depositorAmountMillimes }
+            : splitCommission(toMillimes(row.PrixVente), row.depotPercentage ?? 0);
+        return (
+          <div className="text-xs font-bold leading-5 tabular-nums">
+            <span className="text-bd-pink-strong">Marge {formatTnd(split.shopMillimes)}</span>
+            <span className="text-bd-muted"> ({row.depotPercentage ?? 0}%)</span>
+            <br />
+            <span className="text-bd-success">Déposant {formatTnd(split.depositorMillimes)}</span>
+          </div>
+        );
       },
     },
     {
       header: 'Statut',
-      accessor: (row) => {
-        const isDispo = row.isDispo !== false; // Default to true if undefined
-        return (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            isDispo 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {isDispo ? 'Disponible' : 'Rupture'}
-          </span>
-        );
-      },
+      accessor: (row) => (
+        <ProductStatusControl
+          productId={row.id}
+          status={row.status ?? (row.isDispo === false ? 'VENDU' : 'EN_VENTE')}
+          payoutStatus={row.payoutStatus}
+          isDepot={row.isDepot}
+        />
+      ),
     },
     {
       header: 'Catégorie',
@@ -562,7 +579,7 @@ const ProductsPage = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, isDepotFilter, limit]);
+  }, [search, categoryFilter, isDepotFilter, statusFilter, contractFilter, limit]);
 
   const formPrixVente = useMemo(() => {
     if (!isModalOpen) return '0';
@@ -589,7 +606,10 @@ const ProductsPage = () => {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold sm:text-3xl">Gestion des Produits</h1>
-        <p className="bo-muted mt-2">Gérez tous les produits</p>
+        <p className="bo-muted mt-2">Gérez tous les produits, y compris les articles déposés (réf. D-…).</p>
+        <Link to="/depots/nouveau" className="bd-ui mt-3 mr-2 inline-flex min-h-[40px] items-center gap-2 rounded-full bg-grad-pink-strong px-4 text-sm font-extrabold text-white shadow-glow-pink">
+          <Package className="h-4 w-4" /> Nouveau dépôt
+        </Link>
         <button type="button" onClick={handleDeleteAll} className="mt-3 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">
           Supprimer tous les produits
         </button>
@@ -599,10 +619,11 @@ const ProductsPage = () => {
       </div>
 
       <ReusableTable
+        toolbarExtra={<ExcelButton entity="products" params={{ search, status: statusFilter, categoryId: categoryFilter, isDepot: isDepotFilter }} compact />}
         data={products}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder="Rechercher par nom ou description..."
+        searchPlaceholder="Rechercher par nom, réf. ou description..."
         onSearch={setSearch}
         filters={
           <>
@@ -625,6 +646,34 @@ const ProductsPage = () => {
               <option value="true">En dépôt</option>
               <option value="false">Pas en dépôt</option>
             </select>
+            <select
+              aria-label="Filtrer par statut"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="EN_VENTE">En vente</option>
+              <option value="VENDU">Vendus</option>
+              <option value="RETIRE">Retirés</option>
+            </select>
+            {contractFilter ? (
+              <span className="bd-ui inline-flex items-center gap-2 rounded-full bg-bd-lilac px-3 py-1.5 text-sm font-extrabold text-bd-ink">
+                Contrat filtré
+                <button
+                  type="button"
+                  aria-label="Retirer le filtre contrat"
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete('contrat');
+                    setSearchParams(next);
+                  }}
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-bd-surface"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            ) : null}
           </>
         }
         pagination={
@@ -644,17 +693,6 @@ const ProductsPage = () => {
         }
         actions={(row) => (
           <>
-            <button
-              onClick={() => handleToggleAvailability(row)}
-              className={`px-2 py-1 text-xs rounded-lg transition-colors ${
-                row.isDispo !== false
-                  ? 'text-orange-600 hover:bg-orange-50'
-                  : 'text-emerald-600 hover:bg-emerald-50'
-              }`}
-              title={row.isDispo !== false ? 'Marquer en rupture' : 'Marquer disponible'}
-            >
-              {row.isDispo !== false ? 'Rupture' : 'Disponible'}
-            </button>
             <button
               onClick={() => handleView(row)}
               className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-green-600 transition-colors hover:bg-green-50"
@@ -705,6 +743,49 @@ const ProductsPage = () => {
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label htmlFor="product-ref" className="block text-sm font-medium text-gray-700 mb-1">Référence</label>
+              <input
+                id="product-ref"
+                type="text"
+                name="ref"
+                maxLength={32}
+                defaultValue={selectedProduct?.ref || ''}
+                placeholder={isEditMode ? '' : 'Auto (P-xxxxx)'}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg uppercase tabular-nums focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+              {selectedProduct?.depositRequest?.contractNumber ? (
+                <p className="mt-1 text-xs text-gray-500">Contrat {selectedProduct.depositRequest.contractNumber}</p>
+              ) : null}
+            </div>
+            <div>
+              <label htmlFor="product-status" className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+              <select
+                id="product-status"
+                name="status"
+                defaultValue={selectedProduct?.status || 'EN_VENTE'}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="EN_VENTE">En vente</option>
+                <option value="VENDU">Vendu</option>
+                <option value="RETIRE">Retiré</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="product-payout" className="block text-sm font-medium text-gray-700 mb-1">Paiement déposant</label>
+              <select
+                id="product-payout"
+                name="payoutStatus"
+                defaultValue={selectedProduct?.payoutStatus || 'A_PERCEVOIR'}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="A_PERCEVOIR">À percevoir</option>
+                <option value="PAYE">Payé</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Pris en compte si « Vendu ».</p>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -995,7 +1076,7 @@ const ProductsPage = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Prix de vente (TND)</label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="0.001"
                   name="PrixVente"
                   defaultValue={selectedProduct?.PrixVente}
                   required
@@ -1033,7 +1114,7 @@ const ProductsPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Prix de vente (TND)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="0.001"
                     name="PrixVente"
                     defaultValue={selectedProduct?.PrixVente}
                     required
