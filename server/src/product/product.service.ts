@@ -1,3 +1,4 @@
+import { emitProductsSold } from "../common/sold-events";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PayoutStatus, ProductStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
@@ -585,6 +586,7 @@ export class ProductService {
     });
 
     const lifecycle = this.resolveLifecycle(updateProductDto, isDepot, existingProduct);
+    if (lifecycle.status === ProductStatus.VENDU && existingProduct.status !== ProductStatus.VENDU) emitProductsSold([id]);
     const split = this.computeSplit(isDepot, PrixVente, depotPercentage);
     const ref = await this.resolveRef(updateProductDto.ref, id);
 

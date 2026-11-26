@@ -1735,3 +1735,33 @@ a.btn-dark-glass:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═══════════ Suivi déposant: welcome (5 s) + sheets ═══════════ */
+@keyframes suivi-bg { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+@keyframes suivi-pop { 0% { transform: scale(0.3) rotate(-12deg); opacity: 0; } 60% { transform: scale(1.12) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+@keyframes suivi-halo { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes suivi-letter { 0% { transform: translateY(40px) scale(0.6); opacity: 0; } 70% { transform: translateY(-6px) scale(1.08); opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes suivi-rise { 0% { transform: translateY(16px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes suivi-float { 0% { transform: translateY(110vh) rotate(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-15vh) rotate(25deg); opacity: 0; } }
+@keyframes suivi-progress { from { width: 0; } to { width: 100%; } }
+@keyframes suivi-out { to { opacity: 0; transform: scale(1.06); filter: blur(6px); } }
+@keyframes suivi-sheet { from { transform: translateY(100%); } to { transform: none; } }
+
+.suivi-welcome {
+  background: linear-gradient(120deg, #6D28D9, #9333EA, #DB2777, #9333EA, #6D28D9);
+  background-size: 300% 300%;
+  animation: suivi-bg 5s ease-in-out both;
+}
+.suivi-welcome.is-leaving { animation: suivi-bg 5s ease-in-out both, suivi-out 0.5s ease-in forwards; }
+.suivi-logo { animation: suivi-pop 0.9s cubic-bezier(0.2, 0.8, 0.2, 1.2) both; }
+.suivi-halo { position: absolute; inset: 0; border-radius: 36px; background: rgba(255, 255, 255, 0.5); animation: suivi-halo 1.6s ease-out 0.4s infinite; }
+.suivi-letter { display: inline-block; opacity: 0; animation: suivi-letter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1.3) both; }
+.suivi-rise { opacity: 0; animation: suivi-rise 0.6s ease-out both; }
+.suivi-float { position: absolute; bottom: 0; animation: suivi-float 4.2s ease-in infinite; pointer-events: none; }
+.suivi-progress { animation: suivi-progress 5s linear both; }
+.suivi-sheet { animation: suivi-sheet 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .suivi-welcome, .suivi-logo, .suivi-halo, .suivi-letter, .suivi-rise, .suivi-float, .suivi-sheet { animation: none !important; opacity: 1; }
+  .suivi-progress { animation-duration: 1.5s; }
+}

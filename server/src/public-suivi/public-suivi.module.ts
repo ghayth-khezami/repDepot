@@ -4,11 +4,12 @@ import { SiteSettingsModule } from "../site-settings/site-settings.module";
 import { StoreHoursModule } from "../store-hours/store-hours.module";
 import { PublicSuiviController } from "./public-suivi.controller";
 import { PublicSuiviService } from "./public-suivi.service";
+import { DeposantPushService } from "./deposant-push.service";
 import { SuiviRateLimitGuard } from "./suivi-rate-limit.guard";
 
 @Module({
   imports: [PrismaModule, SiteSettingsModule, StoreHoursModule],
   controllers: [PublicSuiviController],
-  providers: [PublicSuiviService, SuiviRateLimitGuard],
+  providers: [PublicSuiviService, SuiviRateLimitGuard, DeposantPushService],
 })
 export class PublicSuiviModule {}

@@ -43,79 +43,31 @@ function Chip({ children, className, dot }: { children: React.ReactNode; classNa
   );
 }
 
-/** Déposé → En vente → Vendu → Payé (4 dots, dates under reached steps). */
-function Timeline({ item }: { item: SuiviItem }) {
-  const sold = item.status === "VENDU";
-  const paid = sold && item.payoutStatus === "PAYE";
-  const steps = [
-    { label: "Déposé", done: true, date: item.depositedAt },
-    { label: item.status === "RETIRE" ? "Retiré" : "En vente", done: true, date: item.status === "RETIRE" ? null : item.depositedAt },
-    { label: "Vendu", done: sold, date: item.soldAt },
-    { label: "Payé", done: paid, date: null },
-  ];
-  const reached = steps.filter((s) => s.done).length;
-  return (
-    <ol className="relative mt-3 grid grid-cols-4" aria-label={`Progression : ${steps[reached - 1].label}`}>
-      <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[7px] h-0.5 rounded-full bg-bd-lilac" />
-      <span
-        aria-hidden
-        className="absolute left-[12.5%] top-[7px] h-0.5 rounded-full bg-grad-pink transition-[width] duration-500"
-        style={{ width: `${((reached - 1) / 3) * 75}%` }}
-      />
-      {steps.map((s) => (
-        <li key={s.label} className="relative flex flex-col items-center text-center">
-          <span
-            aria-hidden
-            className={`h-4 w-4 rounded-full ring-4 ring-white ${s.done ? (item.status === "RETIRE" && s.label === "Retiré" ? "bg-gray-400" : "bg-grad-pink") : "border-2 border-bd-lilac bg-white"}`}
-          />
-          <span className={`mt-1.5 text-[11px] font-extrabold ${s.done ? "text-bd-ink" : "text-bd-muted"}`}>{s.label}</span>
-          <span className="text-[10px] font-bold text-bd-muted">{s.done && s.date ? frShortDate(s.date) : s.done ? "✓" : " "}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 function ProductCard({ item }: { item: SuiviItem }) {
+  const sold = item.status === "VENDU";
   return (
-    <li className="overflow-hidden rounded-card border border-bd-line/10 bg-white shadow-card">
-      <div className="flex gap-3 p-3.5">
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl">
-          {item.photo ? (
-            <Image src={item.photo} alt={item.name} fill sizes="96px" className="object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-bd-blush via-white to-bd-lilac">
-              <CategoryIcon category={item.category} className="h-9 w-9 text-bd-violet/70" />
-            </div>
-          )}
-          {item.status === "RETIRE" ? <span aria-hidden className="absolute inset-0 bg-white/50" /> : null}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-[11px] font-extrabold uppercase tracking-wide text-bd-muted">{item.ref}</p>
-            <StatusChip item={item} />
+    <li className={`flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card ${item.status === "RETIRE" ? "opacity-60" : ""}`}>
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
+        {item.photo ? (
+          <Image src={item.photo} alt={item.name} fill sizes="64px" className="object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-bd-blush via-white to-bd-lilac">
+            <CategoryIcon category={item.category} className="h-7 w-7 text-bd-violet/70" />
           </div>
-          <h3 className="mt-0.5 line-clamp-2 text-[15px] font-extrabold leading-snug text-bd-ink">{item.name}</h3>
-          <dl className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
-            <div className="flex items-baseline gap-1">
-              <dt className="text-xs font-bold text-bd-muted">Prix</dt>
-              <dd className="font-bold text-bd-ink">{formatTnd(item.priceMillimes)}</dd>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <dt className="text-xs font-bold text-bd-muted">Votre part</dt>
-              <dd className="font-black text-bd-success">{formatTnd(item.depositorMillimes)}</dd>
-            </div>
-          </dl>
-          {item.status === "VENDU" && item.soldAt ? (
-            <p className="mt-1 flex items-center gap-1 text-xs font-extrabold text-bd-success">
-              <Sparkles aria-hidden className="h-3.5 w-3.5" /> Vendu le {frShortDate(item.soldAt)}
-            </p>
-          ) : null}
-        </div>
+        )}
       </div>
-      <div className="border-t border-bd-line/5 px-3.5 pb-3">
-        <Timeline item={item} />
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate text-[15px] font-extrabold text-bd-ink">{item.name}</h3>
+        <p className="mt-0.5 text-sm font-bold text-bd-muted">
+          Votre part <span className="font-black text-bd-success">{formatTnd(item.depositorMillimes)}</span>
+        </p>
+        {sold && item.soldAt ? (
+          <p className="mt-0.5 flex items-center gap-1 text-xs font-extrabold text-bd-success">
+            <Sparkles aria-hidden className="h-3.5 w-3.5" /> Vendu le {frShortDate(item.soldAt)}
+          </p>
+        ) : null}
       </div>
+      <StatusChip item={item} />
     </li>
   );
 }
@@ -137,7 +89,7 @@ export function ProductList({ items }: { items: SuiviItem[] }) {
     <section aria-labelledby="articles-title" className="mt-6">
       <h2 id="articles-title" className="mb-3 text-lg font-black text-bd-ink">Vos articles</h2>
       <div role="tablist" aria-label="Filtrer les articles" className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-        {TABS.map((t) => {
+        {TABS.filter((t) => t.key === "ALL" || counts[t.key] > 0).map((t) => {
           const active = t.key === filter;
           return (
             <button
@@ -157,7 +109,7 @@ export function ProductList({ items }: { items: SuiviItem[] }) {
         })}
       </div>
       {visible.length ? (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid gap-2.5">
           {visible.map((item) => (
             <ProductCard key={item.ref} item={item} />
           ))}

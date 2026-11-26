@@ -1,26 +1,26 @@
 import fs from "node:fs";
 import path from "node:path";
 import Image from "next/image";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import {
-  CalendarDays,
-  CircleCheck,
-  Lock,
-  MapPin,
-  MessageCircle,
-  Navigation,
-  Package,
-  Phone,
-  Tag,
-  Undo2,
-  Wallet,
-} from "lucide-react";
+import { CalendarDays, ChevronDown, Clock, Lock, MapPin, MessageCircle, Navigation, Package, Phone, Wallet } from "lucide-react";
 import { fetchSuivi, type SuiviData } from "@/lib/suivi";
 import { photoAbsoluteUrl } from "@/lib/server-api";
 import { formatTnd, frDate } from "@/components/suivi/format";
 import { ProductList } from "@/components/suivi/ProductList";
 import { OpeningHours } from "@/components/suivi/OpeningHours";
+import { SuiviAppActions, SuiviWelcome } from "@/components/suivi/SuiviApp";
 import SuiviUnavailable from "./unavailable";
+
+/** Installable per contract: manifest + iOS home-screen icon. */
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  return {
+    manifest: `/suivi/${token}/pwa`,
+    appleWebApp: { capable: true, title: "Mon dépôt", statusBarStyle: "default" },
+    icons: { apple: "/suivi-apple-touch.png", icon: "/suivi-icon-192.png" },
+  };
+}
 
 const hasWaveIllustration = (() => {
   try {
@@ -39,45 +39,6 @@ function Blobs() {
   );
 }
 
-/** Circular progress: sold value / total potential (déposant share). */
-function ProgressRing({ value, total }: { value: number; total: number }) {
-  const pct = total > 0 ? Math.min(1, value / total) : 0;
-  const r = 42;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative h-28 w-28 shrink-0">
-      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" role="img" aria-label={`${Math.round(pct * 100)} % de la valeur vendue`}>
-        <defs>
-          <linearGradient id="ring" x1="0" x2="1">
-            <stop offset="0" stopColor="#16A34A" />
-            <stop offset="1" stopColor="#4ADE80" />
-          </linearGradient>
-        </defs>
-        <circle cx="50" cy="50" r={r} fill="none" stroke="#E9DDFB" strokeWidth="10" />
-        <circle cx="50" cy="50" r={r} fill="none" stroke="url(#ring)" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${pct * c} ${c}`} />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-black text-bd-ink">{Math.round(pct * 100)}%</span>
-        <span className="text-[10px] font-extrabold uppercase tracking-wide text-bd-muted">vendu</span>
-      </div>
-    </div>
-  );
-}
-
-function Counter({ icon: Icon, label, value, tile }: { icon: typeof Tag; label: string; value: number; tile: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-card bg-white p-3 text-center shadow-card sm:flex-row sm:text-left">
-      <span aria-hidden className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white ${tile}`}>
-        <Icon className="h-5 w-5" strokeWidth={2.2} />
-      </span>
-      <div>
-        <p className="text-2xl font-black leading-none text-bd-ink">{value}</p>
-        <p className="mt-1 text-xs font-extrabold text-bd-muted">{label}</p>
-      </div>
-    </div>
-  );
-}
-
 function ContactSection({ shop, contractNumber }: { shop: SuiviData["shop"]; contractNumber: string | null }) {
   const message = `Bonjour, je vous contacte au sujet de mon contrat de dépôt${contractNumber ? ` ${contractNumber}` : ""}.`;
   const actions = [
@@ -87,7 +48,7 @@ function ContactSection({ shop, contractNumber }: { shop: SuiviData["shop"]; con
   ];
   return (
     <section aria-labelledby="contact-title" className="mt-8 rounded-card bg-white p-5 shadow-card">
-      <h2 id="contact-title" className="text-lg font-black text-bd-ink">Une question ? Contactez la boutique</h2>
+      <h2 id="contact-title" className="text-lg font-black text-bd-ink">Une question ?</h2>
       <div className="mt-4 grid grid-cols-3 gap-2.5">
         {actions.map((a) => (
           <a
@@ -102,15 +63,20 @@ function ContactSection({ shop, contractNumber }: { shop: SuiviData["shop"]; con
           </a>
         ))}
       </div>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2">
-        <OpeningHours hours={shop.hours} />
-        <div>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-black text-bd-ink">
-            <MapPin aria-hidden className="h-4 w-4 text-bd-violet" /> Adresse
-          </h3>
-          <p className="rounded-2xl bg-bd-bg px-3 py-2.5 text-sm font-bold text-bd-ink">{shop.address}</p>
+      <details className="group mt-4 rounded-2xl bg-bd-bg">
+        <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-black text-bd-ink">
+          <span className="flex items-center gap-2">
+            <Clock aria-hidden className="h-4 w-4 text-bd-violet" /> Horaires et adresse
+          </span>
+          <ChevronDown aria-hidden className="h-4 w-4 transition group-open:rotate-180" />
+        </summary>
+        <div className="grid gap-4 px-4 pb-4 sm:grid-cols-2">
+          <OpeningHours hours={shop.hours} />
+          <p className="flex items-start gap-2 text-sm font-bold text-bd-ink">
+            <MapPin aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-bd-violet" /> {shop.address}
+          </p>
         </div>
-      </div>
+      </details>
     </section>
   );
 }
@@ -123,59 +89,53 @@ export default async function SuiviPage({ params }: { params: Promise<{ token: s
 
   const { deposant, contract, items, totals, shop } = result.data;
 
+  const soldPct = totals.potentialMillimes > 0 ? Math.min(100, Math.round((totals.soldMillimes / totals.potentialMillimes) * 100)) : 0;
+
   return (
-    <div className="relative mx-auto w-full max-w-3xl pb-10">
+    <div className="relative mx-auto w-full max-w-xl pb-10">
+      <SuiviWelcome firstName={deposant.firstName} token={token} />
+
       {/* Hero */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-bd-lilac via-[#F3ECFD] to-bd-blush px-5 pb-24 pt-6 sm:rounded-b-[40px]">
+      <header className="relative overflow-hidden bg-gradient-to-br from-bd-lilac via-[#F3ECFD] to-bd-blush px-5 pb-20 pt-[max(1.25rem,env(safe-area-inset-top))] sm:rounded-b-[40px]">
         <Blobs />
-        <div className="relative flex items-center gap-2.5">
-          <Image src="/depot.png" alt="Bébé Dépôt" width={44} height={44} className="h-11 w-11 rounded-2xl bg-white object-contain p-1 shadow-card" priority />
-          <span className="text-sm font-black tracking-wide text-bd-ink">BÉBÉ-DÉPÔT</span>
-        </div>
-        <div className="relative mt-6">
-          <h1 className="flex items-center gap-2 text-3xl font-black leading-tight text-bd-ink sm:text-4xl">
-            Bonjour {deposant.firstName}
-            {hasWaveIllustration ? (
-              <Image src="/illustrations/wave.png" alt="" width={44} height={44} className="h-10 w-10 object-contain" />
-            ) : (
-              <span aria-hidden>👋</span>
-            )}
-          </h1>
-          <p className="mt-2 text-sm font-bold text-bd-muted">
-            {contract.number ? <>Contrat <span className="text-bd-ink">{contract.number}</span> · </> : null}
-            déposé le {frDate(contract.depositDate)}
-          </p>
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-extrabold text-bd-ink shadow-card backdrop-blur">
-            <CalendarDays aria-hidden className="h-4 w-4 text-bd-violet" />
-            Dépôt valable jusqu&apos;au {frDate(contract.expiresAt)}
-          </p>
+        <div className="relative flex items-center gap-3">
+          <Image src="/suivi-icon-192.png" alt="Bébé Dépôt" width={48} height={48} className="h-12 w-12 rounded-2xl shadow-card" priority />
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-2xl font-black leading-tight text-bd-ink">
+              Bonjour {deposant.firstName}
+              {hasWaveIllustration ? (
+                <Image src="/illustrations/wave.png" alt="" width={32} height={32} className="h-8 w-8 object-contain" />
+              ) : (
+                <span aria-hidden>👋</span>
+              )}
+            </h1>
+            <p className="truncate text-xs font-bold text-bd-muted">
+              {contract.number ? <>Contrat {contract.number} · </> : null}
+              <CalendarDays aria-hidden className="mb-0.5 inline h-3.5 w-3.5" /> jusqu&apos;au {frDate(contract.expiresAt)}
+            </p>
+          </div>
         </div>
       </header>
 
-      <main className="relative -mt-16 px-4">
-        {/* Earnings */}
-        <section aria-label="Vos gains" className="rounded-card border border-bd-line/10 bg-white p-5 shadow-[0_20px_50px_rgba(76,29,149,0.12)]">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-sm font-extrabold text-bd-muted">
-                <Wallet aria-hidden className="h-4 w-4 text-bd-success" /> À percevoir
-              </p>
-              <p className="mt-1 text-[32px] font-black leading-none text-bd-success sm:text-4xl">{formatTnd(totals.toCollectMillimes)}</p>
-              <p className="mt-2 text-sm font-bold text-bd-ink">
-                Déjà payé : <span className="font-black text-bd-violet-strong">{formatTnd(totals.paidMillimes)}</span>
-              </p>
-              <p className="mt-0.5 text-xs font-bold text-bd-muted">sur {formatTnd(totals.potentialMillimes)} si tout est vendu</p>
-            </div>
-            <ProgressRing value={totals.soldMillimes} total={totals.potentialMillimes} />
+      <main className="relative -mt-14 px-4">
+        {/* The one number that matters */}
+        <section aria-label="Vos gains" className="rounded-card bg-white p-5 shadow-[0_20px_50px_rgba(76,29,149,0.12)]">
+          <p className="flex items-center gap-1.5 text-sm font-extrabold text-bd-muted">
+            <Wallet aria-hidden className="h-4 w-4 text-bd-success" /> À percevoir
+          </p>
+          <p className="mt-1 text-[40px] font-black leading-none text-bd-success">{formatTnd(totals.toCollectMillimes)}</p>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-bd-lilac" role="img" aria-label={`${soldPct} % vendu`}>
+            <div className="h-full rounded-full bg-grad-green-strong transition-[width] duration-700" style={{ width: `${Math.max(soldPct, 3)}%` }} />
           </div>
+          <p className="mt-2 flex justify-between text-sm font-bold text-bd-ink">
+            <span>
+              <span className="font-black">{totals.sold}</span> vendu{totals.sold > 1 ? "s" : ""} sur {totals.count}
+            </span>
+            <span className="text-bd-muted">Déjà payé {formatTnd(totals.paidMillimes)}</span>
+          </p>
         </section>
 
-        {/* Counters */}
-        <section aria-label="Résumé" className="mt-4 grid grid-cols-3 gap-2.5">
-          <Counter icon={CircleCheck} label="Vendus" value={totals.sold} tile="bg-grad-green-strong" />
-          <Counter icon={Tag} label="En vente" value={totals.onSale} tile="bg-grad-pink-strong" />
-          <Counter icon={Undo2} label="Retirés" value={totals.withdrawn} tile="bg-grad-gray" />
-        </section>
+        <SuiviAppActions token={token} />
 
         {items.length ? (
           <ProductList items={items.map((i) => ({ ...i, photo: i.photo ? photoAbsoluteUrl(i.photo) : null }))} />
@@ -199,7 +159,7 @@ export default async function SuiviPage({ params }: { params: Promise<{ token: s
             <a href="https://bebedepot.tn" className="font-extrabold text-bd-violet-strong underline-offset-2 hover:underline">
               bebedepot.tn
             </a>{" "}
-            · Mise à jour automatique toutes les 30 secondes
+            · Mise à jour automatique
           </p>
         </footer>
       </main>

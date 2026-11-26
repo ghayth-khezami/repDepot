@@ -267,6 +267,8 @@ model Product {
   /// Déposant share in millimes (server-computed for dépôt products).
   depositorAmountMillimes Int?
   depositRequestId       String?
+  /// Set once the déposant has been notified (push) that this article sold.
+  soldNotifiedAt         DateTime?
   depositRequest         DepositRequest?          @relation(fields: [depositRequestId], references: [id], onDelete: SetNull)
   subSubCategory1Id      String?
   subSubCategory2Id      String?
@@ -352,6 +354,7 @@ model DepositRequest {
   signedAt       DateTime?
   items         DepositRequestItem[]
   products      Product[]
+  deposantPushes DeposantPush[]
   coClient      CoClient?            @relation(fields: [coClientId], references: [id])
   user          User?                @relation(fields: [userId], references: [id])
 
@@ -442,6 +445,21 @@ model Notification {
 
   @@index([read, createdAt])
   @@map("notifications")
+}
+
+/// Anonymous push subscription from the public /suivi page (installed app), per déposant.
+model DeposantPush {
+  id               String         @id @default(uuid())
+  coClientId       String
+  depositRequestId String
+  endpoint         String         @unique
+  p256dh           String
+  auth             String
+  createdAt        DateTime       @default(now())
+  depositRequest   DepositRequest @relation(fields: [depositRequestId], references: [id], onDelete: Cascade)
+
+  @@index([coClientId])
+  @@map("deposant_push_subscriptions")
 }
 
 model PushSubscription {

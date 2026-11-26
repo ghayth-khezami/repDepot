@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Delete, LogOut, ShieldCheck } from 'lucide-react';
+import { Check, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/cn';
 import { Blobs } from './ui';
@@ -8,7 +8,7 @@ const LENGTH = 6;
 
 /**
  * Quick-unlock screen shown when the app is reopened with a saved session.
- * Six OTP-style boxes, auto-advance, paste support, on-screen keypad for mobile.
+ * Six OTP-style boxes, auto-advance, paste support; the phone's own number keyboard does the typing.
  */
 export default function PinLockScreen() {
   const { unlock, logout, user } = useAuth();
@@ -58,13 +58,6 @@ export default function PinLockScreen() {
     inputs.current[at]?.focus();
   };
 
-  const firstEmpty = digits.findIndex((d) => !d);
-  const pad = (k: string) => {
-    if (status !== 'idle') return;
-    if (k === 'del') backspace(firstEmpty === -1 ? LENGTH - 1 : firstEmpty);
-    else fill(firstEmpty === -1 ? LENGTH - 1 : firstEmpty, k);
-  };
-
   const name = user?.username || user?.email?.split('@')[0] || '';
 
   return (
@@ -97,6 +90,7 @@ export default function PinLockScreen() {
               inputMode="numeric"
               autoComplete={i === 0 ? 'one-time-code' : 'off'}
               type="password"
+              pattern="[0-9]*"
               maxLength={LENGTH}
               aria-label={`Chiffre ${i + 1}`}
               disabled={status === 'ok'}
@@ -112,7 +106,11 @@ export default function PinLockScreen() {
                 } else if (e.key === 'ArrowLeft') inputs.current[i - 1]?.focus();
                 else if (e.key === 'ArrowRight') inputs.current[i + 1]?.focus();
               }}
-              onFocus={(e) => e.target.select()}
+              onFocus={(e) => {
+                const first = digits.findIndex((x) => !x);
+                if (first !== -1 && first < i) inputs.current[first]?.focus();
+                else e.target.select();
+              }}
               className={cn(
                 'h-14 w-11 rounded-2xl border-2 bg-bd-surface text-center text-2xl font-black text-bd-ink shadow-card outline-none transition duration-200 sm:h-16 sm:w-12',
                 status === 'error'
@@ -129,25 +127,6 @@ export default function PinLockScreen() {
         <p className="mt-3 h-5 text-sm font-bold text-bd-danger" role="alert">
           {status === 'error' ? 'Code incorrect' : attempts >= 3 ? 'Code oublié ? Reconnectez-vous avec votre mot de passe.' : ''}
         </p>
-
-        {/* Keypad (mobile-friendly, also clickable on desktop) */}
-        <div className="mx-auto mt-4 grid max-w-[280px] grid-cols-3 gap-3" aria-hidden>
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].map((k, i) =>
-            k ? (
-              <button
-                key={i}
-                type="button"
-                tabIndex={-1}
-                onClick={() => pad(k)}
-                className="flex h-16 items-center justify-center rounded-full bg-bd-surface text-2xl font-black text-bd-ink shadow-card transition active:scale-90 active:bg-bd-lilac"
-              >
-                {k === 'del' ? <Delete size={22} /> : k}
-              </button>
-            ) : (
-              <span key={i} />
-            ),
-          )}
-        </div>
 
         <button type="button" onClick={logout} className="bd-focus mx-auto mt-8 inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 text-sm font-extrabold text-bd-muted hover:text-bd-pink-strong">
           <LogOut size={16} aria-hidden /> Se connecter avec un autre compte
