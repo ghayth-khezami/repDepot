@@ -10,6 +10,8 @@ export interface DraftItem {
   price: string; // raw input, parsed to millimes on demand
   commission: number;
   categoryId: string;
+  subCategoryId?: string;
+  subSubCategory1Id?: string;
   photos: string[];
   uploading: number;
 }
@@ -56,7 +58,7 @@ export function newItem(commission: number, categoryId: string): DraftItem {
 
 const initialDraft = (): DepotDraft => ({
   step: 0,
-  mode: 'new',
+  mode: 'existing',
   deposant: emptyDeposant,
   existing: null,
   items: [newItem(25, '')],

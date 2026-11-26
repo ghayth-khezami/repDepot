@@ -7,6 +7,7 @@ import { uploadUrl } from '../lib/apiBase';
 import { apiErrorMessage } from '../lib/apiError';
 import { formatTnd, toMillimes } from '../lib/money';
 import { Button, Card, SegmentedControl, StatusChip, TextField } from '../components/ui';
+import DeposantSuivi from '../features/depot/DeposantSuivi';
 import { cn } from '../lib/cn';
 
 const RECENT_KEY = 'bd-scan-recent';
@@ -22,14 +23,13 @@ function readRecent(): string[] {
 export default function QrScannerPage() {
   const [mode, setMode] = useState<'camera' | 'ref'>('camera');
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const frameRef = useRef<number | null>(null);
   const busyRef = useRef(false);
   const [status, setStatus] = useState('Présentez le QR ou le code-barres du produit.');
   const [cameraOk, setCameraOk] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [suiviToken, setSuiviToken] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>(readRecent);
   const [lookup, { isFetching }] = useLazyLookupProductQuery();
   const navigate = useNavigate();
@@ -62,71 +62,71 @@ export default function QrScannerPage() {
     [lookup],
   );
 
-  const findRef = useRef(find);
-  findRef.current = find;
-
-  useEffect(() => {
-    if (mode !== 'camera') return;
-    let cancelled = false;
-    const start = async () => {
-      const Detector = (window as any).BarcodeDetector;
-      if (!Detector) {
-        setCameraOk(false);
-        setStatus('Scan caméra non pris en charge ici : saisissez la référence.');
-        setMode('ref');
-        return;
+  /** A scan/entry is either a contract QR (→ déposant suivi) or a product code. */
+  const handle = useCallback(
+    async (raw: string) => {
+      const token = raw.match(/\/suivi\/([A-Za-z0-9_-]{16,})/)?.[1];
+      if (token) {
+        setError(null);
+        setSuiviToken(token);
+        return true;
       }
+      return find(raw);
+    },
+    [find],
+  );
+  const handleRef = useRef(handle);
+  handleRef.current = handle;
+
+  // Camera: zxing decodes QR + EAN/Code128 from the video in every browser (no BarcodeDetector needed).
+  useEffect(() => {
+    if (mode !== 'camera' || suiviToken || product) return;
+    let cancelled = false;
+    let controls: { stop: () => void } | null = null;
+    let last = '';
+    let lastAt = 0;
+    setStatus('Démarrage de la caméra…');
+    (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-        if (cancelled || !videoRef.current) {
-          stream.getTracks().forEach((t) => t.stop());
+        const { BrowserMultiFormatReader } = await import('@zxing/browser');
+        const reader = new BrowserMultiFormatReader(undefined, { delayBetweenScanAttempts: 120, delayBetweenScanSuccess: 600 });
+        if (cancelled || !videoRef.current) return;
+        controls = await reader.decodeFromConstraints(
+          { audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+          videoRef.current,
+          (result) => {
+            if (!result || busyRef.current) return;
+            const value = result.getText().trim();
+            const now = Date.now();
+            if (!value || (value === last && now - lastAt < 2500)) return;
+            last = value;
+            lastAt = now;
+            busyRef.current = true;
+            navigator.vibrate?.(40);
+            setStatus('Code détecté…');
+            void handleRef.current(value).finally(() => {
+              busyRef.current = false;
+              setStatus('Présentez le QR ou le code-barres.');
+            });
+          },
+        );
+        if (cancelled) {
+          controls.stop();
           return;
         }
-        streamRef.current = stream;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
         setCameraOk(true);
-        const supported: string[] = (await Detector.getSupportedFormats?.()) ?? ['qr_code'];
-        const wanted = ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a'].filter((f) => supported.includes(f));
-        const detector = new Detector({ formats: wanted.length ? wanted : ['qr_code'] });
-        const scan = async () => {
-          if (cancelled || !videoRef.current) return;
-          if (!busyRef.current) {
-            try {
-              const codes = await detector.detect(videoRef.current);
-              const value = codes[0]?.rawValue?.trim();
-              if (value && /\/suivi\/[A-Za-z0-9_-]{22,}/.test(value)) {
-                setStatus('QR de contrat détecté : ouverture du suivi…');
-                window.open(value, '_blank', 'noopener');
-                return;
-              }
-              if (value) {
-                busyRef.current = true;
-                setStatus('Code détecté…');
-                await findRef.current(value);
-                setStatus('Présentez le QR ou le code-barres du produit.');
-                window.setTimeout(() => (busyRef.current = false), 1500);
-              }
-            } catch {
-              /* keep scanning */
-            }
-          }
-          frameRef.current = window.requestAnimationFrame(scan);
-        };
-        frameRef.current = window.requestAnimationFrame(scan);
+        setStatus('Présentez le QR ou le code-barres.');
       } catch {
+        if (cancelled) return;
         setCameraOk(false);
-        setStatus('Caméra inaccessible. Vérifiez les permissions ou saisissez la référence.');
+        setStatus('Caméra inaccessible : autorisez-la, ou saisissez la référence ci-dessous.');
       }
-    };
-    void start();
+    })();
     return () => {
       cancelled = true;
-      if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+      controls?.stop();
     };
-  }, [mode]);
+  }, [mode, suiviToken, product]);
 
   return (
     <div className="bd-ui mx-auto max-w-2xl space-y-5">
@@ -134,7 +134,7 @@ export default function QrScannerPage() {
         <div>
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-bd-pink-strong">Scanner</p>
           <h1 className="text-3xl font-black text-bd-ink">Trouver un produit</h1>
-          <p className="text-sm text-bd-muted">Scannez l'étiquette ou tapez / dictez sa référence.</p>
+          <p className="text-sm text-bd-muted">Étiquette produit, ou QR du contrat pour le suivi du déposant.</p>
         </div>
         <SegmentedControl
           label="Mode de recherche"
@@ -172,7 +172,7 @@ export default function QrScannerPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void find(code);
+            void handle(code);
           }}
           className="flex items-end gap-2"
         >
@@ -211,6 +211,8 @@ export default function QrScannerPage() {
           </div>
         ) : null}
       </Card>
+
+      {suiviToken ? <DeposantSuivi token={suiviToken} onClose={() => setSuiviToken(null)} /> : null}
 
       {product ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-bd-ink/50 p-3 backdrop-blur-sm sm:items-center" onClick={() => setProduct(null)}>

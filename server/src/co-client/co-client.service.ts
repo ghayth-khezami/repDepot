@@ -88,7 +88,10 @@ export class CoClientService {
         skip,
         take: actualLimit,
         orderBy: { createdAt: "desc" },
-        include: { user: { select: { id: true, role: true } } },
+        include: {
+          user: { select: { id: true, role: true } },
+          _count: { select: { products: true, depositRequests: true } },
+        },
       }),
       this.prisma.coClient.count({ where }),
     ]);

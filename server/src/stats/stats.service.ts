@@ -516,6 +516,77 @@ export class StatsService {
       }));
   }
 
+  /** Dépôt-vente KPIs for the dashboard (period = contract / sale dates). */
+  async getDepotKpis(query: StatsQueryDto) {
+    const date = this.buildDateFilter(query);
+    const cat = query.categoryId ? { categoryId: query.categoryId } : {};
+    const [onSale, soldInPeriod, toPay, contracts, newDeposants, depotItemsInPeriod] = await Promise.all([
+      this.prisma.product.aggregate({ where: { isDepot: true, status: "EN_VENTE", ...cat }, _count: { id: true }, _sum: { PrixVente: true } }),
+      this.prisma.product.findMany({
+        where: { isDepot: true, status: "VENDU", ...cat, ...(date ? { soldAt: date } : {}) },
+        select: { shopAmountMillimes: true, PrixVente: true, depotPercentage: true },
+      }),
+      this.prisma.product.aggregate({
+        where: { isDepot: true, status: "VENDU", payoutStatus: { not: "PAYE" }, ...cat },
+        _count: { id: true },
+        _sum: { depositorAmountMillimes: true },
+      }),
+      this.prisma.depositRequest.count({ where: { contractNumber: { not: null }, ...(date ? { createdAt: date } : {}) } }),
+      this.prisma.coClient.count({ where: date ? { createdAt: date } : {} }),
+      this.prisma.product.count({ where: { isDepot: true, ...cat, ...(date ? { createdAt: date } : {}) } }),
+    ]);
+    const commissionMillimes = soldInPeriod.reduce(
+      (t, p) => t + (p.shopAmountMillimes ?? Math.round(((p.PrixVente || 0) * (p.depotPercentage || 0)) / 100 * 1000)),
+      0,
+    );
+    const sold = soldInPeriod.length;
+    return {
+      onSaleCount: onSale._count.id,
+      onSaleValue: onSale._sum.PrixVente ?? 0,
+      toPayCount: toPay._count.id,
+      toPayAmount: (toPay._sum.depositorAmountMillimes ?? 0) / 1000,
+      soldCount: sold,
+      commissionAmount: commissionMillimes / 1000,
+      sellThroughRate: sold + onSale._count.id > 0 ? (sold / (sold + onSale._count.id)) * 100 : 0,
+      depositedInPeriod: depotItemsInPeriod,
+      contracts,
+      newDeposants,
+    };
+  }
+
+  /** Map of completed dépôts: one marker per contract, at the déposant's address. */
+  async getDepotLocations(query: StatsQueryDto) {
+    const date = this.buildDateFilter(query);
+    const rows = await this.prisma.depositRequest.findMany({
+      where: { contractNumber: { not: null }, coClientId: { not: null }, ...(date ? { createdAt: date } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+      select: {
+        id: true,
+        contractNumber: true,
+        createdAt: true,
+        proposedPrice: true,
+        coClient: { select: { id: true, firstName: true, lastName: true, address: true, lat: true, lng: true, number: true } },
+        _count: { select: { products: true } },
+      },
+    });
+    return rows
+      .filter((r) => r.coClient && ((r.coClient.lat != null && r.coClient.lng != null) || r.coClient.address?.trim()))
+      .map((r) => ({
+        id: r.id,
+        contractNumber: r.contractNumber,
+        date: r.createdAt,
+        value: r.proposedPrice,
+        items: r._count.products,
+        deposantId: r.coClient!.id,
+        deposant: `${r.coClient!.firstName} ${r.coClient!.lastName}`,
+        number: r.coClient!.number,
+        address: r.coClient!.address ?? "",
+        lat: r.coClient!.lat,
+        lng: r.coClient!.lng,
+      }));
+  }
+
   private buildDateFilter(query: StatsQueryDto) {
     if (!query.period && !query.startDate) {
       return undefined;

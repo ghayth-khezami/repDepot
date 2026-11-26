@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  Activity,
   Award,
+  BadgeDollarSign,
   Box,
+  Gauge,
+  Coins,
+  Store,
   CalendarRange,
   RotateCcw,
-  SlidersHorizontal,
   Tag,
   DollarSign,
   Download,
@@ -31,11 +35,13 @@ import {
   useGetCommandLocationsQuery,
   useGetTotalSurchargeQuery,
   useGetTopProductsQuery,
+  useGetDepotKpisQuery,
+  useGetDepotLocationsQuery,
 } from '../store/api/statsApi';
+import DeposantSuivi from '../features/depot/DeposantSuivi';
 import AppHeader, { DATE_RANGE_DELTA_LABEL, DATE_RANGE_LABEL, rangeFor, type DateRangeKey } from '../components/AppHeader';
 import ExcelButton from '../components/ExcelButton';
 import { useGetCategoryHierarchyQuery } from '../store/api/categoryApi';
-import { cn } from '../lib/cn';
 import { Button, Card, CardTitle, EmptyState, Illustration, InfoNote, Pill, StatCard, buttonClass } from '../components/ui';
 import { downloadAuthed } from '../lib/download';
 import { formatTnd, toMillimes } from '../lib/money';
@@ -107,9 +113,12 @@ const Dashboard = () => {
   const { data: depotVsBuying, isLoading: depotLoading } = useGetDepotVsBuyingQuery(cur);
   const { data: locations, isLoading: locationsLoading } = useGetCommandLocationsQuery(cur);
   const { data: topProducts } = useGetTopProductsQuery({ ...cur, limit: 5 });
+  const { data: depotKpis, isLoading: depotKpisLoading } = useGetDepotKpisQuery(cur);
+  const { data: prevDepotKpis } = useGetDepotKpisQuery(prev ?? {}, { skip: !prev });
+  const { data: depotLocations, isLoading: depotLocLoading } = useGetDepotLocationsQuery(cur);
+  const [suiviId, setSuiviId] = useState<string | null>(null);
 
   const deltaLabel = range === 'custom' ? 'vs période préc.' : DATE_RANGE_DELTA_LABEL[range];
-  const filtersActive = range !== 'all' || !!categoryId;
   const d = (a?: number, b?: number) => (previous ? pctDelta(a, b) : null);
   const spark = monthly?.map((m) => m.count);
   const maxCount = Math.max(1, ...(monthly?.map((m) => m.count) ?? [1]));
@@ -129,13 +138,17 @@ const Dashboard = () => {
   // Geocode order addresses (cached, throttled to Nominatim's 1 req/s policy).
   const geoCacheRef = useRef<Record<string, [number, number]>>({});
   const [, setMapTick] = useState(0);
+  const toGeocode = useMemo(
+    () => [...(locations ?? []).map((l) => l.address), ...(depotLocations ?? []).filter((l) => l.lat == null || l.lng == null).map((l) => l.address)],
+    [locations, depotLocations],
+  );
   useEffect(() => {
-    if (!locations?.length) return;
+    if (!toGeocode.length) return;
     let cancelled = false;
     void (async () => {
-      for (const loc of locations) {
+      for (const address of toGeocode) {
         if (cancelled) break;
-        const addr = loc.address?.trim();
+        const addr = address?.trim();
         if (!addr || geoCacheRef.current[addr]) continue;
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${addr}, Tunisia`)}`, {
@@ -157,7 +170,7 @@ const Dashboard = () => {
     return () => {
       cancelled = true;
     };
-  }, [locations]);
+  }, [toGeocode]);
 
   const depotPct = depotVsBuying?.total ? (depotVsBuying.depot / depotVsBuying.total) * 100 : 0;
   const buyPct = depotVsBuying?.total ? (depotVsBuying.buying / depotVsBuying.total) * 100 : 0;
@@ -167,78 +180,112 @@ const Dashboard = () => {
     <div className="bd-ui mx-auto max-w-7xl">
       <AppHeader />
 
-      <Card className="mb-6 p-3 sm:p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 hidden items-center gap-1.5 text-sm font-extrabold text-bd-ink sm:inline-flex">
-            <SlidersHorizontal size={16} className="text-bd-violet" aria-hidden /> Filtres
-          </span>
-          <div className="-mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-0.5" role="group" aria-label="Période">
-            {([...(Object.keys(DATE_RANGE_LABEL) as DateRangeKey[]), 'custom'] as const).map((k) => (
-              <Pill key={k} active={range === k} onClick={() => pickRange(k)} className="shrink-0 whitespace-nowrap">
-                {k === 'custom' ? (
-                  <>
-                    <CalendarRange size={15} aria-hidden /> Dates
-                  </>
-                ) : (
-                  DATE_RANGE_LABEL[k]
-                )}
-              </Pill>
+      <div className="mb-6 grid grid-cols-[1fr_1fr_auto] items-center gap-2 sm:flex sm:justify-end">
+        <label className="relative min-w-0 sm:w-52">
+          <span className="sr-only">Période</span>
+          <CalendarRange size={17} aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-bd-violet" />
+          <select
+            value={range}
+            onChange={(e) => pickRange(e.target.value as DateRangeKey | 'custom')}
+            className="bd-input min-h-[46px] truncate rounded-full border-transparent bg-bd-surface pl-10 pr-8 text-sm font-extrabold shadow-card"
+          >
+            {(Object.keys(DATE_RANGE_LABEL) as DateRangeKey[]).map((k) => (
+              <option key={k} value={k}>
+                {DATE_RANGE_LABEL[k]}
+              </option>
             ))}
-          </div>
-          <label className="relative ml-auto min-w-[170px] flex-1 sm:flex-none">
-            <span className="sr-only">Catégorie</span>
-            <Tag size={16} aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-bd-muted" />
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={cn('bd-input min-h-[40px] pl-10 pr-8 text-sm font-bold', !categoryId && 'text-bd-muted')}>
-              <option value="">Toutes les catégories</option>
-              {categories?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.categoryName}
-                </option>
-              ))}
-            </select>
-          </label>
-          {filtersActive ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={RotateCcw}
-              aria-label="Réinitialiser les filtres"
-              onClick={() => {
-                pickRange('all');
-                setCategoryId('');
-                setCustomFrom('');
-                setCustomTo('');
-              }}
-            >
-              <span className="hidden sm:inline">Réinitialiser</span>
-            </Button>
-          ) : null}
-          <ExcelButton entity="dashboard" label="Exporter" params={{ ...cur, year }} />
-        </div>
+            <option value="custom">Dates personnalisées…</option>
+          </select>
+        </label>
+        <label className="relative min-w-0 sm:w-56">
+          <span className="sr-only">Catégorie</span>
+          <Tag size={16} aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-bd-pink" />
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="bd-input min-h-[46px] truncate rounded-full border-transparent bg-bd-surface pl-10 pr-8 text-sm font-extrabold shadow-card"
+          >
+            <option value="">Toutes catégories</option>
+            {categories?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.categoryName}
+              </option>
+            ))}
+          </select>
+        </label>
+        {categoryId || range === 'custom' ? (
+          <button
+            type="button"
+            aria-label="Réinitialiser les filtres"
+            title="Réinitialiser"
+            onClick={() => {
+              pickRange('month');
+              setCategoryId('');
+              setCustomFrom('');
+              setCustomTo('');
+            }}
+            className="bd-focus hidden h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full bg-bd-surface text-bd-muted shadow-card hover:text-bd-pink-strong sm:flex"
+          >
+            <RotateCcw size={18} aria-hidden />
+          </button>
+        ) : null}
+        <ExcelButton entity="dashboard" label="Exporter" compact params={{ ...cur, year }} className="h-[46px] w-[46px] px-0 sm:w-auto sm:px-5" />
         {range === 'custom' ? (
-          <div className="bd-anim-pop mt-3 grid grid-cols-2 gap-2 sm:max-w-md">
-            <label className="text-xs font-extrabold text-bd-muted">
-              Du
-              <input type="date" data-dictation="off" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} className="bd-input mt-1 min-h-[40px] text-sm" />
-            </label>
-            <label className="text-xs font-extrabold text-bd-muted">
-              Au
-              <input type="date" data-dictation="off" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} className="bd-input mt-1 min-h-[40px] text-sm" />
-            </label>
+          <div className="bd-anim-pop col-span-3 grid grid-cols-2 gap-2 sm:col-auto">
+            <input type="date" aria-label="Du" data-dictation="off" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} className="bd-input min-h-[46px] rounded-full border-transparent bg-bd-surface text-sm font-bold shadow-card" />
+            <input type="date" aria-label="Au" data-dictation="off" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} className="bd-input min-h-[46px] rounded-full border-transparent bg-bd-surface text-sm font-bold shadow-card" />
           </div>
         ) : null}
-        {revenueFetching ? (
-          <div aria-hidden className="mt-3 h-0.5 overflow-hidden rounded-full bg-bd-lilac">
-            <div className="h-full w-1/3 animate-pulse bg-grad-pink" />
-          </div>
-        ) : null}
-      </Card>
+      </div>
+      {revenueFetching ? <div aria-hidden className="-mt-4 mb-4 h-0.5 animate-pulse rounded-full bg-grad-pink" /> : null}
 
       <section aria-label="Indicateurs" className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={DollarSign} tone="pink" label="Revenu Total" value={tnd(revenue?.totalRevenue)} loading={revenueLoading} delta={d(revenue?.totalRevenue, prevRevenue?.totalRevenue)} deltaLabel={deltaLabel} spark={spark} />
         <StatCard icon={ShoppingBag} tone="violet" label="Revenu d'Achat" value={tnd(revenue?.buyingRevenue)} loading={revenueLoading} delta={d(revenue?.buyingRevenue, prevRevenue?.buyingRevenue)} deltaLabel={deltaLabel} spark={spark} />
         <StatCard icon={Box} tone="amber" label="Revenu de Dépôt" value={tnd(revenue?.depotRevenue)} loading={revenueLoading} delta={d(revenue?.depotRevenue, prevRevenue?.depotRevenue)} deltaLabel={deltaLabel} spark={spark} />
         <StatCard icon={Wallet} tone="purple" label="Surcharge Totale" value={tnd(surcharge?.totalSurcharge)} loading={surchargeLoading} delta={d(surcharge?.totalSurcharge, prevSurcharge?.totalSurcharge)} deltaLabel={deltaLabel} spark={spark} />
+      </section>
+
+      <section aria-label="Dépôt-vente" className="mb-6">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em] text-bd-violet">
+          <Store size={16} aria-hidden /> Dépôt-vente
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            icon={Box}
+            tone="pink"
+            label="Articles en dépôt"
+            value={depotKpis?.onSaleCount ?? 0}
+            hint={`Valeur ${tnd(depotKpis?.onSaleValue)} · +${depotKpis?.depositedInPeriod ?? 0} sur la période`}
+            loading={depotKpisLoading}
+          />
+          <StatCard
+            icon={Coins}
+            tone="green"
+            label="À payer aux déposants"
+            value={tnd(depotKpis?.toPayAmount)}
+            hint={`${depotKpis?.toPayCount ?? 0} article(s) vendu(s) non payé(s)`}
+            loading={depotKpisLoading}
+          />
+          <StatCard
+            icon={BadgeDollarSign}
+            tone="violet"
+            label="Commission dépôt"
+            value={tnd(depotKpis?.commissionAmount)}
+            hint={`${depotKpis?.soldCount ?? 0} vente(s) dépôt`}
+            delta={d(depotKpis?.commissionAmount, prevDepotKpis?.commissionAmount)}
+            deltaLabel={deltaLabel}
+            loading={depotKpisLoading}
+          />
+          <StatCard
+            icon={Gauge}
+            tone="amber"
+            label="Taux d'écoulement"
+            value={`${(depotKpis?.sellThroughRate ?? 0).toFixed(0)} %`}
+            hint={`${depotKpis?.contracts ?? 0} contrat(s) · ${depotKpis?.newDeposants ?? 0} nouveau(x) déposant(s)`}
+            loading={depotKpisLoading}
+          />
+        </div>
       </section>
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
@@ -339,7 +386,7 @@ const Dashboard = () => {
               <PackagePlus size={18} aria-hidden /> Nouveau dépôt
             </Link>
             <Button variant="secondary" icon={QrCode} loading={busy === 'qr'} onClick={() => download('qr', '/products/export/qr/pdf', 'produits-qr.pdf')}>
-              Générer PDF QR produits
+              PDF QR produits (achats)
             </Button>
           </div>
           <Illustration name="bag" className="absolute bottom-3 right-4 hidden h-24 w-24 text-[56px] sm:inline-flex" />
@@ -395,6 +442,8 @@ const Dashboard = () => {
         </Card>
       ) : null}
 
+      {suiviId ? <DeposantSuivi id={suiviId} onClose={() => setSuiviId(null)} /> : null}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <Card className="p-5 sm:p-6">
         <CardTitle icon={MapPin} tone="green" title="Localisation des commandes" />
         {locationsLoading ? (
@@ -422,6 +471,57 @@ const Dashboard = () => {
           <EmptyState icon={MapPin} title="Aucune commande avec adresse" />
         )}
       </Card>
+
+      <Card className="p-5 sm:p-6">
+        <CardTitle icon={Store} tone="pink" title="Localisation des dépôts" subtitle={depotLocations?.length ? `${depotLocations.length} dépôt(s) sur la période` : undefined} />
+        {depotLocLoading ? (
+          <div className="h-80 animate-pulse rounded-2xl bg-bd-lilac" />
+        ) : depotLocations?.length ? (
+          <>
+            <div className="h-80 overflow-hidden rounded-2xl sm:h-96">
+              <MapContainer center={[34.0, 9.0]} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
+                {depotLocations.map((loc) => {
+                  const pos: [number, number] =
+                    loc.lat != null && loc.lng != null ? [loc.lat, loc.lng] : geoCacheRef.current[loc.address] || [34.0, 9.0];
+                  return (
+                    <Marker key={loc.id} position={pos}>
+                      <Popup>
+                        <p className="text-sm font-bold">{loc.deposant} · N° {loc.number}</p>
+                        <p className="text-xs">{loc.contractNumber} · {new Date(loc.date).toLocaleDateString('fr-FR')}</p>
+                        <p className="text-xs font-bold">{loc.items} article(s) · {tnd(loc.value)}</p>
+                        <p className="text-xs">{loc.address}</p>
+                        <button type="button" onClick={() => setSuiviId(loc.deposantId)} className="mt-1 text-xs font-bold text-violet-700 underline">
+                          Voir le suivi
+                        </button>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </MapContainer>
+            </div>
+            <ul className="mt-3 max-h-56 space-y-1.5 overflow-y-auto">
+              {depotLocations.slice(0, 20).map((loc) => (
+                <li key={loc.id}>
+                  <button type="button" onClick={() => setSuiviId(loc.deposantId)} className="bd-focus flex w-full items-center gap-3 rounded-xl bg-bd-bg px-3 py-2 text-left transition hover:bg-bd-lilac/60">
+                    <Activity size={15} className="shrink-0 text-bd-violet" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-extrabold text-bd-ink">{loc.deposant}</span>
+                      <span className="block truncate text-xs font-bold text-bd-muted">{loc.contractNumber} · {loc.address || 'position GPS'}</span>
+                    </span>
+                    <span className="shrink-0 text-xs font-extrabold tabular-nums text-bd-ink">{loc.items} art.</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <EmptyState icon={Store} title="Aucun dépôt localisé sur la période">
+            Ajoutez l'adresse du déposant (ou sa position sur la carte) lors du dépôt.
+          </EmptyState>
+        )}
+      </Card>
+      </div>
     </div>
   );
 };

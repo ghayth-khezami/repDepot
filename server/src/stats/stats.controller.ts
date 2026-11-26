@@ -87,6 +87,18 @@ export class StatsController {
     return this.statsService.getLastDeliveredCommand(query);
   }
 
+  @Get("depot-kpis")
+  @ApiOperation({ summary: "Dépôt-vente KPIs (stock, à payer, commission, contrats)" })
+  async getDepotKpis(@Query() query: StatsQueryDto) {
+    return this.statsService.getDepotKpis(query);
+  }
+
+  @Get("depot-locations")
+  @ApiOperation({ summary: "Completed dépôts with déposant location (map)" })
+  async getDepotLocations(@Query() query: StatsQueryDto) {
+    return this.statsService.getDepotLocations(query);
+  }
+
   @Get("total-surcharge")
   @ApiOperation({ summary: "Get total surcharge amount" })
   async getTotalSurcharge(@Query() query: StatsQueryDto) {

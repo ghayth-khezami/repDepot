@@ -52,6 +52,7 @@ export function StatCard({
   deltaLabel = 'vs hier',
   spark,
   loading,
+  hint,
 }: {
   icon: LucideIcon;
   tone: Tone;
@@ -62,6 +63,8 @@ export function StatCard({
   deltaLabel?: string;
   spark?: number[];
   loading?: boolean;
+  /** Small secondary line under the value. */
+  hint?: ReactNode;
 }) {
   const up = (delta ?? 0) >= 0;
   const DeltaIcon = up ? ArrowUpRight : ArrowDownRight;
@@ -76,6 +79,7 @@ export function StatCard({
           ) : (
             <p className="truncate text-[26px] font-extrabold leading-tight text-bd-ink tabular-nums sm:text-[28px]">{value}</p>
           )}
+          {hint && !loading ? <p className="mt-0.5 truncate text-xs font-bold text-bd-muted">{hint}</p> : null}
           {delta !== undefined && delta !== null && !loading ? (
             <p className="mt-0.5 flex items-center gap-1 text-xs font-bold">
               <span className={cn('inline-flex items-center gap-0.5 tabular-nums', up ? 'text-bd-success' : 'text-bd-danger')}>

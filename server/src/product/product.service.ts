@@ -405,6 +405,8 @@ export class ProductService {
 
   async findAllForQrExport() {
     return this.prisma.product.findMany({
+      // Dépôt articles get their QR labels with the contract — only purchased stock here.
+      where: { isDepot: false },
       select: { id: true, productName: true, PrixVente: true, ref: true },
       orderBy: { productName: "asc" },
     });
@@ -449,6 +451,26 @@ export class ProductService {
     }
 
     return product;
+  }
+
+  /** Backoffice detail: everything related to one product (orders, buyer, likes, contract). */
+  async findOneAdmin(id: string) {
+    const product = await this.findOne(id);
+    const [orders, likes] = await Promise.all([
+      this.prisma.commandDetail.findMany({
+        where: { productId: id },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          command: { select: { id: true, createdAt: true, status: true, PrixVente: true, adresseLivraison: true, dateLivraison: true } },
+          client: { select: { firstName: true, lastName: true, phoneNumber: true } },
+          coClient: { select: { firstName: true, lastName: true, phoneNumber: true } },
+        },
+      }),
+      // Likes table may be missing on some databases — never break the detail view for it.
+      this.prisma.userLike.count({ where: { productId: id } }).catch(() => 0),
+    ]);
+    return { ...product, orders, likesCount: likes };
   }
 
   async findOnePublic(id: string) {

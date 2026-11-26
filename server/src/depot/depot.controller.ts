@@ -37,6 +37,18 @@ export class DepotController {
     return this.depotService.findByPhone(phone);
   }
 
+  @Get("deposants/by-token/:token")
+  @ApiOperation({ summary: "Déposant overview from a scanned contract QR token" })
+  byToken(@Param("token") token: string) {
+    return this.depotService.deposantByToken(token);
+  }
+
+  @Get("deposants/:id/overview")
+  @ApiOperation({ summary: "Déposant overview: articles, statuses, contracts, amounts due" })
+  overview(@Param("id", ParseUUIDPipe) id: string) {
+    return this.depotService.deposantOverview(id);
+  }
+
   @Post("depots")
   @ApiOperation({ summary: "Create déposant (or reuse) + contract + products in one transaction" })
   create(@Body() dto: CreateDepotDto) {

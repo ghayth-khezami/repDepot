@@ -83,8 +83,44 @@ export type PhoneCheck =
   | { exists: false }
   | { exists: true; deposant: { id: string; number: number; firstName: string; lastName: string } };
 
+export interface DeposantOverview {
+  id: string;
+  number: number;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  address: string | null;
+  rib: string | null;
+  createdAt: string;
+  contracts: Array<{ id: string; contractNumber: string | null; createdAt: string; durationMonths: number | null; signedAt: string | null; status: string; hasTracking: boolean }>;
+  products: Array<{
+    id: string;
+    ref: string;
+    name: string;
+    category: string | null;
+    priceMillimes: number;
+    depositorMillimes: number;
+    status: 'EN_VENTE' | 'VENDU' | 'RETIRE';
+    payoutStatus: 'A_PERCEVOIR' | 'PAYE' | null;
+    soldAt: string | null;
+    createdAt: string;
+    contractId: string | null;
+    photo: string | null;
+  }>;
+  totals: { total: number; onSale: number; sold: number; removed: number; paid: number; toPayMillimes: number; paidMillimes: number; stockValueMillimes: number };
+}
+
 export const depotApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getDeposantOverview: builder.query<DeposantOverview, string>({
+      query: (id) => `/deposants/${id}/overview`,
+      providesTags: ['CoClient', 'Product'],
+    }),
+    getDeposantByToken: builder.query<DeposantOverview, string>({
+      query: (token) => `/deposants/by-token/${encodeURIComponent(token)}`,
+      providesTags: ['CoClient', 'Product'],
+    }),
     searchDeposants: builder.query<DeposantSummary[], string>({
       query: (q) => ({ url: '/deposants/search', params: q ? { q } : {} }),
       providesTags: ['CoClient'],
@@ -120,6 +156,10 @@ export const depotApi = baseApi.injectEndpoints({
 
 export const {
   useSearchDeposantsQuery,
+  useLazySearchDeposantsQuery,
+  useGetDeposantOverviewQuery,
+  useLazyGetDeposantByTokenQuery,
+  useGetDeposantByTokenQuery,
   useLazyCheckDeposantPhoneQuery,
   useCreateDepotMutation,
   useGetDepotQuery,

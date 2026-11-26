@@ -6,81 +6,16 @@ import {
   Landmark,
   Mail,
   MapPin,
-  Search,
   UserCheck,
   UserPlus,
   Users,
 } from 'lucide-react';
-import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useLazyCheckDeposantPhoneQuery, useSearchDeposantsQuery, type DeposantSummary } from '../../store/api/depotApi';
-import { Button, Card, EmptyState, InfoNote, PhoneField, SegmentedControl, Skeleton, TextField } from '../../components/ui';
-import { cn } from '../../lib/cn';
+import { useLazyCheckDeposantPhoneQuery, type DeposantSummary } from '../../store/api/depotApi';
+import { Button, Card, InfoNote, PhoneField, SegmentedControl, Skeleton, TextField } from '../../components/ui';
 import { validateDeposant, type DepotDraft, type DeposantErrors, type DraftDispatch } from './draft';
+import DeposantsList from './DeposantsList';
 
 const AddressMapSelector = lazy(() => import('../../components/AddressMapSelector'));
-
-function formatPhone(p: string) {
-  return p.replace(/^(\d{2})(\d{3})(\d{3})$/, '$1 $2 $3');
-}
-
-function ExistingDeposantPicker({ selectedId, onPick }: { selectedId?: string; onPick: (d: DeposantSummary) => void }) {
-  const [q, setQ] = useState('');
-  const debounced = useDebouncedValue(q.trim(), 250);
-  const { data, isFetching } = useSearchDeposantsQuery(debounced);
-
-  return (
-    <div className="space-y-4">
-      <TextField
-        label="Rechercher un déposant"
-        icon={Search}
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Nom, prénom ou téléphone…"
-        autoFocus
-        hint="Les déposants récents s'affichent par défaut."
-      />
-      <div aria-live="polite" aria-busy={isFetching}>
-        {isFetching && !data ? (
-          <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16" />)}</div>
-        ) : data?.length ? (
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {data.map((d) => (
-              <li key={d.id}>
-                <button
-                  type="button"
-                  onClick={() => onPick(d)}
-                  className={cn(
-                    'bd-focus flex min-h-[64px] w-full items-center gap-3 rounded-2xl border bg-bd-surface p-3 text-left transition hover:border-bd-pink/40 hover:shadow-card',
-                    selectedId === d.id ? 'border-bd-pink ring-4 ring-bd-pink/15' : 'border-bd-line/10',
-                  )}
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-grad-violet-strong text-sm font-black text-white">
-                    {d.firstName[0]}
-                    {d.lastName[0]}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-extrabold text-bd-ink">
-                      {d.firstName} {d.lastName}
-                    </span>
-                    <span className="block text-xs font-bold text-bd-muted tabular-nums">
-                      N° {d.number} · {formatPhone(d.phone)} · {d.productsCount} article{d.productsCount > 1 ? 's' : ''}
-                    </span>
-                  </span>
-                  <ArrowRight size={18} className="text-bd-violet" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState icon={Users} title="Aucun déposant trouvé">
-            Vérifiez l'orthographe ou créez un nouveau déposant.
-          </EmptyState>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function DeposantStep({
   draft,
@@ -131,22 +66,24 @@ export default function DeposantStep({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-black text-bd-ink">Qui dépose ?</h2>
-          <p className="text-sm text-bd-muted">Trois champs suffisent pour commencer.</p>
+          <p className="text-sm text-bd-muted">
+            {draft.mode === 'existing' ? 'Choisissez un déposant, ou créez-en un nouveau.' : 'Trois champs suffisent pour commencer.'}
+          </p>
         </div>
         <SegmentedControl
           label="Type de déposant"
           value={draft.mode}
           onChange={(mode) => dispatch({ type: 'mode', mode })}
           options={[
-            { value: 'new', label: 'Nouveau déposant', icon: UserPlus },
-            { value: 'existing', label: 'Déposant existant', icon: UserCheck },
+            { value: 'existing', label: 'Déposants', icon: Users },
+            { value: 'new', label: 'Nouveau', icon: UserPlus },
           ]}
           className="w-full sm:w-auto"
         />
       </div>
 
       {draft.mode === 'existing' ? (
-        <ExistingDeposantPicker selectedId={draft.existing?.id} onPick={pickExisting} />
+        <DeposantsList onPick={pickExisting} onNew={() => dispatch({ type: 'mode', mode: 'new' })} />
       ) : (
         <form
           noValidate

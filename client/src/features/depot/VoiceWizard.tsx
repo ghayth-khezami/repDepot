@@ -8,7 +8,9 @@ import {
   Keyboard,
   Mic,
   PencilLine,
+  Plus,
   Square,
+  Trash2,
   UserCheck,
   Volume2,
   VolumeX,
@@ -30,7 +32,8 @@ import {
   useDictation,
 } from '../../lib/speech';
 import { Waveform } from '../../components/Dictation';
-import { Money } from '../../components/ui';
+import { useCategoryCreators } from '../../components/FormAssistant';
+import { Money, PhoneField, TextField } from '../../components/ui';
 import { SplitBar, COMMISSION_PRESETS } from './ArticlesEditor';
 import { emptyDeposant, newItem, validateDeposant, type DraftDeposant, type DraftItem } from './draft';
 
@@ -39,6 +42,8 @@ import { emptyDeposant, newItem, validateDeposant, type DraftDeposant, type Draf
 interface WizItem {
   name: string;
   categoryId: string;
+  subCategoryId?: string;
+  subSubCategory1Id?: string;
   price: string;
   commission: number;
 }
@@ -60,7 +65,7 @@ export interface VoiceWizardResult {
   items: DraftItem[];
 }
 
-type Kind = 'text' | 'phone' | 'email' | 'yesno' | 'count' | 'price' | 'percent' | 'category';
+type Kind = 'text' | 'phone' | 'email' | 'yesno' | 'count' | 'price' | 'percent' | 'category' | 'sub' | 'subsub';
 
 interface StepDef {
   id: string;
@@ -72,7 +77,10 @@ interface StepDef {
   item?: number;
 }
 
-type Parsed = { ok: true; apply: (s: WizState) => WizState; display: string } | { ok: false; error: string };
+type Parsed =
+  | { ok: true; apply: (s: WizState) => WizState; display: string }
+  | { ok: false; error: string }
+  | { ok: false; create: { level: 'cat' | 'sub' | 'subsub'; name: string } };
 
 const blankItem = (commission: number, categoryId: string): WizItem => ({ name: '', categoryId, price: '', commission });
 
@@ -99,6 +107,10 @@ function buildSteps(s: WizState): StepDef[] {
     steps.push(
       { id: `name:${i}`, section: sec, prompt: i === 0 ? 'Quel est le premier article ?' : `Quel est l'article ${i + 1} ?`, hint: 'Ex. « Poussette Chicco grise »', kind: 'text', item: i },
       { id: `cat:${i}`, section: sec, prompt: 'Dans quelle catégorie ?', hint: i > 0 ? 'Touchez une catégorie, ou dites « pareil »' : 'Touchez ou dites la catégorie', kind: 'category', item: i },
+      { id: `sub:${i}`, section: sec, prompt: 'Une sous-catégorie ?', hint: '« Passer » si aucune', kind: 'sub', optional: true, item: i },
+      ...(s.items[i]?.subCategoryId
+        ? [{ id: `subsub:${i}`, section: sec, prompt: 'Et une sous-sous-catégorie ?', hint: '« Passer » si aucune', kind: 'subsub' as Kind, optional: true, item: i }]
+        : []),
       { id: `price:${i}`, section: sec, prompt: 'À quel prix le vendre ?', hint: 'Ex. « trois cent quatre-vingts dinars »', kind: 'price', item: i },
       { id: `com:${i}`, section: sec, prompt: 'Quelle commission ?', hint: '« comme d’habitude » = commission par défaut', kind: 'percent', item: i },
     );
@@ -118,6 +130,156 @@ function setItem(s: WizState, i: number, patch: Partial<WizItem>, defaults: { co
 }
 
 const cap = (t: string) => t.trim().charAt(0).toUpperCase() + t.trim().slice(1);
+
+/* ───────────────────────────── Review (editable) ───────────────────────────── */
+
+function ReviewEditor({
+  state,
+  setState,
+  catOptions,
+  defaults,
+}: {
+  state: WizState;
+  setState: (fn: (s: WizState) => WizState) => void;
+  catOptions: Array<{ id: string; label: string }>;
+  defaults: { commission: number; categoryId: string };
+}) {
+  const n = state.stopAfter !== null ? state.stopAfter + 1 : (state.count ?? 0);
+  const items = state.items.slice(0, n);
+  while (items.length < n) items.push(blankItem(defaults.commission, items[items.length - 1]?.categoryId || defaults.categoryId));
+  const d = state.deposant;
+  const setDep = (patch: Partial<DraftDeposant>) => setState((s) => ({ ...s, deposant: { ...s.deposant, ...patch } }));
+  const setItems = (next: WizItem[]) => setState((s) => ({ ...s, items: next, count: next.length, stopAfter: null }));
+  const patchItem = (i: number, patch: Partial<WizItem>) => setItems(items.map((it, j) => (j === i ? { ...it, ...patch } : it)));
+  const totals = items.reduce(
+    (t, it) => {
+      const sp = splitCommission(parseTndInput(it.price) ?? 0, it.commission);
+      return { price: t.price + sp.priceMillimes, shop: t.shop + sp.shopMillimes, dep: t.dep + sp.depositorMillimes };
+    },
+    { price: 0, shop: 0, dep: 0 },
+  );
+
+  return (
+    <div className="w-full space-y-4 text-left">
+      <section className="bd-anim-fade-up rounded-3xl bg-bd-surface p-4 shadow-card">
+        <p className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-bd-violet">
+          <UserCheck size={15} aria-hidden /> Déposant
+        </p>
+        {state.existing ? (
+          <div className="rounded-2xl bg-bd-bg px-3 py-3">
+            <p className="font-extrabold text-bd-ink">
+              {state.existing.firstName} {state.existing.lastName}
+            </p>
+            <p className="text-xs font-bold text-bd-muted tabular-nums">
+              Déposant existant N° {state.existing.number} · +216 {state.existing.phone}
+            </p>
+            <button type="button" onClick={() => setState((s) => ({ ...s, existing: null }))} className="mt-1 text-xs font-extrabold text-bd-pink-strong underline">
+              Ce n'est pas lui — créer un nouveau déposant
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <TextField label="Prénom" required value={d.firstName} onChange={(e) => setDep({ firstName: e.target.value })} />
+              <TextField label="Nom" required value={d.lastName} onChange={(e) => setDep({ lastName: e.target.value })} />
+            </div>
+            <PhoneField label="Téléphone" required value={d.phone} onChange={(phone) => setDep({ phone })} />
+            <TextField label="Email" type="email" value={d.email} onChange={(e) => setDep({ email: e.target.value })} />
+            <TextField label="Adresse" value={d.address} onChange={(e) => setDep({ address: e.target.value })} />
+            <TextField label="RIB" inputMode="numeric" value={d.rib} onChange={(e) => setDep({ rib: e.target.value.replace(/[^\d\s]/g, '').slice(0, 26) })} />
+          </div>
+        )}
+      </section>
+
+      {items.map((it, i) => {
+        const sp = splitCommission(parseTndInput(it.price) ?? 0, it.commission);
+        return (
+          <section key={i} style={{ animationDelay: `${(i + 1) * 60}ms` }} className="bd-anim-fade-up rounded-3xl bg-bd-surface p-4 shadow-card">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-bd-violet">Article {i + 1}</p>
+              <button
+                type="button"
+                onClick={() => setItems(items.filter((_, j) => j !== i))}
+                aria-label={`Supprimer l'article ${i + 1}`}
+                className="bd-focus -mr-2 flex h-9 w-9 items-center justify-center rounded-full text-bd-muted hover:bg-bd-danger-bg hover:text-bd-danger"
+              >
+                <Trash2 size={17} aria-hidden />
+              </button>
+            </div>
+            <div className="grid gap-3">
+              <TextField label="Nom de l'article" value={it.name} onChange={(e) => patchItem(i, { name: e.target.value })} error={it.name.trim() ? undefined : 'Nom requis'} />
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-bold text-bd-ink">Catégorie</span>
+                <select
+                  value={it.categoryId}
+                  onChange={(e) => patchItem(i, { categoryId: e.target.value })}
+                  className={cn('bd-input', !it.categoryId && 'border-bd-danger text-bd-muted')}
+                >
+                  <option value="">Choisir…</option>
+                  {catOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid grid-cols-[1fr_110px] gap-3">
+                <TextField
+                  label="Prix (TND)"
+                  inputMode="decimal"
+                  value={it.price}
+                  onChange={(e) => patchItem(i, { price: e.target.value.replace(/[^\d.,]/g, '') })}
+                  error={(parseTndInput(it.price) ?? 0) > 0 ? undefined : 'Prix requis'}
+                  className="text-right tabular-nums"
+                />
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-bold text-bd-ink">Commission</span>
+                  <select value={it.commission} onChange={(e) => patchItem(i, { commission: Number(e.target.value) })} className="bd-input tabular-nums">
+                    {Array.from(new Set([...COMMISSION_PRESETS, it.commission, defaults.commission])).sort((a, b) => a - b).map((c) => (
+                      <option key={c} value={c}>
+                        {c} %
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="rounded-2xl bg-bd-bg px-3 py-2">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-bd-muted">Marge <span className="text-bd-pink-strong tabular-nums">{formatTnd(sp.shopMillimes)}</span></span>
+                  <span className="text-bd-muted">Déposant <span className="text-bd-success tabular-nums">{formatTnd(sp.depositorMillimes)}</span></span>
+                </div>
+                <SplitBar shop={sp.shopMillimes} total={sp.priceMillimes} className="mt-1.5 h-1.5" />
+              </div>
+            </div>
+          </section>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={() => setItems([...items, blankItem(defaults.commission, items[items.length - 1]?.categoryId || defaults.categoryId)])}
+        className="bd-focus flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-bd-violet/30 text-sm font-extrabold text-bd-violet-strong active:scale-[0.99]"
+      >
+        <Plus size={18} aria-hidden /> Ajouter un article
+      </button>
+
+      {items.length ? (
+        <div className="rounded-2xl bg-grad-brand px-4 py-3 text-white">
+          <div className="flex items-center justify-between text-sm font-extrabold">
+            <span>
+              {items.length} article{items.length > 1 ? 's' : ''}
+            </span>
+            <span className="tabular-nums">{formatTnd(totals.price)}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between text-xs font-bold text-white/85">
+            <span>Marge {formatTnd(totals.shop)}</span>
+            <span>Déposant {formatTnd(totals.dep)}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /* ───────────────────────────── Component ───────────────────────────── */
 
@@ -177,6 +339,7 @@ export default function VoiceWizard({
   const cancelSpeech = useRef<() => void>(() => {});
   const stateRef = useRef(state);
   stateRef.current = state;
+  const listenRef = useRef<() => void>(() => {});
 
   const steps = useMemo(() => buildSteps(state), [state]);
   const stepIndex = Math.max(0, steps.findIndex((s) => s.id === cursor));
@@ -196,6 +359,21 @@ export default function VoiceWizard({
       document.body.style.overflow = '';
     };
   }, [open, fresh]);
+
+  const creators = useCategoryCreators();
+  const [pendingCreate, setPendingCreate] = useState<{ level: 'cat' | 'sub' | 'subsub'; name: string } | null>(null);
+  const subOptions = useCallback(
+    (s: WizState, i: number) =>
+      (categories?.find((c) => c.id === s.items[i]?.categoryId)?.subCategories ?? []).map((x) => ({ id: x.id, label: x.title })),
+    [categories],
+  );
+  const subSubOptions = useCallback(
+    (s: WizState, i: number) =>
+      (
+        categories?.find((c) => c.id === s.items[i]?.categoryId)?.subCategories?.find((x) => x.id === s.items[i]?.subCategoryId)?.subSubCategories1 ?? []
+      ).map((x) => ({ id: x.id, label: x.title })),
+    [categories],
+  );
 
   /* ── answer handling ── */
 
@@ -254,8 +432,27 @@ export default function VoiceWizard({
             if (prev) return { ok: true, display: catName(prev), apply: (x) => setItem(x, i, { categoryId: prev }, defaults) };
           }
           const m = matchOption(t, catOptions);
-          if (!m) return { ok: false, error: `Catégorie « ${t} » introuvable — touchez-en une.` };
-          return { ok: true, display: m.label, apply: (x) => setItem(x, i, { categoryId: m.id }, defaults) };
+          if (!m) return { ok: false, create: { level: 'cat', name: cap(t) } };
+          return { ok: true, display: m.label, apply: (x) => setItem(x, i, { categoryId: m.id, subCategoryId: undefined, subSubCategory1Id: undefined }, defaults) };
+        }
+        case 'sub':
+        case 'subsub': {
+          const level = st.id.split(':')[0] as 'sub' | 'subsub';
+          if (/^(passer|non|aucune?|rien|pas de|sans)\b/i.test(t)) {
+            return {
+              ok: true,
+              display: 'Aucune',
+              apply: (x) => setItem(x, i, level === 'sub' ? { subCategoryId: undefined, subSubCategory1Id: undefined } : { subSubCategory1Id: undefined }, defaults),
+            };
+          }
+          const opts = level === 'sub' ? subOptions(s, i) : subSubOptions(s, i);
+          const m = matchOption(t, opts);
+          if (!m) return { ok: false, create: { level, name: cap(t) } };
+          return {
+            ok: true,
+            display: m.label,
+            apply: (x) => setItem(x, i, level === 'sub' ? { subCategoryId: m.id, subSubCategory1Id: undefined } : { subSubCategory1Id: m.id }, defaults),
+          };
         }
         case 'price': {
           const n = parseFrenchNumber(t);
@@ -276,7 +473,7 @@ export default function VoiceWizard({
           return { ok: false, error: '' };
       }
     },
-    [catName, catOptions, defaults],
+    [catName, catOptions, defaults, subOptions, subSubOptions],
   );
 
   const goNext = useCallback((s: WizState, fromId: string) => {
@@ -295,7 +492,63 @@ export default function VoiceWizard({
     async (raw: string) => {
       const st = steps[stepIndex];
       if (!st || st.id === 'review') return;
+      const i = st.item ?? 0;
+
+      // Answer to "X n'existe pas, voulez-vous l'ajouter ?"
+      if (pendingCreate) {
+        const yn = parseYesNo(raw);
+        if (!yn) {
+          setFeedback({ ok: false, text: 'Oui pour l’ajouter, non pour en choisir une autre.' });
+          setPhase('idle');
+          return false;
+        }
+        const pc = pendingCreate;
+        setPendingCreate(null);
+        if (yn === 'no') {
+          setFeedback(null);
+          setPhase('idle');
+          if (mode === 'voice') window.setTimeout(() => listenRef.current(), 300);
+          return true;
+        }
+        try {
+          const cur = stateRef.current;
+          const it = cur.items[i];
+          const created =
+            pc.level === 'cat'
+              ? await creators.createCategory(pc.name)
+              : pc.level === 'sub'
+                ? await creators.createSub(pc.name, it?.categoryId ?? '')
+                : await creators.createSubSub(pc.name, it?.subCategoryId ?? '');
+          const patch: Partial<WizItem> =
+            pc.level === 'cat'
+              ? { categoryId: created.value, subCategoryId: undefined, subSubCategory1Id: undefined }
+              : pc.level === 'sub'
+                ? { subCategoryId: created.value, subSubCategory1Id: undefined }
+                : { subSubCategory1Id: created.value };
+          let next = setItem(cur, i, patch, defaults);
+          next = { ...next, answered: new Set(next.answered).add(st.id) };
+          setState(next);
+          setFeedback({ ok: true, text: `${created.label} ajoutée ✨` });
+          setPhase('confirmed');
+          window.clearTimeout(advanceTimer.current);
+          advanceTimer.current = window.setTimeout(() => goNext(next, st.id), 900);
+          return true;
+        } catch {
+          setFeedback({ ok: false, text: 'Création impossible — choisissez dans la liste.' });
+          setPhase('idle');
+          return false;
+        }
+      }
+
       const res = parse(raw, st, stateRef.current);
+      if ('create' in res) {
+        const noun = res.create.level === 'cat' ? 'La catégorie' : res.create.level === 'sub' ? 'La sous-catégorie' : 'La sous-sous-catégorie';
+        setPendingCreate(res.create);
+        setFeedback(null);
+        setPhase('idle');
+        cancelSpeech.current = muted ? () => {} : speak(`${noun} ${res.create.name} n'existe pas. Voulez-vous l'ajouter ?`, () => mode === 'voice' && listenRef.current());
+        return true;
+      }
       if ('error' in res) {
         setFeedback({ ok: false, text: res.error });
         setPhase('idle');
@@ -323,20 +576,26 @@ export default function VoiceWizard({
       advanceTimer.current = window.setTimeout(() => goNext(next, st.id), 850);
       return true;
     },
-    [checkPhone, goNext, parse, stepIndex, steps],
+    [checkPhone, creators, defaults, goNext, mode, muted, parse, pendingCreate, stepIndex, steps],
   );
 
   const skip = useCallback(() => {
     cancelSpeech.current();
     const st = steps[stepIndex];
     if (!st || st.id === 'review') return;
+    if (pendingCreate) {
+      setPendingCreate(null);
+      return;
+    }
     let next: WizState = { ...stateRef.current, answered: new Set(stateRef.current.answered).add(st.id) };
+    if (st.id.startsWith('sub:')) next = setItem(next, st.item ?? 0, { subCategoryId: undefined, subSubCategory1Id: undefined }, defaults);
+    if (st.id.startsWith('subsub:')) next = setItem(next, st.item ?? 0, { subSubCategory1Id: undefined }, defaults);
     if (st.id === 'extras') next = { ...next, extras: false };
     if (st.id === 'count') next = { ...next, count: next.count ?? 0 };
     if (st.id.startsWith('next:')) next = { ...next, stopAfter: st.item ?? 0 };
     setState(next);
     goNext(next, st.id);
-  }, [goNext, stepIndex, steps]);
+  }, [defaults, goNext, pendingCreate, stepIndex, steps]);
 
   /* ── voice loop ── */
 
@@ -362,14 +621,18 @@ export default function VoiceWizard({
   const listen = useCallback(() => {
     cancelSpeech.current();
     setFeedback(null);
+    if (!speechSupported()) return setPhase('idle');
     if (dict.start()) setPhase('listening');
     else setPhase('idle');
   }, [dict]);
+
+  listenRef.current = listen;
 
   // Ask each new question: speak it, then listen.
   useEffect(() => {
     if (!open) return;
     window.clearTimeout(advanceTimer.current);
+    setPendingCreate(null);
     dict.abort();
     if (isReview) {
       setPhase('idle');
@@ -428,7 +691,9 @@ export default function VoiceWizard({
 
   const result = (): VoiceWizardResult => {
     const n = state.stopAfter !== null ? state.stopAfter + 1 : (state.count ?? 0);
-    const items = state.items.slice(0, n).map((it) => ({ ...newItem(it.commission, it.categoryId), name: it.name, price: it.price }));
+    const items = state.items
+      .slice(0, n)
+      .map((it) => ({ ...newItem(it.commission, it.categoryId), name: it.name, price: it.price, subCategoryId: it.subCategoryId, subSubCategory1Id: it.subSubCategory1Id }));
     return { deposant: state.deposant, existing: state.existing, items };
   };
   const r = isReview ? result() : null;
@@ -456,9 +721,17 @@ export default function VoiceWizard({
   const orbClass = cn('bd-orb', listening && 'is-listening', phase === 'speaking' && 'is-speaking', (phase === 'confirmed' || isReview) && 'is-done');
   const progress = ((isReview ? steps.length : stepIndex) / steps.length) * 100;
 
-  const yesNo = step.kind === 'yesno';
-  const chips =
-    step.kind === 'category'
+  const yesNo = step.kind === 'yesno' || !!pendingCreate;
+  const chips = pendingCreate
+    ? []
+    : step.kind === 'sub' || step.kind === 'subsub'
+      ? (step.kind === 'sub' ? subOptions(state, step.item ?? 0) : subSubOptions(state, step.item ?? 0)).map((c) => ({
+          key: c.id,
+          label: c.label,
+          value: c.label,
+          active: state.items[step.item ?? 0]?.[step.kind === 'sub' ? 'subCategoryId' : 'subSubCategory1Id'] === c.id,
+        }))
+      : step.kind === 'category'
       ? catOptions.map((c) => ({ key: c.id, label: c.label, value: c.label, active: state.items[step.item ?? 0]?.categoryId === c.id }))
       : step.kind === 'percent'
         ? COMMISSION_PRESETS.map((p) => ({ key: String(p), label: `${p} %${p === defaultCommission ? ' ★' : ''}`, value: String(p), active: false }))
@@ -493,7 +766,22 @@ export default function VoiceWizard({
         </div>
 
         {/* Stage */}
-        <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pb-4 pt-6 text-center">
+        <main className={cn('relative z-10 flex min-h-0 flex-1 flex-col items-center overflow-y-auto pb-4 text-center', isReview ? 'px-4 pt-4' : 'px-6 pt-6')}>
+          {isReview ? (
+            <>
+              <div className="bd-anim-pop mb-4 flex w-full items-center gap-3 text-left">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-grad-green text-white shadow-[0_8px_24px_rgba(22,163,74,0.35)]">
+                  <Check size={26} strokeWidth={3} className="bd-anim-check" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="text-xl font-black leading-tight text-bd-ink">Vérifiez avant le contrat</h2>
+                  <p className="text-sm font-semibold text-bd-muted">Tout est modifiable — au clavier ou au micro.</p>
+                </div>
+              </div>
+              <ReviewEditor state={state} setState={setState} catOptions={catOptions} defaults={defaults} />
+            </>
+          ) : (
+          <>
           <div className={orbClass} aria-hidden>
             <span className="bd-orb-ring" />
             <span className="bd-orb-ring" />
@@ -505,10 +793,14 @@ export default function VoiceWizard({
             ) : null}
           </div>
 
-          <div key={step.id} className="bd-anim-slide-in mt-6 w-full">
+          <div key={`${step.id}-${pendingCreate?.name ?? ''}`} className="bd-anim-slide-in mt-6 w-full">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-bd-violet">{step.section}</p>
-            <h2 className="mt-2 text-balance text-2xl font-black leading-tight text-bd-ink sm:text-[26px]">{step.prompt}</h2>
-            <p className="mt-2 text-sm font-semibold text-bd-muted">{step.hint}</p>
+            <h2 className="mt-2 text-balance text-2xl font-black leading-tight text-bd-ink sm:text-[26px]">
+              {pendingCreate
+                ? `${pendingCreate.level === 'cat' ? 'La catégorie' : pendingCreate.level === 'sub' ? 'La sous-catégorie' : 'La sous-sous-catégorie'} « ${pendingCreate.name} » n'existe pas. L'ajouter ?`
+                : step.prompt}
+            </h2>
+            <p className="mt-2 text-sm font-semibold text-bd-muted">{pendingCreate ? 'Oui pour la créer maintenant, non pour en choisir une autre' : step.hint}</p>
           </div>
 
           {/* Live transcript / interpretation */}
@@ -538,7 +830,7 @@ export default function VoiceWizard({
           {!isReview && yesNo ? (
             <div className="bd-anim-fade-up mt-2 grid w-full grid-cols-2 gap-3">
               <button type="button" onClick={() => void commit('oui')} className="bd-focus min-h-[60px] rounded-2xl bg-grad-pink-strong text-lg font-black text-white shadow-glow-pink active:scale-95">
-                Oui
+                {pendingCreate ? '+ Ajouter' : 'Oui'}
               </button>
               <button type="button" onClick={() => void commit('non')} className="bd-focus min-h-[60px] rounded-2xl border-2 border-bd-line/15 bg-bd-surface text-lg font-black text-bd-ink active:scale-95">
                 Non
@@ -563,30 +855,8 @@ export default function VoiceWizard({
             </div>
           ) : null}
 
-          {isReview ? (
-            <div className="bd-anim-fade-up mt-2 w-full space-y-3">
-              {!deposantOk || !itemsOk ? (
-                <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-bd-amber-ink dark:bg-amber-500/10">
-                  Il manque des informations — touchez une ligne de la fiche pour corriger, ou passez en mode édition.
-                </p>
-              ) : null}
-              <button
-                type="button"
-                disabled={!canGenerate || generating}
-                onClick={() => onGenerate(result())}
-                className="bd-focus flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-grad-pink-strong text-base font-black text-white shadow-glow-pink active:scale-[0.98] disabled:opacity-50"
-              >
-                <FileSignature size={20} aria-hidden /> {generating ? 'Génération…' : 'Générer le contrat'}
-              </button>
-              <button
-                type="button"
-                onClick={() => onReview(result())}
-                className="bd-focus flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-bd-line/15 bg-bd-surface text-sm font-extrabold text-bd-ink active:scale-[0.98]"
-              >
-                <PencilLine size={18} aria-hidden /> Vérifier et modifier dans le formulaire
-              </button>
-            </div>
-          ) : null}
+          </>
+          )}
         </main>
 
         {/* Controls */}
@@ -654,12 +924,36 @@ export default function VoiceWizard({
           </div>
         ) : null}
 
+        {isReview ? (
+          <div className="relative z-10 space-y-2 border-t border-bd-line/10 bg-bd-surface px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_40px_rgba(76,29,149,0.12)]">
+            {!deposantOk || !itemsOk ? (
+              <p className="text-center text-xs font-bold text-bd-amber-ink">Complétez les champs en rouge pour générer le contrat.</p>
+            ) : null}
+            <button
+              type="button"
+              disabled={!canGenerate || generating}
+              onClick={() => onGenerate(result())}
+              className="bd-focus flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-grad-pink-strong text-base font-black text-white shadow-glow-pink active:scale-[0.98] disabled:opacity-50"
+            >
+              <FileSignature size={20} aria-hidden /> {generating ? 'Génération…' : 'Générer le contrat'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onReview(result())}
+              className="bd-focus flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl text-sm font-extrabold text-bd-muted active:scale-[0.98]"
+            >
+              <PencilLine size={17} aria-hidden /> Continuer dans le formulaire complet (photos…)
+            </button>
+          </div>
+        ) : null}
+
         {/* Fiche en cours */}
+        {!isReview ? (
         <section
           aria-label="Fiche en cours"
           className={cn(
             'relative z-10 rounded-t-[28px] border-t border-bd-line/10 bg-bd-surface px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_40px_rgba(76,29,149,0.12)] transition-[max-height] duration-500 ease-out',
-            sheetOpen || isReview ? 'max-h-[55dvh]' : 'max-h-[180px]',
+            sheetOpen ? 'max-h-[55dvh]' : 'max-h-[180px]',
           )}
         >
           <button type="button" onClick={() => setSheetOpen((v) => !v)} aria-expanded={sheetOpen} className="bd-focus mx-auto mb-1 flex w-full flex-col items-center rounded-xl">
@@ -668,7 +962,7 @@ export default function VoiceWizard({
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-black text-bd-ink">Fiche en cours</p>
             <button type="button" onClick={() => setSheetOpen((v) => !v)} className="flex items-center gap-1 text-xs font-bold text-bd-muted">
-              Touchez une ligne pour corriger <ChevronDown size={14} className={cn('transition', (sheetOpen || isReview) && 'rotate-180')} aria-hidden />
+              Touchez une ligne pour corriger <ChevronDown size={14} className={cn('transition', sheetOpen && 'rotate-180')} aria-hidden />
             </button>
           </div>
           <div className="max-h-[calc(55dvh-70px)] space-y-2 overflow-y-auto pb-1">
@@ -729,6 +1023,7 @@ export default function VoiceWizard({
             ) : null}
           </div>
         </section>
+        ) : null}
       </div>
     </div>,
     document.body,

@@ -115,6 +115,16 @@ export class DepotItemDto {
   @IsUUID("4", { message: "Catégorie obligatoire." })
   categoryId: string;
 
+  @ApiPropertyOptional({ description: "Sous-catégorie (optional)" })
+  @IsOptional()
+  @IsUUID("4")
+  subCategoryId?: string;
+
+  @ApiPropertyOptional({ description: "Sous-sous-catégorie niveau 1 (optional)" })
+  @IsOptional()
+  @IsUUID("4")
+  subSubCategory1Id?: string;
+
   @ApiPropertyOptional({ type: [String], description: "Cloudinary URLs from /media/upload" })
   @IsOptional()
   @IsArray()

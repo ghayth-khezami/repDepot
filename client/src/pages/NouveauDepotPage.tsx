@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronRight, RotateCcw, Sparkles } from 'lucide-react';
-import { useCreateDepotMutation, useGetDepotQuery, type CreateDepotInput } from '../store/api/depotApi';
+import { useCreateDepotMutation, useGetDeposantOverviewQuery, useGetDepotQuery, type CreateDepotInput } from '../store/api/depotApi';
 import { useToast } from '../context/ToastContext';
 import { apiErrorCode, apiErrorMessage, apiErrorPayload } from '../lib/apiError';
 import { fromMillimes, parseTndInput } from '../lib/money';
@@ -42,6 +42,32 @@ export default function NouveauDepotPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ?deposant=<id> (from "Nouveau dépôt pour …" in the suivi sheet) → preselect, go to articles.
+  const presetId = params.get('deposant');
+  const { data: preset } = useGetDeposantOverviewQuery(presetId ?? '', { skip: !presetId });
+  useEffect(() => {
+    if (!preset) return;
+    clear();
+    dispatch({
+      type: 'hydrate',
+      patch: {
+        mode: 'existing',
+        step: 1,
+        existing: {
+          id: preset.id,
+          number: preset.number,
+          firstName: preset.firstName,
+          lastName: preset.lastName,
+          phone: preset.phone,
+          productsCount: preset.totals.total,
+          contractsCount: preset.contracts.length,
+        },
+      },
+    });
+    setParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset]);
+
   const created = !!draft.contractId;
   const deposantReady =
     (draft.mode === 'existing' && !!draft.existing) ||
@@ -64,6 +90,8 @@ export default function NouveauDepotPage() {
             price: fromMillimes(parseTndInput(it.price) ?? 0),
             commissionPercent: it.commission,
             categoryId: it.categoryId,
+            subCategoryId: it.subCategoryId || undefined,
+            subSubCategory1Id: it.subSubCategory1Id || undefined,
             photos: it.photos.length ? it.photos : undefined,
           }))
         : [],

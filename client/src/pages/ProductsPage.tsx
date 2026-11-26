@@ -19,6 +19,9 @@ import ProductStatusControl from '../features/products/ProductStatusControl';
 import { formatTnd, splitCommission, toMillimes } from '../lib/money';
 import { apiErrorMessage } from '../lib/apiError';
 import ExcelButton from '../components/ExcelButton';
+import ProductAssistant, { type ProductAiResult } from '../features/products/ProductAssistant';
+import ProductDetailSheet from '../features/products/ProductDetailSheet';
+import { setNativeValue } from '../lib/speech';
 
 const ProductsPage = () => {
   const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -53,6 +56,7 @@ const ProductsPage = () => {
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [previewMode, setPreviewMode] = useState<'web' | 'mobile'>('web');
   const [prefillName, setPrefillName] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data, isLoading, refetch } = useGetProductsQuery({
@@ -215,9 +219,35 @@ const ProductsPage = () => {
   }, [searchParams, apiBaseUrl]);
 
   const handleView = (product: Product) => {
-    setViewProduct(product);
-    setPreviewMode('web');
-    setViewModalOpen(true);
+    setDetailId(product.id);
+  };
+
+  /** Product assistant → fills the real form (state first, then inputs once they have rendered). */
+  const applyAi = (r: ProductAiResult) => {
+    setIsDepot(r.isDepot);
+    if (r.isDepot) {
+      setDepotPercentage(r.commission ?? 25);
+      setSelectedCoClientId(r.coClientId ?? '');
+    }
+    setSelectedCategoryId(r.categoryId ?? '');
+    setSelectedCategoryIds(r.categoryId ? [r.categoryId] : []);
+    setSelectedSubCategoryId(r.subCategoryId ?? '');
+    setSelectedSubCategoryIds(r.subCategoryId ? [r.subCategoryId] : []);
+    setSelectedSubSubCategory1Id(r.subSubCategory1Id ?? '');
+    setSelectedSubSubCategory1Ids(r.subSubCategory1Id ? [r.subSubCategory1Id] : []);
+    const fill = () => {
+      const set = (name: string, value?: string | number) => {
+        if (value === undefined || value === '') return;
+        document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`).forEach((el) => setNativeValue(el, String(value)));
+      };
+      set('productName', r.productName);
+      set('PrixVente', r.prixVente);
+      if (!r.isDepot) set('PrixAchat', r.prixAchat);
+      set('description', r.description);
+    };
+    // Price inputs depend on the dépôt/achat switch: wait for that render.
+    requestAnimationFrame(() => requestAnimationFrame(fill));
+    showToast('Fiche remplie par l’IA — vérifiez puis enregistrez', 'success');
   };
 
   const handleEdit = async (product: Product) => {
@@ -614,7 +644,7 @@ const ProductsPage = () => {
           Supprimer tous les produits
         </button>
         <button type="button" onClick={handleExportQrPdf} className="ml-2 mt-3 rounded-lg border border-primary-200 px-3 py-2 text-sm font-semibold text-primary-700">
-          Générer PDF QR produits
+          PDF QR produits (achats)
         </button>
       </div>
 
@@ -732,6 +762,7 @@ const ProductsPage = () => {
         }}
         title={isEditMode ? 'Modifier le produit' : 'Ajouter un produit'}
         size="xl"
+        assistant={<ProductAssistant onApply={applyAi} />}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -1187,6 +1218,17 @@ const ProductsPage = () => {
           </div>
         </form>
       </Modal>
+
+      {detailId ? (
+        <ProductDetailSheet
+          id={detailId}
+          onClose={() => setDetailId(null)}
+          onEdit={(p) => {
+            setDetailId(null);
+            void handleEdit(p);
+          }}
+        />
+      ) : null}
 
       {/* View Modal */}
       <Modal

@@ -506,6 +506,9 @@ export class ProductController {
   @ApiOperation({ summary: "Download barcode label PDF for one product" })
   async exportSingleLabelPdf(@Param("id") id: string, @Res() res: Response) {
     const product = await this.productService.findOne(id);
+    if (product.isDepot) {
+      throw new BadRequestException("Article de dépôt : son QR est déjà imprimé avec le contrat (réimprimez les étiquettes du contrat).");
+    }
     const buffer = buildSingleProductLabelPdf({
       productName: product.productName,
       PrixVente: product.PrixVente,
@@ -528,7 +531,7 @@ export class ProductController {
   @SkipThrottle()
   @ApiOperation({ summary: "Admin: get product with sensitive fields" })
   findOneFull(@Param("id") id: string) {
-    return this.productService.findOne(id);
+    return this.productService.findOneAdmin(id);
   }
 
   @Get(":id")

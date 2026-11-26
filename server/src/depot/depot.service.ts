@@ -111,6 +111,89 @@ export class DepotService {
     }));
   }
 
+  /** Backoffice "suivi déposant": articles, statuses, contracts and amounts (after a scan or from the list). */
+  async deposantOverview(id: string) {
+    const d = await this.prisma.coClient.findUnique({
+      where: { id },
+      include: {
+        products: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            ref: true,
+            productName: true,
+            PrixVente: true,
+            status: true,
+            soldAt: true,
+            payoutStatus: true,
+            depotPercentage: true,
+            shopAmountMillimes: true,
+            depositorAmountMillimes: true,
+            createdAt: true,
+            depositRequestId: true,
+            category: { select: { categoryName: true } },
+            photos: { select: { photoDoc: true }, take: 1 },
+          },
+        },
+        depositRequests: {
+          orderBy: { createdAt: "desc" },
+          select: { id: true, contractNumber: true, createdAt: true, durationMonths: true, signedAt: true, status: true, trackingToken: true },
+        },
+      },
+    });
+    if (!d) throw new NotFoundException("Déposant introuvable.");
+    const share = (p: { depositorAmountMillimes: number | null; PrixVente: number; depotPercentage: number | null }) =>
+      p.depositorAmountMillimes ?? splitCommission(toMillimes(p.PrixVente), p.depotPercentage ?? 0).depositorMillimes;
+    const totals = { total: d.products.length, onSale: 0, sold: 0, removed: 0, paid: 0, toPayMillimes: 0, paidMillimes: 0, stockValueMillimes: 0 };
+    for (const p of d.products) {
+      if (p.status === "EN_VENTE") {
+        totals.onSale++;
+        totals.stockValueMillimes += toMillimes(p.PrixVente);
+      } else if (p.status === "RETIRE") totals.removed++;
+      else if (p.status === "VENDU") {
+        totals.sold++;
+        if (p.payoutStatus === "PAYE") {
+          totals.paid++;
+          totals.paidMillimes += share(p);
+        } else totals.toPayMillimes += share(p);
+      }
+    }
+    return {
+      id: d.id,
+      number: d.number,
+      firstName: d.firstName,
+      lastName: d.lastName,
+      phone: d.phoneNumber,
+      email: d.email,
+      address: d.address,
+      rib: d.RIB,
+      createdAt: d.createdAt,
+      contracts: d.depositRequests.map(({ trackingToken, ...c }) => ({ ...c, hasTracking: !!trackingToken })),
+      products: d.products.map((p) => ({
+        id: p.id,
+        ref: p.ref,
+        name: p.productName,
+        category: p.category?.categoryName ?? null,
+        priceMillimes: toMillimes(p.PrixVente),
+        depositorMillimes: share(p),
+        status: p.status,
+        payoutStatus: p.payoutStatus,
+        soldAt: p.soldAt,
+        createdAt: p.createdAt,
+        contractId: p.depositRequestId,
+        photo: p.photos[0]?.photoDoc ?? null,
+      })),
+      totals,
+    };
+  }
+
+  /** Contract QR (/suivi/<token>) scanned in the backoffice → that déposant's overview. */
+  async deposantByToken(token: string) {
+    const c = await this.prisma.depositRequest.findUnique({ where: { trackingToken: token }, select: { coClientId: true } });
+    if (!c?.coClientId) throw new NotFoundException("Contrat introuvable pour ce QR.");
+    return this.deposantOverview(c.coClientId);
+  }
+
   async findByPhone(phone: string) {
     const digits = (phone || "").replace(/\D/g, "");
     if (digits.length !== 8) return { exists: false as const };
@@ -192,8 +275,12 @@ export class DepotService {
           barcode: randomBarcode(),
           coclientId: coClientId,
           categoryId: item.categoryId,
+          subCategoryId: item.subCategoryId || undefined,
+          subSubCategory1Id: item.subSubCategory1Id || undefined,
           depositRequestId: contractId,
           ProductCategory: { create: { categoryId: item.categoryId } },
+          ProductSubCategory: item.subCategoryId ? { create: { subCategoryId: item.subCategoryId } } : undefined,
+          ProductSubSubCategory1: item.subSubCategory1Id ? { create: { subSubCategoryId: item.subSubCategory1Id } } : undefined,
           photos: item.photos?.length ? { create: item.photos.map((photoDoc) => ({ photoDoc })) } : undefined,
         },
       });

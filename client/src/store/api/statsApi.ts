@@ -81,8 +81,43 @@ export interface CommandLocation {
   client: string;
 }
 
+export interface DepotKpis {
+  onSaleCount: number;
+  onSaleValue: number;
+  toPayCount: number;
+  toPayAmount: number;
+  soldCount: number;
+  commissionAmount: number;
+  sellThroughRate: number;
+  depositedInPeriod: number;
+  contracts: number;
+  newDeposants: number;
+}
+
+export interface DepotLocation {
+  id: string;
+  contractNumber: string | null;
+  date: string;
+  value: number;
+  items: number;
+  deposantId: string;
+  deposant: string;
+  number: number;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+}
+
 export const statsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getDepotKpis: builder.query<DepotKpis, StatsQueryParams>({
+      query: (params) => ({ url: '/stats/depot-kpis', params }),
+      providesTags: ['Product', 'CoClient', 'DepositRequest'],
+    }),
+    getDepotLocations: builder.query<DepotLocation[], StatsQueryParams>({
+      query: (params) => ({ url: '/stats/depot-locations', params }),
+      providesTags: ['CoClient', 'DepositRequest'],
+    }),
     getKPIs: builder.query<KPIs, StatsQueryParams>({
       query: (params) => ({
         url: '/stats/kpis',
@@ -164,6 +199,8 @@ export const statsApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetDepotKpisQuery,
+  useGetDepotLocationsQuery,
   useGetKPIsQuery,
   useGetProductsByCategoryQuery,
   useGetCommandsByStatusQuery,

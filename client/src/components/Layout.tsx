@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { PostLoginLoadingOverlay } from './PostLoginLoadingOverlay';
 import { AutoFieldMic } from './Dictation';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Package, PackagePlus, QrCode, ShoppingCart } from 'lucide-react';
+import { Home, Package, PackagePlus, ScanLine, ShoppingCart } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { Blobs } from './ui';
 
@@ -14,13 +14,13 @@ interface LayoutProps {
 
 const mobileNav = [
   { path: '/', label: 'Accueil', icon: Home },
+  { path: '/depots/nouveau', label: 'Dépôt', icon: PackagePlus },
+  { path: '/scan', label: 'Scanner', icon: ScanLine, raised: true },
   { path: '/products', label: 'Produits', icon: Package },
-  { path: '/depots/nouveau', label: 'Dépôt', icon: PackagePlus, raised: true },
-  { path: '/scan', label: 'Scanner', icon: QrCode },
   { path: '/commands', label: 'Commandes', icon: ShoppingCart },
 ] as const;
 
-/** Mobile bottom navigation (≤ 768px): 5 tabs, raised centre "Dépôt" action. */
+/** Mobile bottom navigation (≤ 768px): Accueil, Dépôt, raised centre "Scanner", Produits, Commandes. */
 function MobileTabBar() {
   const { pathname } = useLocation();
   return (
@@ -72,6 +72,7 @@ function MobileTabBar() {
 
 const Layout = ({ children }: LayoutProps) => {
   const { showWelcomeOverlay } = useAuth();
+  const { pathname } = useLocation();
 
   return (
     <div className="relative isolate flex h-[100dvh] bg-bd-bg">
@@ -80,7 +81,7 @@ const Layout = ({ children }: LayoutProps) => {
       <main className="relative flex flex-1 flex-col overflow-hidden">
         <PostLoginLoadingOverlay isOpen={showWelcomeOverlay} />
         <div className="bo-page flex-1 overflow-y-auto pt-16 md:pt-0">
-          <div className="p-4 pb-32 md:p-8 md:pb-8">{children}</div>
+          <div key={pathname} className="bd-anim-page p-4 pb-32 md:p-8 md:pb-8">{children}</div>
         </div>
         <AutoFieldMic />
         <MobileTabBar />
