@@ -9,6 +9,12 @@ export type ProductStage = "EN_VENTE" | "VENDU" | "PAYE" | "RETIRE";
 export interface ProductStatusChanged {
   productIds: string[];
   to: ProductStage;
+  /**
+   * "order" = sold through an order (website, backoffice order, achat sur place).
+   * "manual" = status changed by hand in the backoffice. The déposant's "vendu" message is only sent
+   * for orders; a manual "Vendu" just waits for its order.
+   */
+  source?: "order" | "manual";
 }
 
 export interface NotifySummary {
@@ -53,19 +59,23 @@ export async function publishProductStatusChanged(event: ProductStatusChanged): 
   return total;
 }
 
-const pending = new Map<ProductStage, Set<string>>();
+const pending = new Map<string, Set<string>>();
 let timer: NodeJS.Timeout | null = null;
 
 export function publishProductStatusChangedLater(event: ProductStatusChanged, delayMs = 2000) {
   if (!event.productIds.length) return;
-  const set = pending.get(event.to) ?? new Set<string>();
+  const key = `${event.to}|${event.source ?? "manual"}`;
+  const set = pending.get(key) ?? new Set<string>();
   event.productIds.forEach((id) => set.add(id));
-  pending.set(event.to, set);
+  pending.set(key, set);
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     timer = null;
     const batches = [...pending.entries()];
     pending.clear();
-    for (const [to, ids] of batches) void publishProductStatusChanged({ productIds: [...ids], to });
+    for (const [key, ids] of batches) {
+      const [to, source] = key.split("|") as [ProductStage, "order" | "manual"];
+      void publishProductStatusChanged({ productIds: [...ids], to, source });
+    }
   }, delayMs);
 }

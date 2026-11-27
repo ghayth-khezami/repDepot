@@ -71,6 +71,8 @@ export class DeposantPushService implements OnModuleInit, OnModuleDestroy {
 
   async onStatusChanged(e: ProductStatusChanged): Promise<NotifySummary | void> {
     if (e.to !== "VENDU" && e.to !== "PAYE") return;
+    // "Vendu" message only when the article is sold through an order (web, backoffice, sur place).
+    if (e.to === "VENDU" && e.source !== "order") return;
     return this.notify(e.to, e.productIds);
   }
 

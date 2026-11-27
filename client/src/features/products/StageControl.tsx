@@ -11,7 +11,7 @@ import { BottomSheet } from '../../components/ui';
 
 export const STAGE_META: Record<ProductStage, { label: string; chip: string; dot: string; hint: string }> = {
   EN_VENTE: { label: 'En vente', chip: 'bg-bd-blush text-bd-pink-strong', dot: 'bg-bd-pink', hint: 'Visible en boutique' },
-  VENDU: { label: 'Vendu', chip: 'bg-bd-success-bg text-bd-success', dot: 'bg-bd-success', hint: 'Le déposant est prévenu' },
+  VENDU: { label: 'Vendu', chip: 'bg-bd-success-bg text-bd-success', dot: 'bg-bd-success', hint: 'Puis : commande ou achat sur place (le déposant est prévenu)' },
   PAYE: { label: 'Payé', chip: 'bg-violet-100 text-bd-violet-strong dark:bg-violet-500/20', dot: 'bg-bd-violet', hint: 'Paiement prêt — déposant prévenu' },
   RETIRE: { label: 'Retiré', chip: 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-200', dot: 'bg-gray-400', hint: 'Rendu au déposant' },
 };
@@ -51,7 +51,7 @@ export function scheduleStage(
     pendingCommits.delete(id);
     try {
       const res = await store.dispatch(productApi.endpoints.changeLifecycle.initiate({ id, to })).unwrap();
-      const msg = notifyMessage(res.notification);
+      const msg = to === 'VENDU' ? 'Vendu enregistré · le déposant sera prévenu dès que la commande est créée' : notifyMessage(res.notification);
       if (msg) ui.showToast(msg, res.notification && res.notification.failed > 0 && res.notification.sent === 0 ? 'error' : 'success', 6000);
       ui.onDone?.();
     } catch (e) {

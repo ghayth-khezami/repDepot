@@ -525,6 +525,8 @@ export class DepotService {
             contractNumber: await nextContractNumber(tx),
             trackingToken: generateTrackingToken(),
             durationMonths: dto.durationMonths,
+            // Generated = signed by the shop (its stamp is printed in the "Le dépositaire" box).
+            signedAt: new Date(),
             internalNote: dto.internalNote ? sanitizePlainText(dto.internalNote, 2000) : null,
             // The contract (and its end date) starts on the chosen deposit date.
             ...(dto.depositDate ? { createdAt: depositDateAt(dto.depositDate) } : {}),
@@ -549,6 +551,8 @@ export class DepotService {
         await this.ensureIdentity(tx, id);
         await this.createItems(tx, id, contract.coClientId, dto.items);
         await this.refreshContractTotals(tx, id);
+        // Edited = regenerated with the shop stamp → signed.
+        await tx.depositRequest.updateMany({ where: { id, signedAt: null }, data: { signedAt: new Date() } });
       }, TX_OPTIONS),
     );
     return this.getContract(id);

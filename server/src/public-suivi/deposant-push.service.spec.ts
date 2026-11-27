@@ -67,7 +67,12 @@ describe("déposant notifications", () => {
     const svc = new DeposantPushService(prisma, email);
     svc.onModuleInit();
     try {
-      const summary = await publishProductStatusChanged({ productIds: ["p1"], to: "VENDU" });
+      // Marked "Vendu" by hand: no message yet (it is sent when the order is created).
+      const manual = await publishProductStatusChanged({ productIds: ["p1"], to: "VENDU", source: "manual" });
+      expect(manual.sent + manual.failed + manual.skipped).toBe(0);
+      expect(sent).toHaveLength(0);
+
+      const summary = await publishProductStatusChanged({ productIds: ["p1"], to: "VENDU", source: "order" });
       expect(summary.sent).toBe(1);
       expect(summary.channels).toEqual(["email"]);
       expect(sent[0].to).toBe("karim@example.com");
@@ -75,7 +80,7 @@ describe("déposant notifications", () => {
       expect(prisma.logs.map((l: any) => `${l.channel}:${l.status}`)).toEqual(["push:skipped", "email:sent", "sms:skipped"]);
       expect(product.soldNotifiedAt).toBeInstanceOf(Date);
 
-      const again = await publishProductStatusChanged({ productIds: ["p1"], to: "VENDU" });
+      const again = await publishProductStatusChanged({ productIds: ["p1"], to: "VENDU", source: "order" });
       expect(again.sent).toBe(0);
     } finally {
       svc.onModuleDestroy();

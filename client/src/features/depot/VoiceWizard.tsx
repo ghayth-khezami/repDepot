@@ -471,7 +471,7 @@ export default function VoiceWizard({
             return { ok: true, display: `${c} % (par défaut)`, apply: (x) => setItem(x, i, { commission: c }, defaults) };
           }
           const n = parseFrenchNumber(t);
-          if (n === null || !isAllowedCommission(n)) return { ok: false, error: 'Choisissez : 5, 10, 15, 25, 30, 35, 40, 45 ou 50 %.' };
+          if (n === null || !isAllowedCommission(n)) return { ok: false, error: 'Choisissez : 5, 10, 15, 20, 25, 30, 35, 40, 45 ou 50 %.' };
           return { ok: true, display: `${n} %`, apply: (x) => setItem(x, i, { commission: n }, defaults) };
         }
         default:

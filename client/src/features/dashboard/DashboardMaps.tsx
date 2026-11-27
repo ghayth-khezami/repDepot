@@ -234,10 +234,10 @@ export default function DashboardMaps({ args, onSuivi }: { args: StatsQueryParam
   const commands = useAllPages<CommandLocation>((a) => loadCommands(a, true).unwrap(), args);
   const depots = useAllPages<DepotLocation>((a) => loadDepots(a, true).unwrap(), args);
 
-  const geo = useGeocode(useMemo(() => [...commands.items.map((c) => c.address), ...depots.items.filter((d) => d.lat == null || d.lng == null).map((d) => d.address)], [commands.items, depots.items]));
+  const geo = useGeocode(useMemo(() => [...commands.items.filter((c) => c.lat == null).map((c) => c.address), ...depots.items.filter((d) => d.lat == null || d.lng == null).map((d) => d.address)], [commands.items, depots.items]));
 
   const commandPoints: Point[] = commands.items.flatMap((c) => {
-    const pos = geo(c.address);
+    const pos: [number, number] | null = c.lat != null && c.lng != null ? [c.lat, c.lng] : geo(c.address);
     if (!pos) return [];
     return [
       {

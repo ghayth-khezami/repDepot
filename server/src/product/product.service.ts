@@ -678,7 +678,7 @@ export class ProductService {
     });
     if (stageChanged) {
       // After commit: live suivi pages refresh; VENDU / PAYE also notify the déposant.
-      void publishProductStatusChanged({ productIds: [id], to: toStage });
+      void publishProductStatusChanged({ productIds: [id], to: toStage, source: "manual" });
     }
     return updated;
   }
@@ -697,8 +697,9 @@ export class ProductService {
     assertTransition(from, to, p.isDepot);
     if (from === to) return { id, from, stage: to, notification: null };
     await this.prisma.product.update({ where: { id }, data: stageData(to, p.isDepot, { soldAt: p.soldAt, paidAt: p.paidAt }) });
-    const summary = await publishProductStatusChanged({ productIds: [id], to });
-    const notification = to === "VENDU" || to === "PAYE" ? summary : null;
+    const summary = await publishProductStatusChanged({ productIds: [id], to, source: "manual" });
+    // Manual "Vendu": nobody is notified yet (the déposant is told when the order is created).
+    const notification = to === "PAYE" ? summary : null;
     return { id, from, stage: to, notification };
   }
 

@@ -116,6 +116,24 @@ export function splitByScript(value: string): { latin: string; arabic: string } 
   };
 }
 
+let stampB64: string | null | undefined;
+/** Shop stamp + signature (assets/stamp.png, transparent PNG) printed in the "Le dépositaire" box. */
+function loadStamp(): string | null {
+  if (stampB64 !== undefined) return stampB64;
+  stampB64 = null;
+  for (const p of [join(process.cwd(), "assets", "stamp.png"), join(__dirname, "..", "..", "assets", "stamp.png"), join(__dirname, "..", "..", "..", "assets", "stamp.png")]) {
+    try {
+      if (fs.existsSync(p)) {
+        stampB64 = fs.readFileSync(p).toString("base64");
+        break;
+      }
+    } catch {
+      /* optional */
+    }
+  }
+  return stampB64;
+}
+
 function drawWatermark(doc: jsPDF.jsPDF, logo: string | null) {
   if (!logo) return;
   const anyDoc = doc as any;
@@ -355,6 +373,17 @@ export async function buildContractPdf(data: ContractPdfData): Promise<Buffer> {
   doc.setLineWidth(0.3);
   doc.rect(MARGIN, y + 7, boxW, 24);
   doc.rect(rightX, y + 7, boxW, 24);
+  // The shop's stamp + signature: the contract is signed by the dépositaire as soon as it is generated.
+  const stamp = loadStamp();
+  if (stamp) {
+    const sw = 58;
+    const sh = sw * (332 / 900);
+    try {
+      doc.addImage(`data:image/png;base64,${stamp}`, "PNG", MARGIN + (boxW - sw) / 2, y + 7 + (24 - sh) / 2, sw, sh, "stamp", "FAST");
+    } catch {
+      /* stamp unreadable → empty box, the shop signs by hand */
+    }
+  }
 
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {

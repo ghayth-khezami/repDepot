@@ -1,5 +1,11 @@
 import { addMonths, productSplit } from "../depot/depot.service";
 import { WALK_IN_EMAIL } from "../command/command.service";
+
+/** Shop position (Google Maps « Bébé dépôt by Mme Khezami »). Override with SHOP_LAT / SHOP_LNG. */
+const SHOP_POSITION = {
+  lat: Number(process.env.SHOP_LAT) || 36.8086383,
+  lng: Number(process.env.SHOP_LNG) || 10.076949,
+};
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -490,6 +496,8 @@ export class StatsService {
         status: cmd.status,
         pending: cmd.status === "NOT_DELIVERED" || cmd.status === "ACCEPTED",
         surPlace,
+        // In-shop sale: exactly on the shop's Google Maps pin.
+        ...(surPlace ? SHOP_POSITION : {}),
         client: surPlace
           ? "Achat sur place"
           : d?.client

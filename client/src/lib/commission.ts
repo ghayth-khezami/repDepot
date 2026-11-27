@@ -2,7 +2,7 @@
  * Allowed dépôt commissions (%).
  * MIRROR: server/src/common/commission.ts — keep both lists identical.
  */
-export const COMMISSION_VALUES = [5, 10, 15, 25, 30, 35, 40, 45, 50] as const;
+export const COMMISSION_VALUES = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50] as const;
 export const DEFAULT_COMMISSION = 25;
 
 export function isAllowedCommission(v: number) {

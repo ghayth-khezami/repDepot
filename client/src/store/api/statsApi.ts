@@ -94,6 +94,9 @@ export interface CommandLocation {
   pending?: boolean;
   /** In-shop sale ("Achat sur place"). */
   surPlace?: boolean;
+  /** Exact position when known (in-shop sales = the shop). */
+  lat?: number;
+  lng?: number;
 }
 
 export interface DepotKpis {

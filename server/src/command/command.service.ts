@@ -19,7 +19,7 @@ export const WALK_IN_EMAIL = "sur-place@bebedepot.local";
 /** Sets soldAt (first sale only) and the default payout status for dépôt products. */
 async function stampSold(tx: any, productIds: string[]) {
   if (!productIds.length) return;
-  publishProductStatusChangedLater({ productIds, to: "VENDU" });
+  publishProductStatusChangedLater({ productIds, to: "VENDU", source: "order" });
   await tx.product.updateMany({
     where: { id: { in: productIds }, soldAt: null },
     data: { soldAt: new Date() },

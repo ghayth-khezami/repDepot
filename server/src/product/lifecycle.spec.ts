@@ -55,10 +55,10 @@ describe("product lifecycle EN_VENTE → VENDU → PAYE", () => {
 
 describe("commission values", () => {
   it("only accepts the fixed list", async () => {
-    expect(COMMISSION_VALUES).toEqual([5, 10, 15, 25, 30, 35, 40, 45, 50]);
+    expect(COMMISSION_VALUES).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50]);
     expect(isAllowedCommission(25)).toBe(true);
-    expect(isAllowedCommission(20)).toBe(false);
-    const bad = plainToInstance(CreateProductDto, { depotPercentage: 20 });
+    expect(isAllowedCommission(22)).toBe(false);
+    const bad = plainToInstance(CreateProductDto, { depotPercentage: 22 });
     const errors = await validate(bad);
     expect(errors.find((e) => e.property === "depotPercentage")).toBeDefined();
     const good = plainToInstance(CreateProductDto, { depotPercentage: 30 });

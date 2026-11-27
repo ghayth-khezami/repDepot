@@ -6,18 +6,17 @@ import {
   Copy,
   Download,
   MessageCircle,
-  PenLine,
   Plus,
   Printer,
   Tags,
 } from 'lucide-react';
 import type { DepotContract } from '../../store/api/depotApi';
-import { useMarkDepotSignedMutation } from '../../store/api/depotApi';
 import { DEFAULT_CONTRACT_TERMS, useGetSiteSettingsAdminQuery } from '../../store/api/siteSettingsApi';
 import { ApiFileError, downloadAuthed, fetchAuthedBlob, printAuthedPdf } from '../../lib/download';
 import { useToast } from '../../context/ToastContext';
 import { Button, Card, InfoNote, Money, StatusChip, buttonClass, GradientIconTile } from '../../components/ui';
 import { cn } from '../../lib/cn';
+import stampUrl from '../../assets/stamp.png';
 
 const frDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const fmtPhone = (p: string) => p.replace(/^(\d{2})(\d{3})(\d{3})$/, '$1 $2 $3');
@@ -180,11 +179,13 @@ function ContractPaper({ c, qrUrl, terms }: { c: DepotContract; qrUrl: string | 
         {[
           ['Le dépositaire', '(Signature + cachet)'],
           ['Le déposant', '(Signature précédée de « lu et approuvé »)'],
-        ].map(([t, s]) => (
+        ].map(([t, s], i) => (
           <div key={t}>
             <p className="text-[12px] font-black">{t}</p>
             <p className="text-[10px] text-[#5A5878]">{s}</p>
-            <div className="mt-1.5 h-20 rounded-sm border border-[#3C3C3C]" />
+            <div className="mt-1.5 flex h-20 items-center justify-center rounded-sm border border-[#3C3C3C]">
+              {i === 0 ? <img src={stampUrl} alt="Cachet et signature Bébé Dépôt" className="max-h-[72px] w-auto max-w-[90%] object-contain" /> : null}
+            </div>
           </div>
         ))}
       </div>
@@ -196,7 +197,6 @@ export default function ContractView({ contract: c, justCreated, onFinish }: { c
   const { showToast } = useToast();
   const qrUrl = useAuthedObjectUrl(`/depots/${c.id}/qr.svg`);
   const { data: settings } = useGetSiteSettingsAdminQuery();
-  const [markSigned, { isLoading: signing }] = useMarkDepotSignedMutation();
   const [busy, setBusy] = useState<'print' | 'pdf' | 'labels' | 'share' | null>(null);
   const [refProblems, setRefProblems] = useState<Array<{ id: string; productName: string }> | null>(null);
   const terms = c.terms || settings?.contractTerms?.trim() || DEFAULT_CONTRACT_TERMS;
@@ -313,16 +313,6 @@ export default function ContractView({ contract: c, justCreated, onFinish }: { c
               <Link to={`/depots/${c.id}/articles`} className={buttonClass('secondary', 'sm')}>
                 <Plus size={16} aria-hidden /> Ajouter des articles
               </Link>
-              <Button
-                size="sm"
-                variant={c.signedAt ? 'success' : 'secondary'}
-                icon={PenLine}
-                loading={signing}
-                disabled={!!c.signedAt}
-                onClick={() => markSigned(c.id).unwrap().then(() => showToast('Contrat marqué comme signé', 'success'))}
-              >
-                {c.signedAt ? `Signé le ${frDate(c.signedAt)}` : 'Marquer signé'}
-              </Button>
             </div>
           </Card>
 
