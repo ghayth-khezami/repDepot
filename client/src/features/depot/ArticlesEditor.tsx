@@ -110,6 +110,36 @@ function CategorySelect({ value, onChange, error, id }: { value: string; onChang
   return <CategoryCombobox id={id} value={value} onChange={onChange} error={error} />;
 }
 
+/** Sous-catégorie + sous-sous-catégorie (optional, pick or create), under the category. */
+function SubCategoryFields({ item, patch, id, compact }: { item: DraftItem; patch: (p: Patch) => void; id: string; compact?: boolean }) {
+  return (
+    <div className={cn('grid gap-2', compact ? 'mt-1.5 grid-cols-1' : 'grid-cols-1 sm:grid-cols-2')}>
+      <div className="min-w-0">
+        {compact ? null : <label htmlFor={`${id}-sub`} className="mb-1 block text-xs font-extrabold text-bd-ink">Sous-catégorie <span className="font-semibold text-bd-muted">(optionnel)</span></label>}
+        <CategoryCombobox
+          id={`${id}-sub`}
+          level="sub"
+          parentId={item.categoryId || undefined}
+          value={item.subCategoryId ?? ''}
+          onChange={(subCategoryId) => patch({ subCategoryId, subSubCategory1Id: undefined })}
+          placeholder="Sous-catégorie (optionnel)"
+        />
+      </div>
+      <div className="min-w-0">
+        {compact ? null : <label htmlFor={`${id}-subsub`} className="mb-1 block text-xs font-extrabold text-bd-ink">Sous-sous-catégorie <span className="font-semibold text-bd-muted">(optionnel)</span></label>}
+        <CategoryCombobox
+          id={`${id}-subsub`}
+          level="subsub"
+          parentId={item.subCategoryId || undefined}
+          value={item.subSubCategory1Id ?? ''}
+          onChange={(subSubCategory1Id) => patch({ subSubCategory1Id })}
+          placeholder="Sous-sous-catégorie (optionnel)"
+        />
+      </div>
+    </div>
+  );
+}
+
 function NameInput({ value, onChange, error, id, label, placeholder }: { value: string; onChange: (v: string) => void; error?: string; id: string; label: string; placeholder: string }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
@@ -233,8 +263,9 @@ const DesktopRow = memo(function DesktopRow({ item, index, errors, canRemove, on
       </div>
       <div>
         <label htmlFor={`${id}-cat`} className="sr-only">Catégorie de l'article {index + 1}</label>
-        <CategorySelect id={`${id}-cat`} value={item.categoryId} onChange={(categoryId) => patch({ categoryId })} error={errors?.categoryId} />
+        <CategorySelect id={`${id}-cat`} value={item.categoryId} onChange={(categoryId) => patch({ categoryId, subCategoryId: undefined, subSubCategory1Id: undefined })} error={errors?.categoryId} />
         {errors?.categoryId ? <p className="mt-1 text-xs font-bold text-bd-danger">{errors.categoryId}</p> : null}
+        <SubCategoryFields item={item} patch={patch} id={id} compact />
       </div>
       <div>
         <PriceInput id={`${id}-price`} label={`Prix de l'article ${index + 1}`} value={item.price} onChange={(price) => patch({ price })} error={errors?.price} />
@@ -281,8 +312,11 @@ const MobileCard = memo(function MobileCard({ item, index, errors, canRemove, on
       </div>
       <div className="mt-3">
         <label htmlFor={`${id}-cat`} className="mb-1 block text-xs font-extrabold text-bd-ink">Catégorie</label>
-        <CategorySelect id={`${id}-cat`} value={item.categoryId} onChange={(categoryId) => patch({ categoryId })} error={errors?.categoryId} />
+        <CategorySelect id={`${id}-cat`} value={item.categoryId} onChange={(categoryId) => patch({ categoryId, subCategoryId: undefined, subSubCategory1Id: undefined })} error={errors?.categoryId} />
         {errors?.categoryId ? <p className="mt-1 text-xs font-bold text-bd-danger">{errors.categoryId}</p> : null}
+      </div>
+      <div className="mt-3">
+        <SubCategoryFields item={item} patch={patch} id={id} />
       </div>
       <div className="mt-3 grid grid-cols-[1fr_104px] gap-3">
         <div>

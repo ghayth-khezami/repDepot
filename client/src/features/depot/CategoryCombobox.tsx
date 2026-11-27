@@ -1,21 +1,66 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Loader2, Plus } from 'lucide-react';
 import { useCreateCategoryMutation, useGetCategoryHierarchyQuery } from '../../store/api/categoryApi';
+import { useCreateSubCategoryMutation } from '../../store/api/subCategoryApi';
+import { useCreateSubSubCategory1Mutation } from '../../store/api/subSubCategoryApi';
 import { apiErrorMessage, apiErrorPayload } from '../../lib/apiError';
 import { useToast } from '../../context/ToastContext';
 import { cn } from '../../lib/cn';
 
 const key = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
+type Level = 'category' | 'sub' | 'subsub';
+const NOUN: Record<Level, string> = { category: 'Catégorie', sub: 'Sous-catégorie', subsub: 'Sous-sous-catégorie' };
+
 /**
- * Searchable category picker. No match → "+ Créer « xyz »" creates it (POST /categories) and selects it.
- * Duplicates (case / accents) are refused by the API, which returns the existing one — we select that.
+ * Searchable picker for a category, a sous-catégorie (of `parentId`) or a sous-sous-catégorie (of the
+ * sous-catégorie `parentId`). No match → "+ Créer « xyz »" creates it and selects it.
+ * Duplicate categories (case / accents) are refused by the API, which returns the existing one — selected.
  */
-export default function CategoryCombobox({ value, onChange, error, id }: { value: string; onChange: (id: string) => void; error?: string; id?: string }) {
+export default function CategoryCombobox({
+  value,
+  onChange,
+  error,
+  id,
+  level = 'category',
+  parentId,
+  placeholder,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  error?: string;
+  id?: string;
+  level?: Level;
+  parentId?: string;
+  placeholder?: string;
+}) {
   const autoId = useId();
   const listId = `${autoId}-list`;
-  const { data, isLoading } = useGetCategoryHierarchyQuery();
-  const [create, { isLoading: creating }] = useCreateCategoryMutation();
+  const { data: tree, isLoading } = useGetCategoryHierarchyQuery();
+  const [createCat, { isLoading: creatingCat }] = useCreateCategoryMutation();
+  const [createSub, { isLoading: creatingSub }] = useCreateSubCategoryMutation();
+  const [createSubSub, { isLoading: creatingSubSub }] = useCreateSubSubCategory1Mutation();
+  const creating = creatingCat || creatingSub || creatingSubSub;
+  const disabled = level !== 'category' && !parentId;
+  // Same { id, categoryName } shape for the three levels.
+  const data = useMemo(() => {
+    if (level === 'category') return (tree ?? []).map((c) => ({ id: c.id, categoryName: c.categoryName }));
+    if (level === 'sub') return (tree?.find((c) => c.id === parentId)?.subCategories ?? []).map((sc) => ({ id: sc.id, categoryName: sc.title }));
+    const sc = (tree ?? []).flatMap((c) => c.subCategories ?? []).find((x) => x.id === parentId);
+    return (sc?.subSubCategories1 ?? []).map((ss) => ({ id: ss.id, categoryName: ss.title }));
+  }, [tree, level, parentId]);
+  const create = async (name: string): Promise<{ id: string; categoryName: string }> => {
+    if (level === 'category') {
+      const c = await createCat({ data: { categoryName: name } }).unwrap();
+      return { id: c.id, categoryName: c.categoryName };
+    }
+    if (level === 'sub') {
+      const c = await createSub({ title: name, categoryId: parentId! }).unwrap();
+      return { id: c.id, categoryName: c.title };
+    }
+    const c = await createSubSub({ title: name, subCategoryId: parentId! }).unwrap();
+    return { id: c.id, categoryName: c.title };
+  };
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -46,9 +91,9 @@ export default function CategoryCombobox({ value, onChange, error, id }: { value
       return;
     }
     try {
-      const c = await create({ data: { categoryName: o.label } }).unwrap();
+      const c = await create(o.label);
       onChange(c.id);
-      showToast(`Catégorie « ${c.categoryName} » créée`, 'success');
+      showToast(`${NOUN[level]} « ${c.categoryName} » créée`, 'success');
     } catch (e) {
       const existing = apiErrorPayload<{ existing?: { id: string; categoryName: string } }>(e)?.existing;
       if (existing) {
@@ -71,7 +116,8 @@ export default function CategoryCombobox({ value, onChange, error, id }: { value
         aria-invalid={error ? true : undefined}
         data-dictation="off"
         value={open ? q : (current?.categoryName ?? '')}
-        placeholder={isLoading ? 'Chargement…' : 'Catégorie…'}
+        disabled={disabled}
+        placeholder={isLoading ? 'Chargement…' : disabled ? (level === 'sub' ? "Choisissez d'abord la catégorie" : "Choisissez d'abord la sous-catégorie") : (placeholder ?? `${NOUN[level]}…`)}
         onFocus={() => {
           setOpen(true);
           setQ('');
@@ -88,7 +134,7 @@ export default function CategoryCombobox({ value, onChange, error, id }: { value
           else if (e.key === 'Enter' && open && options[active]) (e.preventDefault(), void choose(options[active]));
           else if (e.key === 'Escape') setOpen(false);
         }}
-        className={cn('bd-input pr-9', error && 'border-bd-danger')}
+        className={cn('bd-input pr-9 disabled:opacity-60', error && 'border-bd-danger')}
       />
       {creating ? (
         <Loader2 size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-bd-muted" aria-hidden />
@@ -117,7 +163,7 @@ export default function CategoryCombobox({ value, onChange, error, id }: { value
               </li>
             ))
           ) : (
-            <li className="px-3 py-3 text-sm font-bold text-bd-muted">Tapez un nom pour créer une catégorie.</li>
+            <li className="px-3 py-3 text-sm font-bold text-bd-muted">Tapez un nom pour créer une {NOUN[level].toLowerCase()}.</li>
           )}
         </ul>
       ) : null}

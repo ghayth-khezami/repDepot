@@ -29,6 +29,8 @@ export interface DepotItemInput {
   price: number;
   commissionPercent: number;
   categoryId: string;
+  subCategoryId?: string;
+  subSubCategory1Id?: string;
   photos?: string[];
   /** Date de dépôt de cet article (YYYY-MM-DD). */
   depositDate?: string;

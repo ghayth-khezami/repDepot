@@ -158,6 +158,8 @@ function AddArticles({ id, contractNumber, deposantName, existing, createdAt }: 
           commissionPercent: it.commission,
           depositDate: it.depositDate || undefined,
           categoryId: it.categoryId,
+          subCategoryId: it.subCategoryId || undefined,
+          subSubCategory1Id: it.subSubCategory1Id || undefined,
           photos: it.photos.length ? it.photos : undefined,
         })),
       }).unwrap();
