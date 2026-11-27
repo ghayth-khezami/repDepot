@@ -270,19 +270,38 @@ export async function buildContractPdf(data: ContractPdfData): Promise<Buffer> {
     `${amount(it.shopMillimes)} (${it.commissionPercent}%)`,
     amount(it.depositorMillimes),
   ]);
+  // Few articles: blank lines to fill the sheet. Many: the table continues on the next pages
+  // (header repeated, "suite" title) and the TOTAL is always on the last page, under the last article.
   const blankRows = Math.max(0, MIN_ROWS - rows.length);
   const allRows = [...rows, ...Array.from({ length: blankRows }, () => ["", "", "", "", "", ""])];
+  const TABLE_BOTTOM = 270;
+  let pageNo = 1;
+  const continueOnNewPage = () => {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text(`Suite de la fiche de dépôt page ${pageNo + 1}`, PAGE_W - MARGIN, y + 4, { align: "right" });
+    doc.addPage();
+    pageNo += 1;
+    drawWatermark(doc, logo);
+    y = drawHeader(doc, data) + 8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...INK);
+    doc.text(`FICHE DE DÉPÔT (suite — page ${pageNo})`, PAGE_W / 2, y, { align: "center" });
+    y += 4;
+    y = drawTableHeader(doc, y);
+  };
 
-  for (const r of allRows) {
-    if (y + ROW_H > 262) {
-      doc.addPage();
-      drawWatermark(doc, logo);
-      y = drawHeader(doc, data) + 8;
-      y = drawTableHeader(doc, y);
-    }
+  allRows.forEach((r, i) => {
+    // The last real article keeps room for the total row under it.
+    const isLast = i === allRows.length - 1;
+    const need = ROW_H + (isLast ? ROW_H : 0);
+    if (y + need > TABLE_BOTTOM) continueOnNewPage();
     drawRow(doc, y, r);
     y += ROW_H;
-  }
+  });
+  if (y + ROW_H > TABLE_BOTTOM) continueOnNewPage();
   drawRow(
     doc,
     y,
