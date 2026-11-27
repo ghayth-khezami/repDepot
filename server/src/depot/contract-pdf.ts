@@ -376,8 +376,15 @@ export async function buildContractPdf(data: ContractPdfData): Promise<Buffer> {
   // The shop's stamp + signature: the contract is signed by the dépositaire as soon as it is generated.
   const stamp = loadStamp();
   if (stamp) {
-    const sw = 58;
-    const sh = sw * (332 / 900);
+    // Real proportions from the PNG header (width / height at bytes 16–23).
+    const png = Buffer.from(stamp, "base64");
+    const ratio = png.length > 24 ? png.readUInt32BE(20) / png.readUInt32BE(16) : 0.36;
+    let sw = 60;
+    let sh = sw * ratio;
+    if (sh > 21) {
+      sh = 21;
+      sw = sh / ratio;
+    }
     try {
       doc.addImage(`data:image/png;base64,${stamp}`, "PNG", MARGIN + (boxW - sw) / 2, y + 7 + (24 - sh) / 2, sw, sh, "stamp", "FAST");
     } catch {

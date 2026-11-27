@@ -221,7 +221,7 @@ export default function DepotContractPage({ mode = 'view' }: { mode?: 'view' | '
 
   return (
     <div className="bd-ui w-full space-y-5">
-      <header className={cn('flex flex-wrap items-center justify-between gap-3', mode === 'add' && '-mt-[66px] pl-[54px] pr-[54px] md:mt-0 md:px-0')}>
+      <header className={cn('flex flex-wrap items-center justify-between gap-3', mode === 'add' && '-mt-[66px] pl-[54px] pr-[104px] md:mt-0 md:px-0')}>
         <div className="min-w-0">
           <Link to={mode === 'add' ? `/depots/${id}` : '/deposit-requests'} className={buttonClass('ghost', 'sm', '-ml-3 mb-1')}>
             <ArrowLeft size={16} aria-hidden /> {mode === 'add' ? 'Retour au contrat' : 'Demandes de dépôt'}

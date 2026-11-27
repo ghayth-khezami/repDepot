@@ -297,6 +297,7 @@ export class DepotService {
             depositRequestId: true,
             category: { select: { categoryName: true } },
             photos: { select: { photoDoc: true }, take: 1 },
+            _count: { select: { commandDetails: true } },
           },
         },
         depositRequests: {
@@ -349,6 +350,7 @@ export class DepotService {
         createdAt: p.createdAt,
         contractId: p.depositRequestId,
         photo: p.photos[0]?.photoDoc ?? null,
+        inOrder: p._count.commandDetails > 0,
       })),
       totals,
     };

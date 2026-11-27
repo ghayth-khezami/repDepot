@@ -81,6 +81,7 @@ export default function StageControl({
   size = 'md',
   onChanged,
   variant = 'chip',
+  inOrder,
 }: {
   productId: string;
   stage: ProductStage;
@@ -89,12 +90,15 @@ export default function StageControl({
   onChanged?: (s: ProductStage) => void;
   /** "action": one big button for the next step (Marquer comme vendu → Marquer comme payé). */
   variant?: 'chip' | 'action';
+  /** Already part of an order? If not, "Vendu" and "Payé" both ask for the order (commande / sur place). */
+  inOrder?: boolean;
 }) {
   const [local, setLocal] = useState<ProductStage | null>(null);
   const [open, setOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   /** After "Vendu": what kind of sale? (order to deliver / in-shop sale / later) */
   const [nextStep, setNextStep] = useState(false);
+  const [nextTitle, setNextTitle] = useState('Article vendu 🎉 Et maintenant ?');
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [createSurPlace, { isLoading: creatingSale }] = useCreateSurPlaceCommandMutation();
   const navigate = useNavigate();
@@ -120,7 +124,11 @@ export default function StageControl({
       },
       onDone: () => setLocal(null),
     });
-    if (to === 'VENDU') setNextStep(true);
+    // Same flow for "Vendu" and "Payé": the sale must have its order (delivery or in-shop sale).
+    if ((to === 'VENDU' || to === 'PAYE') && !inOrder) {
+      setNextTitle(to === 'PAYE' ? 'Article payé ✅ Et la vente ?' : 'Article vendu 🎉 Et maintenant ?');
+      setNextStep(true);
+    }
   };
 
   const sellInShop = async () => {
@@ -230,7 +238,7 @@ export default function StageControl({
         )}
       </BottomSheet>
 
-      <BottomSheet open={nextStep} onClose={() => setNextStep(false)} title="Article vendu 🎉 Et maintenant ?">
+      <BottomSheet open={nextStep} onClose={() => setNextStep(false)} title={nextTitle}>
         <div className="space-y-2">
           <button
             type="button"

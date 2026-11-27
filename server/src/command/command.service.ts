@@ -12,6 +12,7 @@ import { PaginatedResponse } from "../common/dto/pagination.dto";
 import { sanitizePlainText } from "../common/utils/sanitize-text";
 import { SiteSettingsService } from "../site-settings/site-settings.service";
 import { SurPlaceCommandDto } from "./dto/sur-place-command.dto";
+import { CustomerGateway } from "../notification/customer.gateway";
 
 /** Shared client used for in-shop sales ("Achat sur place"). */
 export const WALK_IN_EMAIL = "sur-place@bebedepot.local";
@@ -36,6 +37,7 @@ export class CommandService {
     private prisma: PrismaService,
     private notificationService: NotificationService,
     private siteSettings: SiteSettingsService,
+    private customers: CustomerGateway,
   ) {}
 
   private async resolvePricing(productIds: string[]) {
@@ -138,7 +140,7 @@ export class CommandService {
       createCommandDto;
     const pricing = await this.resolvePricing(productIds);
 
-    return this.persistCommandInTx(this.prisma, {
+    const created = await this.persistCommandInTx(this.prisma, {
       productIds,
       clientId,
       guestClient,
@@ -150,6 +152,8 @@ export class CommandService {
       productsNumber: pricing.productsNumber,
       status: createCommandDto.status ?? CommandStatus.NOT_DELIVERED,
     });
+    if (created) void this.notificationService.emailCommandCreated(created as never);
+    return created;
   }
 
   /** In-shop sale: "Client sur place", shop address, delivered immediately, dated `date` (default now). */
@@ -177,6 +181,7 @@ export class CommandService {
     if (command) {
       await this.prisma.command.update({ where: { id: command.id }, data: { createdAt: when, acceptedAt: when, deliveredAt: when } });
       await this.prisma.product.updateMany({ where: { id: { in: productIds } }, data: { soldAt: when } });
+      void this.notificationService.emailCommandCreated(command as never, "Achat sur place (boutique)");
     }
     return command;
   }
@@ -519,7 +524,7 @@ export class CommandService {
       }
     }
 
-    return this.prisma.command.update({
+    const updated = await this.prisma.command.update({
       where: { id },
       data,
       include: {
@@ -536,6 +541,9 @@ export class CommandService {
         },
       },
     });
+    // The customer's "Mes commandes" page updates live (status, address, date).
+    void this.customers.orderChanged(id);
+    return updated;
   }
 
   /** Annulée: the articles go back on sale (unless the déposant was already paid for them). */
@@ -555,6 +563,7 @@ export class CommandService {
       await tx.command.update({ where: { id }, data: { status: CommandStatus.CANCELLED, cancelledAt: new Date() } });
       return ids;
     });
+    void this.customers.orderChanged(id);
     if (released.length) publishProductStatusChangedLater({ productIds: released, to: "EN_VENTE" }, 100);
     return this.findOne(id);
   }

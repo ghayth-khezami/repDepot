@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { io, type Socket } from 'socket.io-client';
 import { Bell, BellOff, BellRing, CheckCheck, ChevronRight, Inbox, MapPin, Package, PackagePlus, Phone, ShoppingCart, Smartphone, UserRound, Wallet, X } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { adminPushState, disableAdminPush, enableAdminPush, type PushState } from '../lib/adminPush';
@@ -14,7 +13,8 @@ import {
   type AdminNotification,
 } from '../store/api/notificationApi';
 import { baseApi } from '../store/api/baseApi';
-import { getApiOrigin, uploadUrl } from '../lib/apiBase';
+import { uploadUrl } from '../lib/apiBase';
+import { acquireAdminSocket, releaseAdminSocket } from '../lib/adminSocket';
 import { cn } from '../lib/cn';
 
 const timeAgo = (iso: string) => {
@@ -38,15 +38,9 @@ function useLiveNotifications(onIncoming: (n: AdminNotification) => void) {
   const cb = useRef(onIncoming);
   cb.current = onIncoming;
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    const socket: Socket = io(`${getApiOrigin()}/notifications`, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnectionDelay: 2000,
-      reconnectionDelayMax: 30000,
-    });
-    socket.on('notification', (n: AdminNotification) => {
+    if (!localStorage.getItem('token')) return;
+    const socket = acquireAdminSocket(); // shared: one connection for the whole app
+    const onNotification = (n: AdminNotification) => {
       dispatch(
         notificationApi.util.updateQueryData('getNotifications', undefined, (draft) => {
           if (draft.data.some((x) => x.id === n.id)) return;
@@ -58,11 +52,15 @@ function useLiveNotifications(onIncoming: (n: AdminNotification) => void) {
       // The lists behind the notification are stale now.
       dispatch(baseApi.util.invalidateTags(n.type === 'COMMAND_CREATED' ? ['Command', 'Product'] : n.type === 'PAYMENT_REQUEST' ? ['PaymentRequest'] : ['DepositRequest']));
       cb.current(n);
-    });
-    // After a reconnection, resync whatever was missed.
-    socket.io.on('reconnect', () => dispatch(baseApi.util.invalidateTags(['Notification'])));
+    };
+    // After a reconnection (phone asleep, network back), resync once whatever was missed.
+    const onReconnect = () => dispatch(baseApi.util.invalidateTags(['Notification', 'PaymentRequest']));
+    socket.on('notification', onNotification);
+    socket.io.on('reconnect', onReconnect);
     return () => {
-      socket.disconnect();
+      socket.off('notification', onNotification);
+      socket.io.off('reconnect', onReconnect);
+      releaseAdminSocket();
     };
   }, [dispatch]);
 }
@@ -161,7 +159,8 @@ export default function NotificationCenter({ className }: { className?: string }
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [popups, setPopups] = useState<AdminNotification[]>([]);
-  const { data, isLoading, isError } = useGetNotificationsQuery(undefined, { pollingInterval: 5 * 60_000 });
+  // Loaded once; then kept up to date by the websocket (no polling).
+  const { data, isLoading, isError } = useGetNotificationsQuery(undefined, { refetchOnFocus: false, refetchOnReconnect: false });
   const [markRead] = useMarkNotificationReadMutation();
   const [markAll] = useMarkAllNotificationsReadMutation();
   const unread = data?.meta.unreadCount ?? 0;

@@ -54,7 +54,7 @@ export default function PhotoSlots({
                   type="button"
                   onClick={() => onRemove(s.key)}
                   aria-label={`Retirer la photo ${i + 1}`}
-                  className="bd-focus absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-bd-danger shadow active:scale-90"
+                  className="bd-focus absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-bd-surface/95 text-bd-danger shadow active:scale-90"
                 >
                   <X size={16} strokeWidth={2.6} aria-hidden />
                 </button>

@@ -113,7 +113,7 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
       {feed.isLoading ? (
         <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[72px]" />)}</div>
       ) : rows.length ? (
-        <ul className={cn('grid gap-2 transition-opacity lg:grid-cols-2 2xl:grid-cols-3', feed.isFetching && !feed.isFetchingNextPage && 'opacity-60')}>
+        <ul className={cn('grid grid-cols-1 gap-2 transition-opacity lg:grid-cols-2 2xl:grid-cols-3', feed.isFetching && !feed.isFetchingNextPage && 'opacity-60')}>
           {visible.map((r) => {
             const n = r._count?.products ?? 0;
             return (

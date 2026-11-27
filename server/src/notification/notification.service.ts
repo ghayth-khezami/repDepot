@@ -98,6 +98,25 @@ ${amount} — le ${day}
 ${input.articles.length} article(s) : ${input.articles.join(", ")}`);
   }
 
+  /** Email only (orders created in the backoffice / sur place: no bell, you made them yourself). */
+  async emailCommandCreated(command: Parameters<NotificationService["notifyCommandCreated"]>[0], label?: string) {
+    const detail = command.commandDetails?.find((d) => d.client) ?? command.commandDetails?.[0];
+    const clientName = label ?? (detail?.client ? `${detail.client.firstName} ${detail.client.lastName}`.trim() : "Client");
+    const names = (command.commandDetails ?? []).map((d) => d.product?.productName).filter(Boolean) as string[];
+    const productImage = command.commandDetails?.find((d) => d.product?.photos?.[0])?.product?.photos?.[0]?.photoDoc;
+    await this.emailService
+      .sendOrderNotification({
+        clientName,
+        productName: names.length ? names.join(", ") : `${command.productsNumber} article(s)`,
+        price: command.PrixVente,
+        address: command.adresseLivraison,
+        orderId: command.id,
+        productImage,
+        createdAt: command.createdAt,
+      })
+      .catch((e) => this.logger.warn(`Order email failed: ${(e as Error).message}`));
+  }
+
   async notifyDepositRequestCreated(request: DepositRequest) {
     const title = "Nouvelle demande de dépôt";
     const body = `${request.fullName} · ${request.proposedPrice.toFixed(3)} TND`;

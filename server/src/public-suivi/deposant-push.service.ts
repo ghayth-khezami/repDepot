@@ -85,7 +85,8 @@ export class DeposantPushService implements OnModuleInit, OnModuleDestroy {
         isDepot: true,
         coclientId: { not: null },
         status: ProductStatus.VENDU,
-        ...(event === "PAYE" ? { payoutStatus: PayoutStatus.PAYE } : {}),
+        // "Vendu, venez chercher votre argent" makes no sense once he has been paid.
+        ...(event === "PAYE" ? { payoutStatus: PayoutStatus.PAYE } : { OR: [{ payoutStatus: null }, { payoutStatus: PayoutStatus.A_PERCEVOIR }] }),
         [marker]: null,
       },
       select: {

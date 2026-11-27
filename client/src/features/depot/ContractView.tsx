@@ -63,7 +63,7 @@ function ContractPaper({ c, qrUrl, terms }: { c: DepotContract; qrUrl: string | 
   return (
     <article
       aria-label={`Aperçu du contrat ${c.contractNumber}`}
-      className="mx-auto w-full max-w-[820px] rounded-2xl bg-white p-5 text-[13px] text-[#1E1B4B] shadow-[0_20px_60px_rgba(76,29,149,0.14)] ring-1 ring-black/5 sm:p-10 lg:min-h-[1100px]"
+      className="bd-paper mx-auto w-full max-w-[820px] rounded-2xl bg-white p-5 text-[13px] text-[#1E1B4B] shadow-[0_20px_60px_rgba(76,29,149,0.14)] ring-1 ring-black/5 sm:p-10 lg:min-h-[1100px]"
     >
       <header className="border-b-2 border-[#1E1B4B] pb-3 text-center">
         <p className="text-lg font-black tracking-wide sm:text-xl">BÉBÉ-DÉPÔT — BY MME KHEZAMI</p>

@@ -35,6 +35,8 @@
   --bd-grad-purple: linear-gradient(135deg, #9333EA 0%, #C084FC 100%);
   --bd-grad-rose: linear-gradient(135deg, #F43F5E 0%, #EC4899 100%);
   --bd-grad-green: linear-gradient(135deg, #16A34A 0%, #4ADE80 100%);
+  /* Text-bearing green (white text ≥ 4.5:1): "Marquer comme vendu", "Paiement remis"… */
+  --bd-grad-green-strong: linear-gradient(135deg, #15803D 0%, #16A34A 100%);
   --bd-grad-gray: linear-gradient(135deg, #9CA3AF 0%, #D1D5DB 100%);
   --bd-grad-brand: linear-gradient(160deg, #6D28D9 0%, #8B5CF6 55%, #A78BFA 100%);
 
@@ -497,3 +499,56 @@ html, body { overflow-x: hidden; }
 .bd-scan-frame.is-hit .bd-scan-laser { background: #22c55e; box-shadow: 0 0 16px 6px rgba(34, 197, 94, 0.7); }
 @keyframes bd-scan-sweep { from { top: 10%; } to { top: 88%; } }
 @media (prefers-reduced-motion: reduce) { .bd-scan-laser { animation: none; top: 50%; } }
+
+/* ───────── Dark mode for the legacy screens & forms ─────────
+   Old pages / modals (.bo-page, outside the new .bd-ui kit) hard-code light-theme greys and pastel
+   colours; in dark mode they follow the theme tokens so every text stays readable.
+   The contract sheet (.bd-paper) keeps its white paper look. */
+html.dark .bo-page :is(.text-gray-900, .text-gray-800, .text-gray-700, .text-slate-900, .text-slate-800, .text-slate-700, .text-black):not(.bd-ui *, .bd-paper *) {
+  color: rgb(var(--bd-ink));
+}
+html.dark .bo-page :is(.text-gray-600, .text-gray-500, .text-gray-400, .text-slate-600, .text-slate-500):not(.bd-ui *, .bd-paper *) {
+  color: rgb(var(--bd-muted));
+}
+html.dark .bo-page :is(.text-rose-700, .text-rose-800, .text-rose-900, .text-pink-600, .text-pink-700, .text-primary-600, .text-primary-700):not(.bd-ui *, .bd-paper *) {
+  color: rgb(var(--bd-pink-strong));
+}
+html.dark .bo-page :is(.text-red-600, .text-red-700, .text-red-800):not(.bd-ui *, .bd-paper *) {
+  color: rgb(var(--bd-danger));
+}
+html.dark .bo-page :is(.text-green-600, .text-green-700, .text-green-800, .text-emerald-700, .text-emerald-800):not(.bd-ui *, .bd-paper *) {
+  color: rgb(var(--bd-success));
+}
+html.dark .bo-page :is(.text-blue-600, .text-blue-700, .text-blue-800, .text-violet-700, .text-purple-700):not(.bd-ui *, .bd-paper *) {
+  color: rgb(var(--bd-violet-strong));
+}
+html.dark .bo-page :is(.text-amber-800, .text-amber-900, .text-orange-800, .text-yellow-800):not(.bd-ui *, .bd-paper *) {
+  color: rgb(var(--bd-amber-ink));
+}
+html.dark .bo-page :is(.bg-white, .bg-gray-50, .bg-slate-50):not(.bd-ui *, .bd-paper, .bd-paper *) {
+  background-color: rgb(var(--bd-surface));
+}
+html.dark .bo-page :is(.bg-gray-100, .bg-gray-200, .bg-slate-100):not(.bd-ui *, .bd-paper *) {
+  background-color: rgb(var(--bd-lilac) / 0.6);
+}
+html.dark .bo-page :is(.bg-rose-50, .bg-pink-50, .bg-pink-100, .bg-rose-100):not(.bd-ui *, .bd-paper *) {
+  background-color: rgb(var(--bd-blush));
+}
+html.dark .bo-page :is(.bg-amber-50, .bg-yellow-50, .bg-orange-50):not(.bd-ui *, .bd-paper *) {
+  background-color: rgb(120 53 15 / 0.35);
+}
+html.dark .bo-page :is(.bg-emerald-50, .bg-green-50):not(.bd-ui *, .bd-paper *) {
+  background-color: rgb(var(--bd-success-bg));
+}
+html.dark .bo-page :is(.bg-red-50):not(.bd-ui *, .bd-paper *) {
+  background-color: rgb(var(--bd-danger-bg));
+}
+html.dark .bo-page :is(.bg-blue-50, .bg-violet-50, .bg-purple-50):not(.bd-ui *, .bd-paper *) {
+  background-color: rgb(var(--bd-lilac) / 0.6);
+}
+html.dark .bo-page :is(.border-gray-100, .border-gray-200, .border-gray-300, .border-rose-100, .border-rose-200, .border-pink-200, .border-amber-200, .border-red-200, .border-slate-200):not(.bd-ui *, .bd-paper *) {
+  border-color: rgb(var(--bd-line) / 0.22);
+}
+html.dark .bo-page :is(.divide-y, .divide-gray-100, .divide-gray-200) > :not(:first-child):not(.bd-ui *, .bd-paper *) {
+  border-color: rgb(var(--bd-line) / 0.18);
+}

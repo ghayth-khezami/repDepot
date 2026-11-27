@@ -105,6 +105,7 @@ export default {
         // Text-bearing (buttons, active pills): darker stops so white text stays ≥ 4.5:1.
         'grad-pink-strong': 'var(--bd-grad-pink-strong)',
         'grad-violet-strong': 'var(--bd-grad-violet-strong)',
+        'grad-green-strong': 'var(--bd-grad-green-strong)',
         'grad-brand': 'var(--bd-grad-brand)',
       },
       transitionDuration: {

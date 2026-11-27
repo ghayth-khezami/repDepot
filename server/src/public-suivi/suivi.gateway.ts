@@ -21,7 +21,7 @@ const room = (contractId: string) => `contract:${contractId}`;
 @WebSocketGateway({
   namespace: "/suivi",
   cors: { origin: true, credentials: false },
-  transports: ["websocket", "polling"],
+  transports: ["websocket"],
 })
 export class SuiviGateway implements OnGatewayConnection, OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SuiviGateway.name);

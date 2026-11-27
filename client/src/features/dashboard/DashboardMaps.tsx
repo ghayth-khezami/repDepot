@@ -179,7 +179,7 @@ function MapCard({
           <div className="relative h-80 overflow-hidden rounded-2xl bg-bd-lilac/40 sm:h-[26rem]">
             {!full ? <PointsMap points={points} full={false} /> : null}
             {!done ? (
-              <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[450] rounded-2xl bg-white/95 p-3 shadow-card" role="status">
+              <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[450] rounded-2xl bg-bd-surface/95 p-3 shadow-card" role="status">
                 <p className="mb-1.5 flex items-center gap-2 text-xs font-extrabold text-bd-ink">
                   <span className="bd-map-loader" aria-hidden /> Chargement de la carte… {loaded}/{total || '…'}
                 </p>
@@ -191,7 +191,7 @@ function MapCard({
             <button
               type="button"
               onClick={() => setFull(true)}
-              className="bd-focus absolute right-3 top-3 z-[450] inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-white/95 px-3 text-sm font-extrabold text-bd-ink shadow-card active:scale-95"
+              className="bd-focus absolute right-3 top-3 z-[450] inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-bd-surface/95 px-3 text-sm font-extrabold text-bd-ink shadow-card active:scale-95"
             >
               <Maximize2 size={16} aria-hidden /> Plein écran
             </button>
@@ -204,7 +204,7 @@ function MapCard({
             <div className="bd-ui fixed inset-0 z-[88] bg-bd-bg" role="dialog" aria-modal="true" aria-label={title}>
               <PointsMap points={points} full />
               <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex items-start justify-between gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-                <div className="pointer-events-auto rounded-2xl bg-white/95 px-3 py-2 shadow-card">
+                <div className="pointer-events-auto rounded-2xl bg-bd-surface/95 px-3 py-2 shadow-card">
                   <p className="text-sm font-extrabold text-bd-ink">{title} · {total}</p>
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold text-bd-muted">{legend}</div>
                 </div>

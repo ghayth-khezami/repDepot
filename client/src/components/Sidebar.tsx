@@ -5,8 +5,6 @@ import {
   FolderTree,
   ShoppingCart,
   LogOut,
-  Moon,
-  Sun,
   Menu,
   X,
   Clock,
@@ -23,7 +21,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { cn } from '../lib/cn';
 import { Illustration } from './ui';
 import InstallAppButton from './InstallAppButton';
@@ -87,7 +84,6 @@ const Sidebar = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const inMore = moreItems.some((i) => isNavActive(location.pathname, i.path));
   const [moreOpen, setMoreOpen] = useState(inMore);
   useEffect(() => {
@@ -148,15 +144,6 @@ const Sidebar = () => {
         <div className="relative space-y-1 border-t border-bd-line/10 p-3">
           <Illustration name="teddy" className="pointer-events-none absolute -top-14 right-3 h-14 w-14 opacity-90" />
           <InstallAppButton />
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="bd-focus flex min-h-[44px] w-full items-center gap-3 rounded-full px-4 font-bold text-bd-ink transition hover:bg-bd-lilac/60"
-            aria-pressed={isDark}
-          >
-            {isDark ? <Sun className="h-5 w-5 text-bd-violet" /> : <Moon className="h-5 w-5 text-bd-violet" />}
-            <span>{isDark ? 'Mode clair' : 'Mode sombre'}</span>
-          </button>
           <button
             type="button"
             onClick={logout}

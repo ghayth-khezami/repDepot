@@ -61,12 +61,12 @@ export class NewDeposantDto {
   @MaxLength(160)
   email?: string;
 
-  @ApiPropertyOptional()
+  @ApiProperty({ description: "Adresse (obligatoire)" })
   @Transform(trimOrUndef)
-  @IsOptional()
-  @IsString()
+  @IsString({ message: "L'adresse est obligatoire." })
+  @MinLength(3, { message: "L'adresse est obligatoire." })
   @MaxLength(300)
-  address?: string;
+  address: string;
 
   @ApiPropertyOptional()
   @IsOptional()

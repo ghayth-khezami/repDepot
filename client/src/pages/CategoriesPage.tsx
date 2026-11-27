@@ -168,7 +168,7 @@ const CategoriesPage = () => {
           {isLoading ? (
             <div className="grid gap-2 md:grid-cols-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[76px] md:h-56" />)}</div>
           ) : rows.length ? (
-            <ul className="grid gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-3 2xl:grid-cols-4">
+            <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-3 2xl:grid-cols-4">
               {visible.map((row) =>
                 isDesktop ? (
                   <li key={row.id} className="bd-anim-fade-up group flex flex-col overflow-hidden rounded-3xl border border-bd-line/10 bg-bd-surface shadow-card transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(76,29,149,0.16)]">

@@ -133,6 +133,40 @@ export default function DeposantStep({
             fieldClassName="sm:max-w-sm"
           />
 
+          <div>
+            <TextField
+              label="Adresse"
+              required
+              error={errors.address}
+              icon={MapPin}
+              autoComplete="street-address"
+              value={d.address}
+              onChange={(e) => dispatch({ type: 'deposant', patch: { address: e.target.value, lat: undefined, lng: undefined } })}
+            />
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              className="bd-focus mt-2 inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-2 text-sm font-extrabold text-bd-violet-strong hover:underline"
+              aria-expanded={showMap}
+            >
+              <MapPin size={16} aria-hidden /> {showMap ? 'Masquer la carte' : 'Choisir sur la carte'}
+            </button>
+            {showMap ? (
+              <div className="mt-3 overflow-hidden rounded-2xl border border-bd-line/10 bg-bd-surface p-3">
+                <Suspense fallback={<Skeleton className="h-72" />}>
+                  <AddressMapSelector
+                    value={d.address}
+                    onChange={(address, lat, lng) => dispatch({ type: 'deposant', patch: { address, lat, lng } })}
+                    onPositionConfirm={(lat, lng) => {
+                      dispatch({ type: 'deposant', patch: { lat, lng } });
+                      setShowMap(false);
+                    }}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
+          </div>
+
           {duplicate ? (
             <InfoNote icon={AlertTriangle} tone="amber">
               <p>
@@ -193,38 +227,6 @@ export default function DeposantStep({
               className="tabular-nums"
             />
           </div>
-          <div>
-            <TextField
-              label="Adresse"
-              icon={MapPin}
-              autoComplete="street-address"
-              value={d.address}
-              onChange={(e) => dispatch({ type: 'deposant', patch: { address: e.target.value, lat: undefined, lng: undefined } })}
-            />
-            <button
-              type="button"
-              onClick={() => setShowMap((v) => !v)}
-              className="bd-focus mt-2 inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-2 text-sm font-extrabold text-bd-violet-strong hover:underline"
-              aria-expanded={showMap}
-            >
-              <MapPin size={16} aria-hidden /> {showMap ? 'Masquer la carte' : 'Choisir sur la carte'}
-            </button>
-            {showMap ? (
-              <div className="mt-3 overflow-hidden rounded-2xl border border-bd-line/10 bg-bd-surface p-3">
-                <Suspense fallback={<Skeleton className="h-72" />}>
-                  <AddressMapSelector
-                    value={d.address}
-                    onChange={(address, lat, lng) => dispatch({ type: 'deposant', patch: { address, lat, lng } })}
-                    onPositionConfirm={(lat, lng) => {
-                      dispatch({ type: 'deposant', patch: { lat, lng } });
-                      setShowMap(false);
-                    }}
-                  />
-                </Suspense>
-              </div>
-            ) : null}
-          </div>
-
           <InfoNote icon={Info}>Pas de mot de passe : le déposant suit ses articles en scannant le QR de son contrat.</InfoNote>
 
           <div className="sticky bottom-24 z-10 -mx-1 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end md:static">

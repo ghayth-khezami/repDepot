@@ -9,6 +9,7 @@ import { NotificationsGateway } from "./notifications.gateway";
 import { PushService } from "./push.service";
 import { EmailService } from "./email.service";
 import { WhatsappService } from "./whatsapp.service";
+import { CustomerGateway } from "./customer.gateway";
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { WhatsappService } from "./whatsapp.service";
     }),
   ],
   controllers: [NotificationController],
-  providers: [NotificationService, NotificationsGateway, PushService, EmailService, WhatsappService],
-  exports: [NotificationService, EmailService, WhatsappService],
+  providers: [NotificationService, NotificationsGateway, PushService, EmailService, WhatsappService, CustomerGateway],
+  exports: [NotificationService, EmailService, WhatsappService, CustomerGateway],
 })
 export class NotificationModule {}

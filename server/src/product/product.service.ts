@@ -2,8 +2,9 @@ import { publishProductStatusChanged } from "../common/domain-events";
 import { COMMISSION_MESSAGE, isAllowedCommission } from "../common/commission";
 import { assertTransition, ProductStage, stageData, stageOf } from "./lifecycle";
 import { deposantSearchClauses } from "./deposant-search";
+import { loadProductReport } from "../export/product-report";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { PayoutStatus, ProductStatus } from "@prisma/client";
+import { PayoutStatus, Prisma, ProductStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { fromMillimes, splitCommission, toMillimes } from "../common/utils/money";
 import { normalizeEan13 } from "../common/barcode-label.util";
@@ -734,6 +735,15 @@ export class ProductService {
     }
     await this.prisma.product.delete({ where: { id } });
     return { message: "Produit supprimé" };
+  }
+
+  async isInOrder(id: string) {
+    return (await this.prisma.commandDetail.count({ where: { productId: id } })) > 0;
+  }
+
+  /** Product lines for the exports (Oui/Non, readable status, colour alert). */
+  reportRows(where: Prisma.ProductWhereInput = {}) {
+    return loadProductReport(this.prisma, where);
   }
 
   /** Publish / unpublish on the storefront (bulk). */

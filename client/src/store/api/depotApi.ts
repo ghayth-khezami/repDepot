@@ -122,6 +122,8 @@ export interface DeposantOverview {
     createdAt: string;
     contractId: string | null;
     photo: string | null;
+    /** Already part of an order. */
+    inOrder?: boolean;
   }>;
   totals: { total: number; onSale: number; sold: number; removed: number; paid: number; toPayMillimes: number; paidMillimes: number; stockValueMillimes: number };
 }

@@ -18,8 +18,8 @@ const isSold = (i: SuiviItem) => i.status === "VENDU" && i.payoutStatus !== "PAY
 /* ───────────────────────── Live data ───────────────────────── */
 
 /**
- * Keeps the page in sync with the shop: socket `suivi:update` (instant), plus a refetch when the app comes
- * back to the foreground (the socket sleeps while the phone is locked).
+ * Keeps the page in sync with the shop: socket `suivi:update` (instant); after the phone wakes up the
+ * socket reconnects and one refetch catches up.
  */
 function useLiveSuivi(token: string, initial: SuiviData) {
   const [data, setData] = useState(() => withPhotos(initial));
@@ -34,15 +34,13 @@ function useLiveSuivi(token: string, initial: SuiviData) {
   }, [token]);
 
   useEffect(() => {
-    const socket = io(`${getRemoteApiUrl()}/suivi`, { auth: { token }, transports: ["websocket", "polling"], reconnectionDelayMax: 30_000 });
+    const socket = io(`${getRemoteApiUrl()}/suivi`, { auth: { token }, transports: ["websocket"], reconnectionDelayMax: 30_000 });
     socket.on("connect", () => setLive(true));
     socket.on("disconnect", () => setLive(false));
     socket.on("suivi:update", () => void refetch());
+    // Phone asleep → the socket reconnects on wake-up → one refetch catches up (no polling, no double call).
     socket.io.on("reconnect", () => void refetch());
-    const onVisible = () => document.visibilityState === "visible" && void refetch();
-    document.addEventListener("visibilitychange", onVisible);
     return () => {
-      document.removeEventListener("visibilitychange", onVisible);
       socket.disconnect();
     };
   }, [token, refetch]);

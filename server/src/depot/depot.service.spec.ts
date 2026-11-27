@@ -72,7 +72,7 @@ const siteSettings: any = {
 
 const CAT = "11111111-1111-4111-8111-111111111111";
 const baseDto = (items: CreateDepotDto["items"]): CreateDepotDto => ({
-  deposant: { firstName: "Sarra", lastName: "Ben Ali", phone: "55123456" },
+  deposant: { firstName: "Sarra", lastName: "Ben Ali", phone: "55123456", address: "12 rue de Tunis, Manouba" },
   durationMonths: 3,
   items,
 });
@@ -97,8 +97,8 @@ describe("DepotService.create", () => {
     expect(res.items[1]).toMatchObject({ priceMillimes: 12_345, shopMillimes: 3_704, depositorMillimes: 8_641 });
     expect(res.totals).toEqual({ priceMillimes: 332_345, shopMillimes: 83_704, depositorMillimes: 248_641 });
     expect(db.products.every((p) => p.status === "EN_VENTE" && p.isDispo && p.isDepot)).toBe(true);
-    // Optional fields stay null; no password/user involved
-    expect(db.coClients[0]).toMatchObject({ email: null, address: null, RIB: null });
+    // Optional fields stay null (the address is required); no password/user involved
+    expect(db.coClients[0]).toMatchObject({ email: null, address: "12 rue de Tunis, Manouba", RIB: null });
     expect(db.coClients[0].userId).toBeUndefined();
   });
 

@@ -247,7 +247,7 @@ export default function ProductsList({
                   ) : (
                     <Package size={40} aria-hidden className="absolute inset-0 m-auto text-bd-violet/50" />
                   )}
-                  <span className={cn('absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-extrabold shadow', p.isDepot ? 'bg-white/95 text-bd-violet-strong' : 'bg-white/95 text-bd-pink-strong')}>
+                  <span className={cn('absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-extrabold shadow', p.isDepot ? 'bg-bd-surface/95 text-bd-violet-strong' : 'bg-bd-surface/95 text-bd-pink-strong')}>
                     {p.isDepot ? 'Dépôt' : 'Achat'}
                   </span>
                 </button>
@@ -260,7 +260,7 @@ export default function ProductsList({
                   </button>
                   <p className="text-lg font-black tabular-nums text-bd-ink">{formatTnd(toMillimes(p.PrixVente))}</p>
                   <div className="mt-auto flex flex-wrap items-center gap-1">
-                    <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} size="sm" />
+                    <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} inOrder={!!(p as { orderStatus?: string | null }).orderStatus} size="sm" />
                     <OrderBadge status={(p as { orderStatus?: string | null }).orderStatus} />
                     <span className="flex-1" />
                     <HeartButton productId={p.id} name={p.productName} />
@@ -307,7 +307,7 @@ export default function ProductsList({
                     <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-extrabold', p.isDepot ? 'bg-violet-100 text-bd-violet-strong dark:bg-violet-500/20' : 'bg-bd-blush text-bd-pink-strong')}>
                       {p.isDepot ? 'Dépôt' : 'Achat'}
                     </span>
-                    <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} size="sm" />
+                    <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} inOrder={!!(p as { orderStatus?: string | null }).orderStatus} size="sm" />
                     <OrderBadge status={(p as { orderStatus?: string | null }).orderStatus} />
                     <SiteBadge published={p.isPublished} />
                   </>

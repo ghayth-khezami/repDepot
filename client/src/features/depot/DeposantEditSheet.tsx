@@ -28,6 +28,7 @@ export default function DeposantEditSheet({ d, open, onClose }: { d: DeposantOve
     if (!form.firstName.trim()) e.firstName = 'Le prénom est obligatoire.';
     if (!form.lastName.trim()) e.lastName = 'Le nom est obligatoire.';
     if (!/^\d{8}$/.test(form.phone)) e.phone = 'Le téléphone doit contenir 8 chiffres.';
+    if (form.address.trim().length < 3) e.address = "L'adresse est obligatoire.";
     const rib = form.rib.replace(/\s/g, '');
     if (rib && !/^\d{20}$/.test(rib)) e.rib = 'Le RIB doit contenir 20 chiffres.';
     if (form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) e.email = 'Email invalide.';
@@ -72,7 +73,7 @@ export default function DeposantEditSheet({ d, open, onClose }: { d: DeposantOve
         </div>
         <PhoneField label="Téléphone" required value={form.phone} onChange={(phone) => setForm((f) => ({ ...f, phone }))} error={errors.phone} />
         <TextField label="Email" type="email" value={form.email} onChange={set('email')} error={errors.email} autoComplete="email" />
-        <TextField label="Adresse" value={form.address} onChange={set('address')} autoComplete="street-address" />
+        <TextField label="Adresse" required value={form.address} onChange={set('address')} error={errors.address} autoComplete="street-address" />
         <TextField label="RIB" inputMode="numeric" value={form.rib} onChange={set('rib')} error={errors.rib} hint="20 chiffres" />
         <Button type="submit" size="lg" icon={Save} loading={isLoading} className="w-full">
           Enregistrer

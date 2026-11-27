@@ -35,6 +35,7 @@ import { ProductQueryDto } from "./dto/product-query.dto";
 import { ChangeLifecycleDto } from "./dto/change-lifecycle.dto";
 import { SetFeaturedProductsDto } from "./dto/set-featured-products.dto";
 import { PublishProductsDto } from "./dto/publish-products.dto";
+import { buildProductsReportPdf } from "../export/products-report-pdf";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -229,224 +230,47 @@ export class ProductController {
   @Get("export/csv")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: "Export all products as CSV" })
+  @ApiOperation({ summary: "Export products as CSV (Oui / Non, statut lisible, couleur = état)" })
   async exportCsv(@Res() res: Response) {
-    try {
-      const result = await this.productService.findAll({
-        limit: 10000,
-        page: 1,
-      });
-      const csvData = result.data.map((product) => ({
-        ID: product.id,
-        "Nom Produit": product.productName || "",
-        Description: product.description || "",
-        "Prix Vente": product.PrixVente || 0,
-        "Prix Achat": product.PrixAchat || 0,
-        "En Dépôt": product.isDepot ? "Oui" : "Non",
-        "Pourcentage Dépôt": product.depotPercentage || "",
-        Surcharge: product.surcharge || 0,
-        Gain: product.gain || 0,
-        Statut: product.isDispo ? "Disponible" : "Rupture",
-        Catégorie: product.category?.categoryName || "",
-        "Co-Client": product.coClient
-          ? `${product.coClient.firstName} ${product.coClient.lastName}`
-          : "",
-        "Date Création": new Date(product.createdAt).toLocaleDateString(
-          "fr-FR",
-        ),
-      }));
-
-      const csv = Papa.unparse(csvData, {
-        header: true,
-        delimiter: ",",
-      });
-
-      res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", "attachment; filename=products.csv");
-      res.send("\ufeff" + csv);
-    } catch (error) {
-      res.status(500).setHeader("Content-Type", "application/json");
-      res.send(
-        JSON.stringify({
-          message: "Error exporting CSV",
-          error: error.message,
-        }),
-      );
-    }
+    const rows = await this.productService.reportRows();
+    const csv = Papa.unparse(
+      rows.map((r) => ({
+        "Réf.": r.ref,
+        Produit: r.name,
+        Catégorie: r.category,
+        Type: r.type,
+        Statut: r.stage,
+        Vendu: r.sold,
+        Payé: r.paid,
+        Livré: r.delivered,
+        "En ligne": r.online,
+        "Prix (TND)": (r.priceMillimes / 1000).toFixed(3),
+        "Commission %": r.commission ?? "",
+        "Part déposant (TND)": r.depositorMillimes != null ? (r.depositorMillimes / 1000).toFixed(3) : "",
+        Déposant: r.deposant,
+        Contrat: r.contract,
+        "Fin du contrat": r.contractEnd ? r.contractEnd.toLocaleDateString("fr-FR") : "",
+        "Vendu le": r.soldAt ? r.soldAt.toLocaleDateString("fr-FR") : "",
+        "À noter": r.alertLabel,
+      })),
+      { header: true, delimiter: ";" },
+    );
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=produits.csv");
+    res.send("\ufeff" + csv);
   }
 
   @Get("export/pdf")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: "Export all products as PDF" })
+  @ApiOperation({ summary: "Liste des produits en PDF (paysage, couleurs : vert terminé, jaune à payer, rouge contrat bientôt fini)" })
   async exportPdf(@Res() res: Response) {
-    const result = await this.productService.findAll({ limit: 10000, page: 1 });
-    const doc = new jsPDF.jsPDF();
-
-    // Brand colors (lavender, peach, yellow)
-    const lavenderColor: [number, number, number] = [128, 90, 213]; // #805ad5
-    const peachColor: [number, number, number] = [254, 215, 215]; // #fed7d7
-
-    // Header with logo
-    try {
-      const logoPath = join(process.cwd(), "depot.jpg");
-      if (fs.existsSync(logoPath)) {
-        const logoData = fs.readFileSync(logoPath);
-        const logoBase64 = logoData.toString("base64");
-        doc.addImage(logoBase64, "JPEG", 14, 10, 30, 30);
-      }
-    } catch (error) {
-      // If logo not found, continue without it
-    }
-
-    // Header background with brand colors
-    doc.setFillColor(lavenderColor[0], lavenderColor[1], lavenderColor[2]);
-    doc.rect(0, 0, 210, 15, "F");
-
-    // Title
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("BÉBÉ-DÉPÔT", 110, 25, { align: "center" });
-
-    doc.setFontSize(14);
-    doc.text("Rapport des Produits", 105, 35, { align: "center" });
-
-    // Reset text color
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "normal");
-
-    // Table header
-    let y = 50;
-    const startX = 14;
-    const colWidths = [60, 30, 30, 30, 25];
-    const headers = [
-      "Produit",
-      "Prix Vente",
-      "Prix Achat",
-      "Catégorie",
-      "Dépôt",
-    ];
-
-    // Header row background
-    doc.setFillColor(lavenderColor[0], lavenderColor[1], lavenderColor[2]);
-    doc.rect(startX, y - 8, 182, 8, "F");
-
-    // Draw border around header
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.2);
-    doc.rect(startX, y - 8, 182, 8);
-
-    // Draw vertical lines in header
-    let headerColX = startX;
-    headers.forEach((_, i) => {
-      if (i > 0) {
-        doc.line(headerColX, y - 8, headerColX, y);
-      }
-      headerColX += colWidths[i];
-    });
-
-    // Header text
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    let x = startX + 2;
-    headers.forEach((header, i) => {
-      doc.text(header, x, y - 2);
-      x += colWidths[i];
-    });
-
-    y += 2;
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-
-    result.data.forEach((product, index) => {
-      if (y > 270) {
-        doc.addPage();
-        y = 20;
-        // Add header to new page
-        doc.setFillColor(lavenderColor[0], lavenderColor[1], lavenderColor[2]);
-        doc.rect(0, 0, 210, 15, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(18);
-        doc.setFont("helvetica", "bold");
-        doc.text("BÉBÉ-DÉPÔT", 110, 25, { align: "center" });
-        doc.setFontSize(14);
-        doc.text("Rapport des Produits", 105, 35, { align: "center" });
-        doc.setTextColor(0, 0, 0);
-
-        // Table header on new page
-        y = 50;
-        doc.setFillColor(lavenderColor[0], lavenderColor[1], lavenderColor[2]);
-        doc.rect(startX, y - 8, 182, 8, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        x = startX + 2;
-        headers.forEach((header, i) => {
-          doc.text(header, x, y - 2);
-          x += colWidths[i];
-        });
-        y += 2;
-        doc.setTextColor(0, 0, 0);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-      }
-
-      // Alternate row colors
-      if (index % 2 === 0) {
-        doc.setFillColor(peachColor[0], peachColor[1], peachColor[2]);
-        doc.rect(startX, y - 6, 182, 6, "F");
-      }
-
-      // Table data
-      x = startX + 2;
-      const rowData = [
-        product.productName.length > 25
-          ? product.productName.substring(0, 22) + "..."
-          : product.productName,
-        `${product.PrixVente} TND`,
-        `${product.PrixAchat} TND`,
-        product.category?.categoryName?.substring(0, 12) || "N/A",
-        product.isDepot ? "Oui" : "Non",
-      ];
-
-      rowData.forEach((cell, i) => {
-        doc.text(cell, x, y);
-        x += colWidths[i];
-      });
-
-      // Draw borders - horizontal line below row
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.2);
-      doc.line(startX, y + 1, startX + 182, y + 1);
-
-      // Draw vertical lines between columns
-      let colX = startX;
-      headers.forEach((_, i) => {
-        if (i > 0) {
-          doc.line(colX, y - 6, colX, y + 1);
-        }
-        colX += colWidths[i];
-      });
-
-      y += 7;
-    });
-
-    // Footer
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(128, 128, 128);
-      doc.text(`Page ${i} / ${pageCount}`, 105, 290, { align: "center" });
-      doc.text("BÉBÉ-DÉPÔT - Back Office", 105, 293, { align: "center" });
-    }
-
+    const rows = await this.productService.reportRows();
+    const buffer = buildProductsReportPdf(rows, { shopName: "Bébé-Dépôt" });
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=products.pdf");
-    res.send(Buffer.from(doc.output("arraybuffer")));
+    res.setHeader("Content-Disposition", `attachment; filename="produits-${new Date().toISOString().slice(0, 10)}.pdf"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(buffer);
   }
 
   @Get("export/labels/pdf")
@@ -522,8 +346,10 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Admin: find product by QR payload, id, ref (P-00012 / 12) or barcode" })
-  lookup(@Param("code") code: string) {
-    return this.productService.lookup(code);
+  async lookup(@Param("code") code: string) {
+    const product = await this.productService.lookup(code);
+    // Scanner: does this article already have its order? (→ "Vendu / Payé" asks for the order if not)
+    return { ...product, inOrder: await this.productService.isInOrder(product.id) };
   }
 
   @Get("by-barcode/:code")

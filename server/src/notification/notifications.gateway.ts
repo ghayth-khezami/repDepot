@@ -26,7 +26,7 @@ const ADMIN_ROOM = "admins";
     },
     credentials: true,
   },
-  transports: ["websocket", "polling"],
+  transports: ["websocket"],
 })
 export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(NotificationsGateway.name);

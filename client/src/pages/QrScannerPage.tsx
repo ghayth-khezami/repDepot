@@ -273,7 +273,7 @@ export default function QrScannerPage() {
                 Voir la fiche
               </Button>
               {/* Marquer comme vendu → (créer la commande | vendu en boutique) ; vendu → Marquer comme payé */}
-              <StageControl key={product.id} variant="action" productId={product.id} stage={stageFrom(product)} isDepot={product.isDepot} />
+              <StageControl key={product.id} variant="action" productId={product.id} stage={stageFrom(product)} isDepot={product.isDepot} inOrder={(product as { inOrder?: boolean }).inOrder} />
             </div>
           </div>
         </div>

@@ -179,6 +179,7 @@ export interface DeposantErrors {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  address?: string;
   email?: string;
   rib?: string;
 }
@@ -188,6 +189,7 @@ export function validateDeposant(d: DraftDeposant): DeposantErrors {
   if (!d.firstName.trim()) e.firstName = 'Le prénom est obligatoire.';
   if (!d.lastName.trim()) e.lastName = 'Le nom est obligatoire.';
   if (!/^\d{8}$/.test(d.phone)) e.phone = 'Le téléphone doit contenir 8 chiffres.';
+  if (d.address.trim().length < 3) e.address = "L'adresse est obligatoire.";
   if (d.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = 'Email invalide.';
   const rib = d.rib.replace(/\s/g, '');
   if (rib && !/^\d{20}$/.test(rib)) e.rib = 'Le RIB doit contenir 20 chiffres.';

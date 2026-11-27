@@ -107,7 +107,7 @@ function OrderCard({ c, onOpen }: { c: Command; onOpen: (c: Command) => void }) 
   const n = c.commandDetails?.length ?? c.productsNumber;
   const names = (c.commandDetails ?? []).map((d) => d.product?.productName).filter(Boolean).join(', ');
   return (
-    <li className="bd-anim-fade-up flex items-stretch gap-3 rounded-2xl border border-bd-line/10 bg-bd-surface p-2.5 shadow-card md:flex-col md:rounded-3xl md:p-0">
+    <li className="bd-anim-fade-up flex min-w-0 items-stretch gap-3 rounded-2xl border border-bd-line/10 bg-bd-surface p-2.5 shadow-card md:flex-col md:rounded-3xl md:p-0">
       <button type="button" onClick={() => onOpen(c)} className="bd-focus relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-bd-lilac/50 md:aspect-[4/3] md:h-auto md:w-full md:rounded-none md:rounded-t-3xl">
         {photo ? <img src={uploadUrl(photo)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span dangerouslySetInnerHTML={{ __html: orderSvg(48) }} />}
         {n > 1 ? <span className="absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 text-[10px] font-black text-white">{n} art.</span> : null}
@@ -174,7 +174,7 @@ export default function CommandsList({ onOpen, onAdd, headerExtra }: { onOpen: (
       {feed.isLoading ? (
         <div className="grid gap-2 md:grid-cols-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[92px] md:h-72" />)}</div>
       ) : rows.length ? (
-        <ul className={cn('grid gap-2 transition-opacity md:grid-cols-2 md:gap-4 lg:grid-cols-3 2xl:grid-cols-4', feed.isFetching && !feed.isFetchingNextPage && 'opacity-60')}>
+        <ul className={cn('grid grid-cols-1 gap-2 transition-opacity md:grid-cols-2 md:gap-4 lg:grid-cols-3 2xl:grid-cols-4', feed.isFetching && !feed.isFetchingNextPage && 'opacity-60')}>
           {visible.map((c) => (
             <OrderCard key={c.id} c={c} onOpen={onOpen} />
           ))}

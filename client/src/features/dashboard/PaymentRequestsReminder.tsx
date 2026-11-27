@@ -82,7 +82,8 @@ function RequestCard({ r }: { r: PaymentRequest }) {
  * the déposants coming to collect their money, by date.
  */
 export default function PaymentRequestsReminder() {
-  const { data = [] } = useGetPaymentRequestsQuery({ status: 'PENDING' }, { pollingInterval: 5 * 60_000 });
+  // Loaded once; a new request arrives through the websocket notification (which refreshes this list).
+  const { data = [] } = useGetPaymentRequestsQuery({ status: 'PENDING' });
   const [params, setParams] = useSearchParams();
   const forced = params.get('paiement');
   const [open, setOpen] = useState(false);

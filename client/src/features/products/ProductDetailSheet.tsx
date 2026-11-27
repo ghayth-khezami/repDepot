@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import HeartButton from './HeartButton';
+import InstagramStorySheet from './InstagramStorySheet';
 import OrderBadge from './OrderBadge';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Camera, ChevronLeft, MoreHorizontal, Package, Pencil, Printer, QrCode, ShoppingCart, Trash2, Truck } from 'lucide-react';
+import { Camera, ChevronLeft, MoreHorizontal, Package, Pencil, Printer, QrCode, ShoppingCart, Trash2, Truck, Instagram } from 'lucide-react';
 import { useGetProductQuery } from '../../store/api/productApi';
 import { uploadUrl } from '../../lib/apiBase';
 import { downloadAuthed } from '../../lib/download';
@@ -59,6 +60,7 @@ export default function ProductDetailSheet({
   const [photo, setPhoto] = useState(0);
   const [more, setMore] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [story, setStory] = useState(false);
   const [suivi, setSuivi] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -99,6 +101,17 @@ export default function ProductDetailSheet({
             <p className="text-[11px] font-black uppercase tracking-[0.14em] text-bd-muted">Produit</p>
             <p className="truncate text-sm font-black text-bd-violet-strong">{p?.ref ?? '…'}</p>
           </div>
+          {p ? (
+            <button
+              type="button"
+              onClick={() => setStory(true)}
+              aria-label="Story Instagram"
+              title="Publier en story Instagram"
+              className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#F58529,#DD2A7B_50%,#8134AF)] text-white shadow-card active:scale-95"
+            >
+              <Instagram size={20} aria-hidden />
+            </button>
+          ) : null}
           {p ? <HeartButton productId={p.id} name={p.productName} className="h-11 w-11 rounded-2xl border border-bd-line/10 bg-bd-surface shadow-card" /> : null}
           <button type="button" onClick={() => setMenu(true)} aria-label="Plus d'actions" className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl border border-bd-line/10 bg-bd-surface shadow-card">
             <MoreHorizontal size={20} aria-hidden />
@@ -143,7 +156,7 @@ export default function ProductDetailSheet({
                   <span className={cn('rounded-full px-2.5 py-1 text-xs font-extrabold', p.isDepot ? 'bg-violet-100 text-bd-violet-strong dark:bg-violet-500/20' : 'bg-bd-blush text-bd-pink-strong')}>
                     {p.isDepot ? 'Dépôt' : 'Achat'}
                   </span>
-                  <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} size="sm" />
+                  <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} inOrder={!!p.orders?.length} size="sm" />
                   <OrderBadge status={p.orders?.[0]?.command.status} />
                 </div>
                 <h2 className="mt-2 text-[22px] font-extrabold leading-tight text-bd-ink">{p.productName}</h2>
@@ -245,10 +258,12 @@ export default function ProductDetailSheet({
                 <Pencil size={18} aria-hidden /> <span className="hidden sm:inline">Modifier</span>
               </button>
               {/* Next step: Marquer comme vendu (→ créer la commande / vendu en boutique) → Marquer comme payé */}
-              <StageControl variant="action" productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} />
+              <StageControl variant="action" productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} inOrder={!!p.orders?.length} />
             </StickyActionBar>
 
+            {story ? <InstagramStorySheet product={p} open={story} onClose={() => setStory(false)} /> : null}
             <BottomSheet open={menu} onClose={() => setMenu(false)} title="Actions">
+              <SheetAction icon={Instagram} tone="pink" label="Story Instagram" hint="Visuel du produit + lien à coller" onClick={() => (setMenu(false), setStory(true))} />
               <SheetAction icon={QrCode} tone="violet" label="Carte QR" hint="PDF prêt à imprimer" loading={busy === 'qr'} onClick={() => void download('qr', `/products/${p.id}/qr-card/pdf`, `qr-${p.ref ?? p.id}.pdf`)} />
               {p.depositRequest ? (
                 <SheetAction icon={Printer} label="Étiquettes du lot" hint={p.depositRequest.contractNumber ?? undefined} loading={busy === 'labels'} onClick={() => void download('labels', `/depots/${p.depositRequest!.id}/labels.pdf`, 'etiquettes.pdf')} />

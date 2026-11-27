@@ -6,6 +6,7 @@ import { AutoFieldMic } from './Dictation';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Package, ScanLine, ShoppingCart, Users } from 'lucide-react';
 import NotificationCenter from './NotificationCenter';
+import ThemeToggle from './ThemeToggle';
 import { cn } from '../lib/cn';
 import { Blobs } from './ui';
 
@@ -81,14 +82,14 @@ const Layout = ({ children }: LayoutProps) => {
       <Sidebar />
       <main className="relative flex flex-1 flex-col overflow-hidden">
         <PostLoginLoadingOverlay isOpen={showWelcomeOverlay} />
-        {/* Bell: fixed top-right on phones (menu button is top-left), in a slim top bar on desktop. */}
-        <div className="fixed right-3 top-3 z-50 md:hidden">
+        {/* ONE bell (one websocket) + the dark-mode switch, always top-right (phone: opposite the menu). */}
+        <div className="fixed right-3 top-3 z-50 flex items-center gap-2 md:right-8 md:top-2.5">
+          <ThemeToggle />
           <NotificationCenter />
         </div>
         <div className="bo-page flex-1 overflow-y-auto pt-16 md:pt-0">
-          <div className="sticky top-0 z-30 hidden h-16 items-center justify-end gap-3 bg-bd-bg/80 px-8 backdrop-blur md:flex">
-            <NotificationCenter />
-          </div>
+          {/* Desktop: slim bar under the fixed buttons */}
+          <div aria-hidden className="sticky top-0 z-30 hidden h-16 bg-bd-bg/80 backdrop-blur md:block" />
           <div key={pathname} className="bd-anim-page p-4 pb-32 md:px-8 md:pb-8 md:pt-0">{children}</div>
         </div>
         <AutoFieldMic />

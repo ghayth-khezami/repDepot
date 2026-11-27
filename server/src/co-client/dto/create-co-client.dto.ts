@@ -38,12 +38,12 @@ export class CreateCoClientDto {
   @MaxLength(80)
   lastName: string;
 
-  @ApiPropertyOptional({ description: "Address", example: "456 Oak Ave, City" })
+  @ApiProperty({ description: "Adresse (obligatoire)", example: "12 rue de Tunis, Manouba" })
   @Transform(trimOrUndef)
-  @IsOptional()
-  @IsString()
+  @IsString({ message: "L'adresse est obligatoire." })
+  @MinLength(3, { message: "L'adresse est obligatoire." })
   @MaxLength(300)
-  address?: string;
+  address: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { ALERT_LABEL, loadProductReport, type Alert } from "./product-report";
+import { addMonths } from "../depot/depot.service";
 import { Prisma } from "@prisma/client";
 import * as ExcelJS from "exceljs";
 import { PrismaService } from "../prisma/prisma.service";
@@ -15,6 +17,19 @@ export interface ExportQuery {
 }
 
 type Col = { header: string; key: string; width?: number; money?: boolean; date?: boolean };
+
+/** Row colours (same meaning as the PDF): light background + strong left bar. */
+const XL_FILL: Record<Exclude<Alert, null>, { bg: string; bar: string }> = {
+  green: { bg: "FFDCFCE7", bar: "FF16A34A" },
+  yellow: { bg: "FFFEF9C3", bar: "FFCA8A04" },
+  red: { bg: "FFFEE2E2", bar: "FFDC2626" },
+};
+const XL_LEGEND: Record<string, Record<Exclude<Alert, null>, string>> = {
+  Déposants: { green: "Tout est payé", yellow: "Argent à remettre au déposant", red: "Contrat bientôt fini avec articles non vendus" },
+  Commandes: { green: "Livrée", yellow: "Reçue / acceptée — à traiter", red: "Annulée" },
+  "Commandes de la période": { green: "Livrée", yellow: "Reçue / acceptée — à traiter", red: "Annulée" },
+};
+const ORDER_LABEL: Record<string, string> = { NOT_DELIVERED: "Reçue", ACCEPTED: "Acceptée", DELIVERED: "Livrée", GOT_PROFIT: "Livrée", CANCELLED: "Annulée" };
 
 const BRAND_PINK = "FFEC4899";
 const BRAND_VIOLET = "FF7C3AED";
@@ -97,7 +112,14 @@ export class ExportService {
     return s ? { contains: s, mode: "insensitive" as const } : undefined;
   }
 
-  private sheet(wb: ExcelJS.Workbook, name: string, cols: Col[], rows: Record<string, unknown>[], color = BRAND_PINK) {
+  private sheet(
+    wb: ExcelJS.Workbook,
+    name: string,
+    cols: Col[],
+    rows: Record<string, unknown>[],
+    color = BRAND_PINK,
+    rowFill?: (row: Record<string, unknown>) => Alert,
+  ) {
     const ws = wb.addWorksheet(name, { views: [{ state: "frozen", ySplit: 1 }] });
     ws.columns = cols.map((c) => ({ header: c.header, key: c.key, width: c.width ?? Math.max(14, c.header.length + 4) }));
     const head = ws.getRow(1);
@@ -105,13 +127,39 @@ export class ExportService {
     head.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
     head.alignment = { vertical: "middle" };
     head.height = 22;
-    rows.forEach((r) => ws.addRow(r));
+    rows.forEach((r) => {
+      const xr = ws.addRow(r);
+      const alert = rowFill?.(r);
+      if (alert) {
+        xr.eachCell({ includeEmpty: true }, (cell) => {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: XL_FILL[alert].bg } };
+        });
+        xr.getCell(1).border = { left: { style: "thick", color: { argb: XL_FILL[alert].bar } } };
+      }
+      // Oui / Non in colour
+      cols.forEach((c, i) => {
+        const v = r[c.key];
+        if (v === "Oui" || v === "Non") xr.getCell(i + 1).font = { bold: true, color: { argb: v === "Oui" ? "FF15803D" : "FFB91C1C" } };
+      });
+    });
     cols.forEach((c) => {
       const col = ws.getColumn(c.key);
       if (c.money) col.numFmt = '#,##0.000 "TND"';
       if (c.date) col.numFmt = "dd/mm/yyyy hh:mm";
     });
     if (rows.length) ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+    if (rowFill) {
+      // Legend under the table
+      const start = rows.length + 3;
+      ws.getCell(start, 1).value = "Couleurs :";
+      ws.getCell(start, 1).font = { bold: true };
+      (Object.keys(XL_FILL) as Array<Exclude<Alert, null>>).forEach((k, i) => {
+        const cell = ws.getCell(start + 1 + i, 1);
+        cell.value = XL_LEGEND[name]?.[k] ?? ALERT_LABEL[k];
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: XL_FILL[k].bg } };
+        cell.border = { left: { style: "thick", color: { argb: XL_FILL[k].bar } } };
+      });
+    }
     return ws;
   }
 
@@ -218,40 +266,41 @@ export class ExportService {
       ...(this.dateRange(q) ? { createdAt: this.dateRange(q) } : {}),
       ...(s ? { OR: [{ productName: s }, { ref: s }, { barcode: s }] } : {}),
     };
-    const rows = await this.prisma.product.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: { category: { select: { categoryName: true } }, coClient: { select: { firstName: true, lastName: true, number: true } } },
-    });
+    const rows = await loadProductReport(this.prisma, where);
     this.sheet(
       wb,
       "Produits",
       [
         { header: "Réf", key: "ref", width: 12 },
-        { header: "Code-barres", key: "barcode", width: 16 },
-        { header: "Produit", key: "productName", width: 38 },
-        { header: "Catégorie", key: "category", width: 22 },
-        { header: "Type", key: "type", width: 10 },
-        { header: "Statut", key: "status", width: 12 },
-        { header: "Prix de vente", key: "PrixVente", money: true },
-        { header: "Prix d'achat", key: "PrixAchat", money: true },
-        { header: "Commission %", key: "depotPercentage" },
+        { header: "Produit", key: "name", width: 36 },
+        { header: "Catégorie", key: "category", width: 20 },
+        { header: "Type", key: "type", width: 9 },
+        { header: "Statut", key: "stage", width: 17 },
+        { header: "Vendu", key: "sold", width: 8 },
+        { header: "Payé", key: "paid", width: 8 },
+        { header: "Livré", key: "delivered", width: 8 },
+        { header: "En ligne", key: "online", width: 9 },
+        { header: "Prix de vente", key: "price", money: true },
+        { header: "Prix d'achat", key: "purchase", money: true },
+        { header: "Commission %", key: "commission" },
         { header: "Marge boutique", key: "shop", money: true },
         { header: "Part déposant", key: "depositor", money: true },
         { header: "Déposant", key: "deposant", width: 26 },
-        { header: "Disponible", key: "dispo" },
-        { header: "Créé le", key: "createdAt", date: true, width: 18 },
-        { header: "Vendu le", key: "soldAt", date: true, width: 18 },
+        { header: "Contrat", key: "contract", width: 14 },
+        { header: "Fin du contrat", key: "contractEnd", date: true, width: 16 },
+        { header: "Créé le", key: "createdAt", date: true, width: 16 },
+        { header: "Vendu le", key: "soldAt", date: true, width: 16 },
+        { header: "À noter", key: "alertLabel", width: 30 },
       ],
-      rows.map((p) => ({
-        ...p,
-        category: p.category?.categoryName,
-        type: p.isDepot ? "Dépôt" : "Achat",
-        shop: p.shopAmountMillimes != null ? p.shopAmountMillimes / 1000 : null,
-        depositor: p.depositorAmountMillimes != null ? p.depositorAmountMillimes / 1000 : null,
-        deposant: p.coClient ? `N°${p.coClient.number} · ${p.coClient.firstName} ${p.coClient.lastName}` : "",
-        dispo: p.isDispo ? "Oui" : "Non",
+      rows.map((r) => ({
+        ...r,
+        price: r.priceMillimes / 1000,
+        purchase: r.purchaseMillimes != null ? r.purchaseMillimes / 1000 : null,
+        shop: r.shopMillimes != null ? r.shopMillimes / 1000 : null,
+        depositor: r.depositorMillimes != null ? r.depositorMillimes / 1000 : null,
       })),
+      BRAND_PINK,
+      (r) => (r.alert as Alert) ?? null,
     );
   }
 
@@ -289,7 +338,10 @@ export class ExportService {
         ...(s ? { OR: [{ firstName: s }, { lastName: s }, { email: s }, { phoneNumber: s }] } : {}),
       },
       orderBy: { number: "desc" },
-      include: { products: { select: { status: true, PrixVente: true, depositorAmountMillimes: true, payoutStatus: true } } },
+      include: {
+        products: { select: { status: true, PrixVente: true, depositorAmountMillimes: true, payoutStatus: true } },
+        depositRequests: { where: { contractNumber: { not: null } }, select: { createdAt: true, durationMonths: true, products: { select: { status: true } } } },
+      },
     });
     this.sheet(
       wb,
@@ -306,10 +358,18 @@ export class ExportService {
         { header: "En vente", key: "onSale" },
         { header: "Vendus", key: "sold" },
         { header: "À payer (TND)", key: "toPay", money: true },
+        { header: "Tout payé", key: "allPaid", width: 10 },
+        { header: "Contrat bientôt fini", key: "ending", width: 18 },
         { header: "Créé le", key: "createdAt", date: true, width: 18 },
       ],
       rows.map((c) => ({
         ...c,
+        allPaid: c.products.some((p) => p.status === "VENDU") && !c.products.some((p) => p.status === "VENDU" && p.payoutStatus !== "PAYE") ? "Oui" : "Non",
+        ending: c.depositRequests.some(
+          (dr) => dr.products.some((p) => p.status === "EN_VENTE") && addMonths(dr.createdAt, dr.durationMonths ?? 3).getTime() - Date.now() <= 14 * 86_400_000,
+        )
+          ? "Oui"
+          : "Non",
         total: c.products.length,
         onSale: c.products.filter((p) => p.status === "EN_VENTE").length,
         sold: c.products.filter((p) => p.status === "VENDU").length,
@@ -318,6 +378,9 @@ export class ExportService {
             .filter((p) => p.status === "VENDU" && p.payoutStatus !== "PAYE")
             .reduce((t, p) => t + (p.depositorAmountMillimes ?? 0), 0) / 1000,
       })),
+      BRAND_PINK,
+      // red: contract ending with unsold articles · yellow: money to pay · green: everything paid
+      (r) => (r.ending === "Oui" ? "red" : (r.toPay as number) > 0 ? "yellow" : r.allPaid === "Oui" ? "green" : null),
     );
   }
 
@@ -364,9 +427,13 @@ export class ExportService {
           phone: who?.phoneNumber ?? "",
           products: c.commandDetails.map((d) => `${d.product?.ref ?? ""} ${d.product?.productName ?? ""}`.trim()).join(", "),
           profit: (c.PrixVente ?? 0) - (c.PrixAchat ?? 0),
+          statusRaw: c.status,
+          status: ORDER_LABEL[c.status] ?? c.status,
         };
       }),
       BRAND_VIOLET,
+      // green: delivered · yellow: received / accepted (to process) · red: cancelled
+      (r) => (r.statusRaw === "DELIVERED" || r.statusRaw === "GOT_PROFIT" ? "green" : r.statusRaw === "CANCELLED" ? "red" : "yellow"),
     );
   }
 

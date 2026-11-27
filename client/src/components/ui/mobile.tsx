@@ -26,7 +26,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="-mt-[66px] mb-4 flex min-h-[48px] items-center gap-2 pl-[54px] pr-[54px] md:mt-0 md:px-0">
+    <header className="-mt-[66px] mb-4 flex min-h-[48px] items-center gap-2 pl-[54px] pr-[104px] md:mt-0 md:px-0">
       <div className="min-w-0 flex-1">
         {eyebrow ? <p className="truncate text-[11px] font-black uppercase tracking-[0.16em] text-bd-pink-strong">{eyebrow}</p> : null}
         <h1 className="truncate text-[22px] font-extrabold leading-tight text-bd-ink">{title}</h1>
@@ -91,7 +91,8 @@ export function SegmentedFilter<T extends string>({
   label: string;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 rounded-2xl bg-bd-lilac/50 p-1">
+    // Many options on a phone: the row scrolls sideways instead of overflowing the screen.
+    <div role="tablist" aria-label={label} className="flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-bd-lilac/50 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -102,7 +103,7 @@ export function SegmentedFilter<T extends string>({
             aria-selected={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              'bd-focus flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-sm font-extrabold transition',
+              'bd-focus flex min-h-[40px] min-w-fit flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-sm font-extrabold transition',
               active ? 'bg-bd-surface text-bd-ink shadow-card' : 'text-bd-muted',
             )}
           >
@@ -205,7 +206,7 @@ export function Fab({ icon: Icon, label, onClick }: { icon: LucideIcon; label: s
 
 /* ───────────────────────── BottomSheet ───────────────────────── */
 
-export function BottomSheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function BottomSheet({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -220,7 +221,7 @@ export function BottomSheet({ open, onClose, title, children }: { open: boolean;
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className="bd-sheet-in max-h-[88dvh] w-full overflow-y-auto rounded-t-[28px] bg-bd-surface px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl sm:max-w-md sm:rounded-[28px]"
+        className={cn('bd-sheet-in max-h-[88dvh] w-full overflow-y-auto rounded-t-[28px] bg-bd-surface px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl sm:rounded-[28px]', wide ? 'sm:max-w-2xl' : 'sm:max-w-md')}
       >
         <span aria-hidden className="mx-auto mb-2 block h-1.5 w-10 rounded-full bg-bd-lilac" />
         <div className="mb-3 flex items-center justify-between">

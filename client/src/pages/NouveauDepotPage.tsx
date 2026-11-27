@@ -242,7 +242,7 @@ export default function NouveauDepotPage() {
 
   return (
     <div className="bd-ui w-full space-y-5">
-      <header className="-mt-[66px] flex flex-wrap items-end justify-between gap-3 pl-[54px] pr-[54px] md:mt-0 md:px-0">
+      <header className="-mt-[66px] flex flex-wrap items-end justify-between gap-3 pl-[54px] pr-[104px] md:mt-0 md:px-0">
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"

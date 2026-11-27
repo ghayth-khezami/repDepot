@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { BadgeCheck, Check, ChevronDown, Download, Loader2, ChevronLeft, ChevronRight, CreditCard, FileText, Mail, MapPin, MessageCircle, MoreHorizontal, Package, Pencil, Phone, Plus, Trash2, Wallet } from 'lucide-react';
+import { BadgeCheck, Check, ChevronDown, Download, Eye, Loader2, ChevronLeft, ChevronRight, CreditCard, FileText, Mail, MapPin, MessageCircle, MoreHorizontal, Package, Pencil, Phone, Plus, Trash2, Wallet } from 'lucide-react';
 import PersonIllustration from '../../components/PersonIllustration';
 import { downloadAuthed } from '../../lib/download';
 import ProductDetailSheet from '../products/ProductDetailSheet';
@@ -15,7 +15,7 @@ import { uploadUrl } from '../../lib/apiBase';
 import { apiErrorMessage } from '../../lib/apiError';
 import { formatTnd } from '../../lib/money';
 import { cn } from '../../lib/cn';
-import { BottomSheet, Button, EmptyState, SheetAction, Skeleton, StickyActionBar } from '../../components/ui';
+import { BottomSheet, Button, EmptyState, Skeleton, StickyActionBar } from '../../components/ui';
 import { useConfirmDialog } from '../../components/ConfirmDialog';
 import StageControl from '../products/StageControl';
 
@@ -101,7 +101,7 @@ function ContractsPanel({
                             </span>
                           </span>
                         </button>
-                        {p.stage !== 'RETIRE' ? <StageControl productId={p.id} stage={p.stage} isDepot size="sm" /> : <span className="text-xs font-bold text-bd-muted">Retiré</span>}
+                        {p.stage !== 'RETIRE' ? <StageControl productId={p.id} stage={p.stage} isDepot inOrder={p.inOrder} size="sm" /> : <span className="text-xs font-bold text-bd-muted">Retiré</span>}
                       </li>
                     ))}
                   </ul>
@@ -141,7 +141,7 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
   }, [d.products]);
   const [tab, setTab] = useState<Tab>(byStage.VENDU.length ? 'VENDU' : 'EN_VENTE');
   /** "Contrats" view (cards with their articles) instead of the status tabs. */
-  const [showContracts, setShowContracts] = useState(false);
+  const [showContracts, setShowContracts] = useState(d.contracts.length > 0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [paying, setPaying] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -284,7 +284,7 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
           <a href={`https://wa.me/216${d.phone}`} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 active:scale-95">
             <MessageCircle size={18} aria-hidden />
           </a>
-          <button type="button" onClick={() => setEditing(true)} className="bd-focus inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl bg-white px-3.5 text-sm font-extrabold text-bd-violet-strong active:scale-95">
+          <button type="button" onClick={() => setEditing(true)} className="bd-focus inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl bg-white px-3.5 text-sm font-extrabold text-[#6D28D9] active:scale-95">
             <Pencil size={16} aria-hidden /> Modifier
           </button>
           <button type="button" onClick={askDelete} aria-label="Supprimer le déposant" className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 active:scale-95">
@@ -347,7 +347,19 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
         </section>
 
         {/* Tabs */}
-        <div role="tablist" aria-label="Articles par statut" className="sticky top-0 z-10 mt-3 flex gap-1 bg-bd-bg/95 px-4 py-2 backdrop-blur">
+        <div role="tablist" aria-label="Articles par statut" className="sticky top-0 z-10 mt-3 flex gap-1 overflow-x-auto bg-bd-bg/95 px-4 py-2 backdrop-blur [scrollbar-width:none]">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={showContracts}
+            onClick={() => {
+              setShowContracts(true);
+              setSelected(new Set());
+            }}
+            className={cn('bd-focus flex min-h-[44px] min-w-fit flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-sm font-extrabold transition', showContracts ? 'bg-bd-surface text-bd-ink shadow-card' : 'text-bd-muted')}
+          >
+            Contrats <span className="text-xs tabular-nums text-bd-violet-strong">{d.contracts.length}</span>
+          </button>
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -359,23 +371,11 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
                 setTab(t.key);
                 setSelected(new Set());
               }}
-              className={cn('bd-focus flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition', !showContracts && tab === t.key ? 'bg-bd-surface text-bd-ink shadow-card' : 'text-bd-muted')}
+              className={cn('bd-focus flex min-h-[44px] min-w-fit flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-sm font-extrabold transition', !showContracts && tab === t.key ? 'bg-bd-surface text-bd-ink shadow-card' : 'text-bd-muted')}
             >
               {t.label} <span className="text-xs tabular-nums text-bd-violet-strong">{byStage[t.key].length}</span>
             </button>
           ))}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={showContracts}
-            onClick={() => {
-              setShowContracts(true);
-              setSelected(new Set());
-            }}
-            className={cn('bd-focus flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition', showContracts ? 'bg-bd-surface text-bd-ink shadow-card' : 'text-bd-muted')}
-          >
-            Contrats <span className="text-xs tabular-nums text-bd-violet-strong">{d.contracts.length}</span>
-          </button>
         </div>
 
         {/* Rows grouped by lot */}
@@ -431,7 +431,7 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
                           </span>
                           <ChevronRight size={16} className="ml-auto shrink-0 text-bd-muted" aria-hidden />
                         </button>
-                        <StageControl productId={p.id} stage={p.stage} isDepot size="sm" />
+                        <StageControl productId={p.id} stage={p.stage} isDepot inOrder={p.inOrder} size="sm" />
                       </li>
                     );
                   })}
@@ -471,30 +471,87 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
       )}
 
       <BottomSheet open={menu} onClose={() => setMenu(false)} title="Actions déposant">
-        {d.contracts.map((c) => (
-          <SheetAction
-            key={c.id}
-            icon={FileText}
-            tone="violet"
-            label={`Contrat ${c.contractNumber ?? ''}`}
-            hint={`Créé le ${new Date(c.createdAt).toLocaleDateString('fr-FR')}`}
+        {d.contracts.length ? (
+          <>
+            <p className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-bd-muted">Contrats</p>
+            <ul className="mb-4 space-y-2">
+              {d.contracts.map((c) => {
+                const n = d.products.filter((p) => p.contractId === c.id).length;
+                return (
+                  <li key={c.id} className="flex items-center gap-2 rounded-2xl border border-bd-line/10 bg-bd-bg p-2">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-grad-violet-strong text-white">
+                      <FileText size={18} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-extrabold tabular-nums text-bd-ink">{c.contractNumber ?? 'Contrat'}</span>
+                      <span className="block truncate text-[11px] font-bold text-bd-muted">
+                        {new Date(c.createdAt).toLocaleDateString('fr-FR')} · {n} article{n > 1 ? 's' : ''}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate(`/depots/${c.id}`);
+                      }}
+                      aria-label={`Voir le contrat ${c.contractNumber ?? ''}`}
+                      title="Voir / imprimer"
+                      className="bd-focus flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-bd-lilac/70 text-bd-violet-strong active:scale-95"
+                    >
+                      <Eye size={17} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate(`/depots/${c.id}/articles`);
+                      }}
+                      aria-label={`Ajouter des articles au contrat ${c.contractNumber ?? ''}`}
+                      title="Ajouter des articles"
+                      className="bd-focus flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-grad-pink-strong text-white active:scale-95"
+                    >
+                      <Plus size={18} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => askDeleteContract(c)}
+                      aria-label={`Supprimer le contrat ${c.contractNumber ?? ''}`}
+                      title="Supprimer (sauf articles vendus / en commande)"
+                      className="bd-focus flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-bd-danger/30 text-bd-danger active:scale-95"
+                    >
+                      <Trash2 size={17} aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        ) : null}
+        <p className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-bd-muted">Déposant</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
             onClick={() => {
-              onClose();
-              navigate(`/depots/${c.id}`);
+              setMenu(false);
+              setEditing(true);
             }}
-          />
-        ))}
-        {d.contracts.map((c) => (
-          <SheetAction key={`del-${c.id}`} icon={Trash2} tone="danger" label={`Supprimer le contrat ${c.contractNumber ?? ''}`} hint="Avec ses articles (sauf vendus / en commande)" onClick={() => askDeleteContract(c)} />
-        ))}
-        <SheetAction icon={Pencil} tone="violet" label="Modifier le déposant" onClick={() => { setMenu(false); setEditing(true); }} />
-        <SheetAction
-          icon={Trash2}
-          tone="danger"
-          label="Supprimer le déposant"
-          hint={d.contracts.length ? 'Supprimez d’abord ses contrats' : 'Action définitive'}
-          onClick={askDelete}
-        />
+            className="bd-focus inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-bd-lilac/70 text-sm font-extrabold text-bd-violet-strong active:scale-[0.98]"
+          >
+            <Pencil size={17} aria-hidden /> Modifier
+          </button>
+          <button
+            type="button"
+            onClick={askDelete}
+            title={d.contracts.length ? 'Supprimez d’abord ses contrats' : 'Action définitive'}
+            className={cn(
+              'bd-focus inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border text-sm font-extrabold active:scale-[0.98]',
+              d.contracts.length ? 'border-bd-line/15 text-bd-muted' : 'border-bd-danger/30 text-bd-danger',
+            )}
+          >
+            <Trash2 size={17} aria-hidden /> Supprimer
+          </button>
+        </div>
+        {d.contracts.length ? <p className="mt-2 text-center text-[11px] font-bold text-bd-muted">Pour supprimer le déposant, supprimez d'abord ses contrats.</p> : null}
       </BottomSheet>
       <DepotChoiceSheet
         deposantId={d.id}

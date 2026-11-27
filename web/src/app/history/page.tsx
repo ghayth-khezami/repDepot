@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Ban, Check, ClipboardCheck, MapPin, Package, PackageCheck, Phone, ShoppingBag, Truck } from "lucide-react";
 import { toast } from "sonner";
+import { io } from "socket.io-client";
 import { api } from "@/lib/api";
+import { getRemoteApiUrl } from "@/lib/api-url";
 import { useShop } from "@/context/ShopContext";
 import type { MyOrder, OrderStatus } from "@/types";
 
@@ -119,13 +121,12 @@ export default function HistoryPage() {
       return;
     }
     void load();
-    // The shop updates the status: refresh when the page comes back and every minute while open.
-    const onVisible = () => document.visibilityState === "visible" && void load();
-    document.addEventListener("visibilitychange", onVisible);
-    const t = window.setInterval(() => void load(), 60_000);
+    // Live: the shop changes a status → "order:update" arrives here (no polling).
+    const socket = io(`${getRemoteApiUrl()}/me`, { auth: { token }, transports: ["websocket"], reconnectionDelayMax: 30_000 });
+    socket.on("order:update", () => void load());
+    socket.io.on("reconnect", () => void load()); // phone woke up: catch up once
     return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.clearInterval(t);
+      socket.disconnect();
     };
   }, [token, user, load]);
 
