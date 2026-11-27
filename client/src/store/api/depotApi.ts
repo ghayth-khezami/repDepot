@@ -7,6 +7,7 @@ export interface DeposantSummary {
   firstName: string;
   lastName: string;
   phone: string;
+  gender?: 'F' | 'M' | null;
   productsCount: number;
   contractsCount: number;
 }
@@ -20,6 +21,7 @@ export interface NewDeposantInput {
   lat?: number;
   lng?: number;
   rib?: string;
+  gender?: 'F' | 'M';
 }
 
 export interface DepotItemInput {
@@ -34,6 +36,7 @@ export interface CreateDepotInput {
   deposantId?: string;
   deposant?: NewDeposantInput;
   durationMonths: 1 | 3 | 6;
+  depositDate?: string;
   internalNote?: string;
   items: DepotItemInput[];
 }
@@ -61,6 +64,8 @@ export interface DepotContract {
   durationMonths: number;
   createdAt: string;
   expiresAt: string;
+  /** Terms with the real commission / duration of this contract (resolved by the server). */
+  terms?: string;
   signedAt: string | null;
   internalNote: string | null;
   status: string;
@@ -88,6 +93,7 @@ export interface DeposantOverview {
   number: number;
   firstName: string;
   lastName: string;
+  gender: 'F' | 'M' | null;
   phone: string;
   email: string | null;
   address: string | null;

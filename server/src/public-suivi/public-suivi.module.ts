@@ -7,10 +7,11 @@ import { PublicSuiviService } from "./public-suivi.service";
 import { DeposantPushService } from "./deposant-push.service";
 import { NotificationModule } from "../notification/notification.module";
 import { SuiviRateLimitGuard } from "./suivi-rate-limit.guard";
+import { SuiviGateway } from "./suivi.gateway";
 
 @Module({
   imports: [PrismaModule, SiteSettingsModule, StoreHoursModule, NotificationModule],
   controllers: [PublicSuiviController],
-  providers: [PublicSuiviService, SuiviRateLimitGuard, DeposantPushService],
+  providers: [PublicSuiviService, SuiviRateLimitGuard, DeposantPushService, SuiviGateway],
 })
 export class PublicSuiviModule {}

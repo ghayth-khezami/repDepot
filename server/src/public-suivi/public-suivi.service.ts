@@ -18,6 +18,7 @@ export interface PublicSuiviItem {
   status: ProductStatus;
   depositedAt: Date;
   soldAt: Date | null;
+  paidAt: Date | null;
   payoutStatus: PayoutStatus | null;
 }
 
@@ -86,6 +87,7 @@ export class PublicSuiviService {
             depositorAmountMillimes: true,
             status: true,
             soldAt: true,
+            paidAt: true,
             payoutStatus: true,
             createdAt: true,
             category: { select: { categoryName: true } },
@@ -108,6 +110,7 @@ export class PublicSuiviService {
         status: p.status,
         depositedAt: p.createdAt,
         soldAt: p.soldAt,
+        paidAt: p.status === ProductStatus.VENDU && p.payoutStatus === PayoutStatus.PAYE ? p.paidAt : null,
         payoutStatus:
           p.status === ProductStatus.VENDU ? (p.payoutStatus ?? PayoutStatus.A_PERCEVOIR) : null,
       };

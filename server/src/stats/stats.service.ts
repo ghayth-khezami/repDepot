@@ -1,3 +1,5 @@
+import { addMonths, productSplit } from "../depot/depot.service";
+import { WALK_IN_EMAIL } from "../command/command.service";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -7,6 +9,8 @@ export interface StatsQueryDto {
   categoryId?: string;
   period?: "month" | "year" | "all";
   year?: number;
+  page?: number;
+  limit?: number;
 }
 
 @Injectable()
@@ -275,41 +279,43 @@ export class StatsService {
     };
   }
 
+  /**
+   * Revenue of the period, from the articles SOLD in it (soldAt) — orders, in-shop sales and dépôt
+   * articles marked « Vendu » all count.
+   *  - commission: the shop's share of dépôt sales
+   *  - achatSales: sale price of the shop's own (non-dépôt) articles
+   *  - depotRevenue ("Revenu de Dépôt") = commission + achatSales
+   *  - buyingRevenue = margin on own articles (sale − purchase); totalRevenue = commission + margin
+   */
   async getRevenueBreakdown(query: StatsQueryDto) {
-    const where = this.buildWhereClause(query);
-
-    const commandDetails = await this.prisma.commandDetail.findMany({
+    const date = this.buildDateFilter(query);
+    const sold = await this.prisma.product.findMany({
       where: {
-        command: { ...where.command, status: "DELIVERED" },
+        status: "VENDU",
+        ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+        ...(date ? { soldAt: date } : {}),
       },
-      include: {
-        product: {
-          select: {
-            isDepot: true,
-            PrixVente: true,
-            PrixAchat: true,
-            depotPercentage: true,
-          },
-        },
-      },
+      select: { isDepot: true, PrixVente: true, PrixAchat: true, depotPercentage: true, shopAmountMillimes: true, depositorAmountMillimes: true },
     });
 
+    let commission = 0;
+    let achatSales = 0;
     let buyingRevenue = 0;
-    let depotRevenue = 0;
-
-    commandDetails.forEach((detail) => {
-      const p = detail.product;
+    for (const p of sold) {
       if (p.isDepot) {
-        depotRevenue += p.PrixVente * ((p.depotPercentage || 0) / 100);
+        commission += productSplit(p).shopMillimes / 1000;
       } else {
+        achatSales += p.PrixVente || 0;
         buyingRevenue += (p.PrixVente || 0) - (p.PrixAchat || 0);
       }
-    });
-
+    }
+    const round = (n: number) => Math.round(n * 1000) / 1000;
     return {
-      totalRevenue: buyingRevenue + depotRevenue,
-      buyingRevenue,
-      depotRevenue,
+      totalRevenue: round(commission + buyingRevenue),
+      buyingRevenue: round(buyingRevenue),
+      depotRevenue: round(commission + achatSales),
+      commission: round(commission),
+      achatSales: round(achatSales),
     };
   }
 
@@ -396,53 +402,25 @@ export class StatsService {
     return { totalSold, products };
   }
 
+  /**
+   * Articles sold per month of a calendar year (`year`, default: current year).
+   * Counts products by `soldAt` so both delivered orders and dépôt articles marked « Vendu »
+   * in the backoffice are included (orders alone missed every in-shop dépôt sale).
+   */
   async getMonthlySoldProducts(query: StatsQueryDto) {
-    const where = this.buildWhereClause(query);
-    const dateFilter = this.buildDateFilter(query);
-
-    // Get current year
-    const now = new Date();
-    const currentYear = query.year ?? now.getFullYear();
-
-    // Get all commands for the requested calendar year
-    const commands = await this.prisma.command.findMany({
+    const currentYear = query.year ?? new Date().getFullYear();
+    const sold = await this.prisma.product.findMany({
       where: {
-        ...where.command,
-        status: "DELIVERED",
-        createdAt: {
-          gte: new Date(currentYear, 0, 1),
-          lt: new Date(currentYear + 1, 0, 1),
-        },
+        status: "VENDU",
+        ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+        soldAt: { gte: new Date(currentYear, 0, 1), lt: new Date(currentYear + 1, 0, 1) },
       },
-      select: {
-        productsNumber: true,
-        createdAt: true,
-      },
+      select: { soldAt: true },
     });
 
-    // Initialize 12 months with 0
-    const monthlyData: { [key: string]: number } = {};
-    for (let month = 1; month <= 12; month++) {
-      const monthKey = `${currentYear}-${month < 10 ? "0" : ""}${month}`;
-      monthlyData[monthKey] = 0;
-    }
-
-    // Count sold products per month
-    commands.forEach((cmd) => {
-      const date = new Date(cmd.createdAt);
-      const month = date.getMonth() + 1;
-      const monthKey = `${date.getFullYear()}-${month < 10 ? "0" : ""}${month}`;
-      if (monthlyData[monthKey] !== undefined) {
-        monthlyData[monthKey] += cmd.productsNumber;
-      }
-    });
-
-    return Object.entries(monthlyData)
-      .map(([month, count]) => ({
-        month,
-        count,
-      }))
-      .sort((a, b) => a.month.localeCompare(b.month));
+    const counts = Array.from({ length: 12 }, () => 0);
+    for (const p of sold) if (p.soldAt) counts[p.soldAt.getMonth()] += 1;
+    return counts.map((count, i) => ({ month: `${currentYear}-${String(i + 1).padStart(2, "0")}`, count }));
   }
 
   async getDepotVsBuyingProducts(query: StatsQueryDto) {
@@ -469,51 +447,59 @@ export class StatsService {
     };
   }
 
+  /**
+   * Order map points, one page at a time (`page`, `limit` ≤ 100) so the dashboard can load a big history
+   * progressively. `pending` = not delivered yet (pulses on the map); `surPlace` = in-shop sale.
+   */
   async getCommandLocations(query: StatsQueryDto) {
     const where = this.buildWhereClause(query);
-
-    const commands = await this.prisma.command.findMany({
-      where: where.command,
-      select: {
-        id: true,
-        adresseLivraison: true,
-        createdAt: true,
-        PrixVente: true,
-        commandDetails: {
-          include: {
-            client: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-            coClient: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
+    const limit = Math.min(query.limit ?? 50, 100);
+    const page = query.page ?? 1;
+    const filter = { ...where.command, adresseLivraison: { not: "" } };
+    const [total, commands] = await Promise.all([
+      this.prisma.command.count({ where: filter }),
+      this.prisma.command.findMany({
+        where: filter,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          adresseLivraison: true,
+          createdAt: true,
+          PrixVente: true,
+          status: true,
+          commandDetails: {
+            take: 1,
+            select: {
+              client: { select: { firstName: true, lastName: true, email: true } },
+              coClient: { select: { firstName: true, lastName: true } },
             },
           },
         },
-      },
-    });
-
-    // Return commands with addresses (for geocoding on frontend)
-    return commands
-      .filter(
-        (cmd) => cmd.adresseLivraison && cmd.adresseLivraison.trim() !== "",
-      )
-      .map((cmd) => ({
+      }),
+    ]);
+    const data = commands.map((cmd) => {
+      const d = cmd.commandDetails[0];
+      const surPlace = d?.client?.email === WALK_IN_EMAIL;
+      return {
         id: cmd.id,
-        address: cmd.adresseLivraison,
+        address: surPlace ? cmd.adresseLivraison.replace(/^Achat sur place — /, "") : cmd.adresseLivraison,
         revenue: cmd.PrixVente,
         date: cmd.createdAt,
-        client: cmd.commandDetails[0]?.client
-          ? `${cmd.commandDetails[0].client.firstName} ${cmd.commandDetails[0].client.lastName}`
-          : cmd.commandDetails[0]?.coClient
-            ? `${cmd.commandDetails[0].coClient.firstName} ${cmd.commandDetails[0].coClient.lastName}`
-            : "N/A",
-      }));
+        status: cmd.status,
+        pending: cmd.status === "NOT_DELIVERED" || cmd.status === "ACCEPTED",
+        surPlace,
+        client: surPlace
+          ? "Achat sur place"
+          : d?.client
+            ? `${d.client.firstName} ${d.client.lastName}`
+            : d?.coClient
+              ? `${d.coClient.firstName} ${d.coClient.lastName}`
+              : "N/A",
+      };
+    });
+    return { data, meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } };
   }
 
   /** Dépôt-vente KPIs for the dashboard (period = contract / sale dates). */
@@ -555,36 +541,64 @@ export class StatsService {
   }
 
   /** Map of completed dépôts: one marker per contract, at the déposant's address. */
+  /**
+   * Dépôt map points, paginated like getCommandLocations. Alerts per contract:
+   *  - `ending`: contract ends within 14 days (or is over) and still has articles on sale → red
+   *  - `unpaid`: has articles sold but the déposant not paid yet → yellow
+   */
   async getDepotLocations(query: StatsQueryDto) {
     const date = this.buildDateFilter(query);
-    const rows = await this.prisma.depositRequest.findMany({
-      where: { contractNumber: { not: null }, coClientId: { not: null }, ...(date ? { createdAt: date } : {}) },
-      orderBy: { createdAt: "desc" },
-      take: 300,
-      select: {
-        id: true,
-        contractNumber: true,
-        createdAt: true,
-        proposedPrice: true,
-        coClient: { select: { id: true, firstName: true, lastName: true, address: true, lat: true, lng: true, number: true } },
-        _count: { select: { products: true } },
-      },
-    });
-    return rows
-      .filter((r) => r.coClient && ((r.coClient.lat != null && r.coClient.lng != null) || r.coClient.address?.trim()))
-      .map((r) => ({
-        id: r.id,
-        contractNumber: r.contractNumber,
-        date: r.createdAt,
-        value: r.proposedPrice,
-        items: r._count.products,
-        deposantId: r.coClient!.id,
-        deposant: `${r.coClient!.firstName} ${r.coClient!.lastName}`,
-        number: r.coClient!.number,
-        address: r.coClient!.address ?? "",
-        lat: r.coClient!.lat,
-        lng: r.coClient!.lng,
-      }));
+    const limit = Math.min(query.limit ?? 50, 100);
+    const page = query.page ?? 1;
+    const where = {
+      contractNumber: { not: null },
+      coClient: { OR: [{ lat: { not: null } }, { address: { not: "" } }] },
+      ...(date ? { createdAt: date } : {}),
+    };
+    const [total, rows] = await Promise.all([
+      this.prisma.depositRequest.count({ where }),
+      this.prisma.depositRequest.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          contractNumber: true,
+          createdAt: true,
+          durationMonths: true,
+          proposedPrice: true,
+          coClient: { select: { id: true, firstName: true, lastName: true, address: true, lat: true, lng: true, number: true, gender: true } },
+          products: { select: { status: true, payoutStatus: true, PrixVente: true } },
+        },
+      }),
+    ]);
+    const soon = Date.now() + 14 * 86_400_000;
+    const data = rows
+      .filter((r) => r.coClient)
+      .map((r) => {
+        const expiresAt = addMonths(r.createdAt, r.durationMonths ?? 3);
+        const onSale = r.products.filter((p) => p.status === "EN_VENTE").length;
+        const unpaid = r.products.some((p) => p.status === "VENDU" && p.payoutStatus !== "PAYE");
+        return {
+          id: r.id,
+          contractNumber: r.contractNumber,
+          date: r.createdAt,
+          expiresAt,
+          value: r.products.reduce((t, p) => t + p.PrixVente, 0) || r.proposedPrice,
+          items: r.products.length,
+          deposantId: r.coClient!.id,
+          deposant: `${r.coClient!.firstName} ${r.coClient!.lastName}`,
+          number: r.coClient!.number,
+          gender: r.coClient!.gender,
+          address: r.coClient!.address ?? "",
+          lat: r.coClient!.lat,
+          lng: r.coClient!.lng,
+          ending: onSale > 0 && expiresAt.getTime() <= soon,
+          unpaid,
+        };
+      });
+    return { data, meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } };
   }
 
   private buildDateFilter(query: StatsQueryDto) {

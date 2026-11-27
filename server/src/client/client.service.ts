@@ -19,8 +19,11 @@ export class ClientService {
     const actualLimit = Math.min(limit || 10, 50); // Requests above 50 are clamped, never rejected
     const skip = (page - 1) * actualLimit;
 
+    // The shared "Client sur place" (in-shop sales) is internal: never listed as a customer.
+    const notWalkIn = { NOT: { email: "sur-place@bebedepot.local" } };
     const where = search
       ? {
+          ...notWalkIn,
           OR: [
             { firstName: { contains: search, mode: "insensitive" as const } },
             { lastName: { contains: search, mode: "insensitive" as const } },
@@ -28,7 +31,7 @@ export class ClientService {
             { phoneNumber: { contains: search, mode: "insensitive" as const } },
           ],
         }
-      : {};
+      : notWalkIn;
 
     const [data, total] = await Promise.all([
       this.prisma.client.findMany({

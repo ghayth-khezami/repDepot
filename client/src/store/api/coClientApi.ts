@@ -56,6 +56,13 @@ export const coClientApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['CoClient'],
     }),
+    updateCoClient: builder.mutation<
+      CoClient,
+      { id: string; data: Partial<{ firstName: string; lastName: string; phoneNumber: string; email: string; address: string; RIB: string; gender: 'F' | 'M'; lat: number; lng: number }> }
+    >({
+      query: ({ id, data }) => ({ url: `/co-clients/${id}`, method: 'PATCH', body: data }),
+      invalidatesTags: ['CoClient'],
+    }),
     deleteCoClient: builder.mutation<void, string>({
       query: (id) => ({
         url: `/co-clients/${id}`,
@@ -72,5 +79,6 @@ export const {
   useGetCoClientQuery,
   useGetCoClientProductHistoryQuery,
   useCreateCoClientMutation,
+  useUpdateCoClientMutation,
   useDeleteCoClientMutation,
 } = coClientApi;

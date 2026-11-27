@@ -49,6 +49,13 @@ export class DepotController {
     return this.depotService.deposantByToken(token);
   }
 
+  @Get("deposants/:id/report.pdf")
+  @ApiOperation({ summary: "Fiche déposant PDF : infos, articles (infos manquantes), contrats, historique" })
+  async deposantReport(@Param("id", ParseUUIDPipe) id: string, @Query("inline") inline: string | undefined, @Res() res: Response) {
+    const { buffer, filename } = await this.depotService.deposantReportPdf(id);
+    sendPdf(res, buffer, filename, inline === "1");
+  }
+
   @Get("deposants/:id/overview")
   @ApiOperation({ summary: "Déposant overview: articles, statuses, contracts, amounts due" })
   overview(@Param("id", ParseUUIDPipe) id: string) {

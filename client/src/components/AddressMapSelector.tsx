@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Search as SearchIcon } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { orderIcon } from './mapPins';
 
 // Fix for default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -16,6 +17,8 @@ interface AddressMapSelectorProps {
   value: string;
   onChange: (address: string, lat?: number, lng?: number) => void;
   onPositionConfirm?: (lat: number, lng: number) => void;
+  /** Illustrated marker (order bag) instead of the default blue pin. */
+  marker?: 'order' | 'default';
 }
 
 const MapClickHandler = ({
@@ -34,9 +37,11 @@ const MapClickHandler = ({
 const DraggableMarker = ({
   position,
   onPositionChange,
+  icon,
 }: {
   position: [number, number];
   onPositionChange: (lat: number, lng: number) => void;
+  icon?: L.DivIcon;
 }) => {
   const eventHandlers = {
     dragend: (e: any) => {
@@ -46,10 +51,12 @@ const DraggableMarker = ({
     },
   };
 
-  return <Marker position={position} draggable={true} eventHandlers={eventHandlers} />;
+  return <Marker position={position} draggable={true} eventHandlers={eventHandlers} {...(icon ? { icon } : {})} />;
 };
 
-const AddressMapSelector = ({ value, onChange, onPositionConfirm }: AddressMapSelectorProps) => {
+const ORDER_ICON = orderIcon();
+
+const AddressMapSelector = ({ value, onChange, onPositionConfirm, marker = 'default' }: AddressMapSelectorProps) => {
   // Default position (Tunis, Tunisia center)
   const defaultPosition: [number, number] = [36.8065, 10.1815];
   const [position, setPosition] = useState<[number, number]>(defaultPosition);
@@ -214,6 +221,7 @@ const AddressMapSelector = ({ value, onChange, onPositionConfirm }: AddressMapSe
           <MapClickHandler onMapClick={handleMapClick} />
           <DraggableMarker
             position={position}
+            icon={marker === 'order' ? ORDER_ICON : undefined}
             onPositionChange={(lat, lng) => {
               setPosition([lat, lng]);
               handleMapClick(lat, lng);

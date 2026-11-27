@@ -116,6 +116,22 @@ export interface AuthUser {
   email: string;
   username?: string;
   role?: "CLIENT" | "DEPOSER" | "ADMIN";
+  /** 8 digits — links the orders placed with this number, even before signing up. */
+  phoneNumber?: string | null;
+}
+
+export type OrderStatus = "NOT_DELIVERED" | "ACCEPTED" | "DELIVERED";
+
+export interface MyOrder {
+  id: string;
+  status: OrderStatus;
+  PrixVente: number;
+  adresseLivraison: string;
+  dateLivraison: string | null;
+  createdAt: string;
+  acceptedAt: string | null;
+  deliveredAt: string | null;
+  products: Array<{ id: string; name: string; ref: string | null; price: number; photo: string | null }>;
 }
 
 export interface CartItem {

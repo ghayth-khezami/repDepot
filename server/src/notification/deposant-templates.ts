@@ -4,20 +4,25 @@
  */
 export type DeposantEvent = "VENDU" | "PAYE";
 
+/**
+ * VENDU = the article is sold → the déposant comes to collect the money.
+ * PAYE  = the money has been handed over → confirmation only, nothing left to do.
+ */
 export const DEPOSANT_TEMPLATES: Record<DeposantEvent, { title: string; subject: string; body: string }> = {
   VENDU: {
-    title: "🎉 Votre article est vendu !",
-    subject: "🎉 Votre article {produit} est vendu — BebeDepot",
+    title: "🎉 Article vendu — votre paiement vous attend",
+    subject: "🎉 « {produit} » est vendu — venez récupérer votre paiement",
     body:
-      "Bonjour {prenom} 👋 Bonne nouvelle 🎉 Votre article « {produit} » (réf. {ref}) vient d'être vendu à {prix} TND ! " +
-      "📞 Appelez Madame Khezami au {KHEZAMI_PHONE} pour organiser votre paiement 💰 Merci de votre confiance 💜 BebeDepot",
+      "Bonjour {prenom} 👋 Bonne nouvelle 🎉 Votre article « {produit} » (réf. {ref}) vient d'être vendu ! " +
+      "💰 Votre part de {prix} TND vous attend en boutique. " +
+      "📞 Appelez Madame Khezami au {KHEZAMI_PHONE} pour venir la récupérer. Merci de votre confiance 💜",
   },
   PAYE: {
-    title: "💰 Votre paiement est prêt",
-    subject: "💰 Paiement prêt pour {produit} — BebeDepot",
+    title: "✅ Paiement reçu",
+    subject: "✅ Paiement de « {produit} » effectué",
     body:
-      "Bonjour {prenom} 👋 Le paiement de votre article « {produit} » (réf. {ref}) est prêt ✅💰 " +
-      "📞 Contactez Madame Khezami au {KHEZAMI_PHONE} pour le récupérer. À très bientôt 💜 BebeDepot",
+      "Bonjour {prenom} 👋 Le paiement de votre article « {produit} » (réf. {ref}) vous a bien été remis ✅ " +
+      "({prix} TND). Merci pour votre confiance et à très bientôt 💜 Une question ? Madame Khezami : {KHEZAMI_PHONE}.",
   },
 };
 

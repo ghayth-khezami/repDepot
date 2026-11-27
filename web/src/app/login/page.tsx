@@ -4,7 +4,7 @@ import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { LockKeyhole, Mail, Phone, ShieldCheck } from "lucide-react";
 import { useShop } from "@/context/ShopContext";
 import { LogoLoader } from "@/components/LogoLoader";
 import { safeRedirect } from "@/lib/safe-redirect";
@@ -18,6 +18,7 @@ export default function LoginPage() {
   const title = useMemo(() => (mode === "signin" ? "Connexion" : "Créer un compte"), [mode]);
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [showVerify, setShowVerify] = useState(false);
@@ -99,7 +100,13 @@ export default function LoginPage() {
     try {
       if (mode === "signup") {
         setLoading(true);
-        await register(email, password, username || undefined);
+        const digits = phone.replace(/\D/g, "").replace(/^216(?=\d{8}$)/, "");
+        if (!/^\d{8}$/.test(digits)) {
+          setError("Le téléphone doit contenir 8 chiffres.");
+          setLoading(false);
+          return;
+        }
+        await register(email, password, username || undefined, digits);
         setShowVerify(true);
         toast.success("Code envoyé", {
           description: "Vérifiez votre boîte mail pour activer votre compte.",
@@ -113,7 +120,7 @@ export default function LoginPage() {
       const msg =
         mode === "signin"
           ? "Identifiants invalides."
-          : "Impossible d'envoyer le code (email déjà utilisé ?).";
+          : "Impossible de créer le compte (email ou téléphone déjà utilisé ?).";
       setError(msg);
       toast.error(mode === "signin" ? "Connexion impossible" : "Inscription impossible", {
         description: msg,
@@ -195,6 +202,12 @@ export default function LoginPage() {
               <form className="mt-6 space-y-4" onSubmit={onSubmit}>
                 {mode === "signup" && <input className="field-input" placeholder="Nom d'utilisateur (optionnel)" value={username} onChange={(e) => setUsername(e.target.value)} />}
                 <label className="login-field"><Mail size={18} /><input type="email" placeholder="Adresse email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+                {mode === "signup" && (
+                  <>
+                    <label className="login-field"><Phone size={18} /><input type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="Téléphone (8 chiffres)" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d\s+]/g, "").slice(0, 14))} required /></label>
+                    <p className="-mt-2 text-xs text-[#2D2346]/60">Utilisez le numéro de vos commandes : elles apparaîtront dans « Mes commandes ».</p>
+                  </>
+                )}
                 <label className="login-field"><LockKeyhole size={18} /><input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 <button type="submit" disabled={loading} className="btn-primary w-full !py-4">{mode === "signin" ? "Se connecter" : "S'inscrire"}</button>

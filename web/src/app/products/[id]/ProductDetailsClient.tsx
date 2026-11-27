@@ -60,8 +60,9 @@ export function ProductDetailsClient({
         setProduct(data);
         const catId = data.category?.id;
         if (catId) {
-          const row = await api.getProductsPage({ categoryId: catId, limit: 8 });
-          setSimilar(row.data.filter((p) => p.id !== data.id).slice(0, 4));
+          // "Vous aimerez aussi": only articles still available.
+          const row = await api.getProductsPage({ categoryId: catId, limit: 10, inStock: true });
+          setSimilar(row.data.filter((p) => p.id !== data.id && p.isDispo !== false).slice(0, 4));
         } else setSimilar([]);
       } catch {
         setProduct(null);

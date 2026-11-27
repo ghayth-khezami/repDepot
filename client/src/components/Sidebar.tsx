@@ -12,12 +12,13 @@ import {
   Clock,
   MessageSquare,
   Mail,
-  Heart,
   ShieldCheck,
   QrCode,
-  PackagePlus,
+  Users,
   UserRound,
   Settings2,
+  MoreHorizontal,
+  ChevronDown,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -34,25 +35,52 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
-export const menuItems: NavItem[] = [
+/** Always visible. */
+export const mainItems: NavItem[] = [
   { path: '/', label: 'Tableau de Bord', icon: LayoutDashboard },
-  { path: '/depots/nouveau', label: 'Nouveau dépôt', icon: PackagePlus },
+  { path: '/depots/nouveau', label: 'Déposants', icon: Users },
   { path: '/products', label: 'Produits', icon: Package },
-  { path: '/scan', label: 'Scanner QR', icon: QrCode },
-  { path: '/coups-de-coeur', label: 'Coups de cœur', icon: Heart },
-  { path: '/youtube', label: 'Boutique & YouTube', icon: Settings2 },
-  { path: '/categories', label: 'Catégories', icon: FolderTree },
   { path: '/clients', label: 'Clients', icon: UserRound },
   { path: '/commands', label: 'Commandes', icon: ShoppingCart },
+  { path: '/categories', label: 'Catégories', icon: FolderTree },
+];
+
+/** "Plus" accordion. Coups de cœur = the ♥ on each product (no separate page in the menu). */
+export const moreItems: NavItem[] = [
+  { path: '/scan', label: 'Scanner QR', icon: QrCode },
+  { path: '/youtube', label: 'Boutique & YouTube', icon: Settings2 },
   { path: '/horaires', label: 'Horaires', icon: Clock },
   { path: '/avis-clients', label: 'Avis clients', icon: MessageSquare },
   { path: '/newsletter', label: 'Newsletter', icon: Mail },
   { path: '/users', label: 'Utilisateurs', icon: ShieldCheck },
 ];
 
+export const menuItems: NavItem[] = [...mainItems, ...moreItems];
+
+/** Already in the mobile bottom bar → hidden from the mobile drawer (still shown on desktop). */
+const IN_BOTTOM_BAR = new Set(['/', '/depots/nouveau', '/scan', '/products', '/commands']);
+
 export function isNavActive(pathname: string, path: string) {
   if (path === '/') return pathname === '/';
   return pathname === path || pathname.startsWith(`${path}/`);
+}
+
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  const Icon = item.icon;
+  return (
+    <Link
+      to={item.path}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'bd-focus flex min-h-[44px] items-center gap-3 rounded-full px-4 text-[15px] font-bold transition duration-200',
+        IN_BOTTOM_BAR.has(item.path) && 'max-md:hidden',
+        active ? 'bg-grad-pink-strong text-white shadow-glow-pink' : 'text-bd-ink hover:bg-bd-lilac/60',
+      )}
+    >
+      <Icon className={cn('h-6 w-6 shrink-0', active ? 'text-white' : 'text-bd-violet')} strokeWidth={2} />
+      <span className="truncate">{item.label}</span>
+    </Link>
+  );
 }
 
 const Sidebar = () => {
@@ -60,6 +88,11 @@ const Sidebar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const inMore = moreItems.some((i) => isNavActive(location.pathname, i.path));
+  const [moreOpen, setMoreOpen] = useState(inMore);
+  useEffect(() => {
+    if (inMore) setMoreOpen(true);
+  }, [inMore]);
 
   useEffect(() => setIsMobileMenuOpen(false), [location.pathname]);
 
@@ -90,26 +123,26 @@ const Sidebar = () => {
         </div>
 
         <nav aria-label="Navigation principale" className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const active = isNavActive(location.pathname, item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'bd-focus flex min-h-[44px] items-center gap-3 rounded-full px-4 text-[15px] font-bold transition duration-200',
-                  active
-                    ? 'bg-grad-pink-strong text-white shadow-glow-pink'
-                    : 'text-bd-ink hover:bg-bd-lilac/60',
-                )}
-              >
-                <Icon className={cn('h-6 w-6 shrink-0', active ? 'text-white' : 'text-bd-violet')} strokeWidth={2} />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
+          {mainItems.map((item) => (
+            <NavLink key={item.path} item={item} active={isNavActive(location.pathname, item.path)} />
+          ))}
+          <button
+            type="button"
+            onClick={() => setMoreOpen((v) => !v)}
+            aria-expanded={moreOpen}
+            className="bd-focus mt-2 flex min-h-[44px] w-full items-center gap-3 rounded-full px-4 text-[13px] font-black uppercase tracking-[0.12em] text-bd-muted transition hover:bg-bd-lilac/60"
+          >
+            <MoreHorizontal className="h-5 w-5 text-bd-violet" />
+            <span className="flex-1 text-left">Plus</span>
+            <ChevronDown className={cn('h-4 w-4 transition', moreOpen && 'rotate-180')} />
+          </button>
+          {moreOpen ? (
+            <div className="bd-anim-fade-up space-y-1">
+              {moreItems.map((item) => (
+                <NavLink key={item.path} item={item} active={isNavActive(location.pathname, item.path)} />
+              ))}
+            </div>
+          ) : null}
         </nav>
 
         <div className="relative space-y-1 border-t border-bd-line/10 p-3">

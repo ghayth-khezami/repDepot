@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { scanBeep, unlockBeep } from '../lib/beep';
+import StageControl, { stageFrom } from '../features/products/StageControl';
+import ProductDetailSheet from '../features/products/ProductDetailSheet';
 import { useNavigate } from 'react-router-dom';
-import { Camera, CameraOff, Hash, Package, ScanLine, Search, ShoppingCart, X } from 'lucide-react';
+import { Camera, CameraOff, Eye, Hash, Package, ScanLine, Search, X } from 'lucide-react';
 import { useLazyLookupProductQuery } from '../store/api/productApi';
 import type { Product } from '../types';
 import { uploadUrl } from '../lib/apiBase';
@@ -31,6 +34,8 @@ export default function QrScannerPage() {
   const [error, setError] = useState<string | null>(null);
   const [suiviToken, setSuiviToken] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>(readRecent);
+  const [flash, setFlash] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [lookup, { isFetching }] = useLazyLookupProductQuery();
   const navigate = useNavigate();
 
@@ -41,6 +46,7 @@ export default function QrScannerPage() {
       setError(null);
       try {
         const p = await lookup(value).unwrap();
+        scanBeep(true);
         setProduct(p);
         navigator.vibrate?.(60);
         const label = p.ref || value;
@@ -55,6 +61,7 @@ export default function QrScannerPage() {
         });
         return true;
       } catch (e) {
+        scanBeep(false);
         setError(apiErrorMessage(e, 'Produit introuvable.'));
         return false;
       }
@@ -68,6 +75,7 @@ export default function QrScannerPage() {
       const token = raw.match(/\/suivi\/([A-Za-z0-9_-]{16,})/)?.[1];
       if (token) {
         setError(null);
+        scanBeep(true);
         setSuiviToken(token);
         return true;
       }
@@ -104,6 +112,8 @@ export default function QrScannerPage() {
             busyRef.current = true;
             navigator.vibrate?.(40);
             setStatus('Code détecté…');
+            setFlash(true);
+            window.setTimeout(() => setFlash(false), 450);
             void handleRef.current(value).finally(() => {
               busyRef.current = false;
               setStatus('Présentez le QR ou le code-barres.');
@@ -129,7 +139,7 @@ export default function QrScannerPage() {
   }, [mode, suiviToken, product]);
 
   return (
-    <div className="bd-ui mx-auto max-w-2xl space-y-5">
+    <div className="bd-ui mx-auto w-full max-w-4xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-bd-pink-strong">Scanner</p>
@@ -140,6 +150,7 @@ export default function QrScannerPage() {
           label="Mode de recherche"
           value={mode}
           onChange={(m) => {
+            unlockBeep();
             setError(null);
             setMode(m);
           }}
@@ -154,8 +165,13 @@ export default function QrScannerPage() {
       {mode === 'camera' ? (
         <div className="bd-anim-pop relative overflow-hidden rounded-[28px] bg-slate-950 shadow-xl">
           <video ref={videoRef} className="aspect-square w-full object-cover sm:aspect-[4/3]" muted playsInline />
-          <div className="pointer-events-none absolute inset-[12%] rounded-3xl border-2 border-white/85 shadow-[0_0_0_999px_rgba(0,0,0,0.35)]">
-            <span className="absolute inset-x-4 top-1/2 h-0.5 animate-pulse rounded-full bg-gradient-to-r from-transparent via-pink-400 to-transparent" />
+          {/* Scan window: dimmed outside, corner brackets, red laser sweeping up and down */}
+          <div className={cn('bd-scan-frame pointer-events-none absolute inset-x-[14%] top-1/2 aspect-square max-h-[76%] -translate-y-1/2 rounded-3xl shadow-[0_0_0_999px_rgba(0,0,0,0.45)] sm:inset-x-[26%]', flash && 'is-hit')}>
+            <span className="bd-scan-corner left-0 top-0 border-l-4 border-t-4 rounded-tl-3xl" />
+            <span className="bd-scan-corner right-0 top-0 border-r-4 border-t-4 rounded-tr-3xl" />
+            <span className="bd-scan-corner bottom-0 left-0 border-b-4 border-l-4 rounded-bl-3xl" />
+            <span className="bd-scan-corner bottom-0 right-0 border-b-4 border-r-4 rounded-br-3xl" />
+            {cameraOk ? <span className="bd-scan-laser" /> : null}
           </div>
           {!cameraOk ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/90">
@@ -212,6 +228,16 @@ export default function QrScannerPage() {
         ) : null}
       </Card>
 
+      {detailId ? (
+        <ProductDetailSheet
+          id={detailId}
+          onClose={() => setDetailId(null)}
+          onEdit={(p) => {
+            setDetailId(null);
+            navigate(`/products?edit=${p.id}`);
+          }}
+        />
+      ) : null}
       {suiviToken ? <DeposantSuivi token={suiviToken} onClose={() => setSuiviToken(null)} /> : null}
 
       {product ? (
@@ -242,13 +268,12 @@ export default function QrScannerPage() {
               {product.coClient ? ` · Déposant ${product.coClient.firstName} ${product.coClient.lastName}` : ''}
             </p>
             {product.description ? <p className="mt-2 line-clamp-3 text-sm text-bd-ink">{product.description}</p> : null}
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <Button variant="secondary" onClick={() => navigate(`/products?search=${encodeURIComponent(product.ref || product.productName)}`)}>
+            <div className="mt-5 flex gap-2">
+              <Button variant="secondary" icon={Eye} onClick={() => setDetailId(product.id)}>
                 Voir la fiche
               </Button>
-              <Button icon={ShoppingCart} disabled={product.status === 'VENDU'} onClick={() => navigate(`/commands?productId=${encodeURIComponent(product.id)}`)}>
-                Commander
-              </Button>
+              {/* Marquer comme vendu → (créer la commande | vendu en boutique) ; vendu → Marquer comme payé */}
+              <StageControl key={product.id} variant="action" productId={product.id} stage={stageFrom(product)} isDepot={product.isDepot} />
             </div>
           </div>
         </div>

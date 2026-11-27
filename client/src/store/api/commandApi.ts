@@ -2,14 +2,19 @@ import { pagedFeed } from './feed';
 import { baseApi } from './baseApi';
 import { PaginatedResponse, QueryParams } from '../../types';
 
+/** NOT_DELIVERED = Reçue, ACCEPTED = Acceptée, DELIVERED = Livrée (GOT_PROFIT = legacy, shown as Livrée). */
+export type CommandStatus = 'NOT_DELIVERED' | 'ACCEPTED' | 'DELIVERED' | 'GOT_PROFIT';
+
 export interface Command {
   id: string;
   productsNumber: number;
   PrixVente: number;
   PrixAchat: number;
-  status: 'NOT_DELIVERED' | 'DELIVERED';
+  status: CommandStatus;
   dateLivraison?: string;
   adresseLivraison: string;
+  acceptedAt?: string | null;
+  deliveredAt?: string | null;
   createdAt: string;
   updatedAt: string;
   commandDetails?: any[];
@@ -22,7 +27,7 @@ export interface CreateCommandDto {
   productIds: string[];
   clientId: string;
   coClientId?: string;
-  status?: 'NOT_DELIVERED' | 'DELIVERED';
+  status?: CommandStatus;
   dateLivraison?: string;
   adresseLivraison: string;
 }
@@ -32,7 +37,7 @@ export interface UpdateCommandDto {
   PrixVente?: number;
   PrixAchat?: number;
   coClientId?: string;
-  status?: 'NOT_DELIVERED' | 'DELIVERED';
+  status?: CommandStatus;
   adresseLivraison?: string;
   dateLivraison?: string;
   productIds?: string[];
@@ -61,6 +66,11 @@ export const commandApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Command'],
     }),
+    /** In-shop sale: "Client sur place", shop address, delivered at once. */
+    createSurPlaceCommand: builder.mutation<Command, { productIds: string[]; date?: string }>({
+      query: (body) => ({ url: '/commands/sur-place', method: 'POST', body }),
+      invalidatesTags: ['Command', 'Product'],
+    }),
     updateCommand: builder.mutation<Command, { id: string; data: UpdateCommandDto }>({
       query: ({ id, data }) => ({
         url: `/commands/${id}`,
@@ -88,6 +98,7 @@ export const {
   useGetCommandsFeedInfiniteQuery,
   useGetCommandQuery,
   useCreateCommandMutation,
+  useCreateSurPlaceCommandMutation,
   useUpdateCommandMutation,
   useDeleteCommandMutation,
   useDeleteAllCommandsMutation,

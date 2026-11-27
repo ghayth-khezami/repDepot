@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
-  useGetCommandsQuery, useGetCommandsFeedInfiniteQuery,
   useGetCommandQuery,
   useCreateCommandMutation,
   useUpdateCommandMutation,
@@ -8,19 +8,19 @@ import {
   useDeleteAllCommandsMutation,
   CreateCommandDto,
   UpdateCommandDto,
+  type CommandStatus,
 } from '../store/api/commandApi';
+import CommandsList, { OrderStatusControl } from '../features/commands/CommandsList';
+import { uploadUrl } from '../lib/apiBase';
 import { useConfirmDialog } from '../components/ConfirmDialog';
-import { useGetProductsQuery, useLazyGetProductQuery } from '../store/api/productApi';
-import { useGetClientsQuery } from '../store/api/clientApi';
+import { useLazyGetProductQuery } from '../store/api/productApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
-import { useInfiniteList } from '../hooks/useInfiniteList';
-import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import AddressMapSelector from '../components/AddressMapSelector';
-import InfiniteSelect from '../components/InfiniteSelect';
-import MultiSelectCheckbox from '../components/MultiSelectCheckbox';
+import ClientCombobox from '../features/commands/ClientCombobox';
+import ProductMultiPicker from '../features/commands/ProductMultiPicker';
 import DatePicker from 'react-datepicker';
-import { Edit, Eye, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { Command } from '../store/api/commandApi';
 import ExcelButton from '../components/ExcelButton';
@@ -42,41 +42,37 @@ const CommandsPage = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryDate, setDeliveryDate] = useState<Date | null>(null);
   const [statusDate, setStatusDate] = useState<Date | null>(null);
-  const [newStatus, setNewStatus] = useState<'NOT_DELIVERED' | 'DELIVERED'>('NOT_DELIVERED');
+  const [newStatus, setNewStatus] = useState<CommandStatus>('NOT_DELIVERED');
 
-  const { data, isLoading, infinite } = useInfiniteList<Command>(useGetCommandsFeedInfiniteQuery({search,
-    status: statusFilter || undefined,
-  }));
+
   const { data: viewCommand, isLoading: viewLoading } = useGetCommandQuery(viewCommandId || '', {
     skip: !viewCommandId,
   });
 
   // Infinite scroll for products
-  const [productsPage, setProductsPage] = useState(1);
-  const { data: productsData, isLoading: productsLoading } = useGetProductsQuery({ limit: 10, page: productsPage });
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [getProduct] = useLazyGetProductQuery();
   const { showToast } = useToast();
 
-  // Infinite scroll for clients
-  const [clientsPage, setClientsPage] = useState(1);
-  const { data: clientsData, isLoading: clientsLoading } = useGetClientsQuery({ limit: 10, page: clientsPage });
-  const [allClients, setAllClients] = useState<any[]>([]);
 
   // Infinite scroll for co-clients
   const [coClientsPage, setCoClientsPage] = useState(1);
   const { data: coClientsData, isLoading: coClientsLoading } = useGetCoClientsQuery({ limit: 10, page: coClientsPage });
   const [allCoClients, setAllCoClients] = useState<any[]>([]);
 
-  // Accumulate products
+
+  // From a notification: /commands?id=<order> opens that order's detail.
+  const [params, setParams] = useSearchParams();
+  const openId = params.get('id');
   useEffect(() => {
-    if (productsData?.data) {
-      setAllProducts((prev) => {
-        const newItems = productsData.data.filter((item) => !prev.find((p) => p.id === item.id));
-        return [...prev, ...newItems];
-      });
-    }
-  }, [productsData]);
+    if (!openId) return;
+    setViewCommandId(openId);
+    setViewOpen(true);
+    const next = new URLSearchParams(params);
+    next.delete('id');
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
 
   useEffect(() => {
     const productId = new URLSearchParams(window.location.search).get('productId');
@@ -91,15 +87,6 @@ const CommandsPage = () => {
     }).catch(() => showToast('Produit introuvable', 'error'));
   }, [getProduct, showToast]);
 
-  // Accumulate clients
-  useEffect(() => {
-    if (clientsData?.data) {
-      setAllClients((prev) => {
-        const newItems = clientsData.data.filter((item) => !prev.find((p) => p.id === item.id));
-        return [...prev, ...newItems];
-      });
-    }
-  }, [clientsData]);
 
   // Accumulate co-clients
   useEffect(() => {
@@ -137,6 +124,10 @@ const CommandsPage = () => {
     const productIds = details.map((d: any) => d.productId).filter(Boolean);
     const clientId = details.find((d: any) => d.clientId)?.clientId || '';
     setSelectedProducts(productIds);
+    // Full product rows for the chips and the totals.
+    void Promise.all(productIds.map((pid: string) => getProduct(pid).unwrap().catch(() => null))).then((rows) =>
+      setAllProducts((prev) => [...prev.filter((x) => !productIds.includes(x.id)), ...(rows.filter(Boolean) as any[])]),
+    );
     setSelectedClient(clientId);
     setDeliveryAddress(command.adresseLivraison);
     setDeliveryDate(command.dateLivraison ? new Date(command.dateLivraison) : null);
@@ -215,7 +206,10 @@ const CommandsPage = () => {
     };
 
     try {
-      if (isEditMode && selectedCommand) {
+      if (isEditMode && selectedCommand && isWebCommand(selectedCommand)) {
+        await updateCommand({ id: selectedCommand.id, data: { adresseLivraison: deliveryAddress, dateLivraison: deliveryDate ? deliveryDate.toISOString() : undefined } }).unwrap();
+        showToast('Commande modifiée', 'success');
+      } else if (isEditMode && selectedCommand) {
         const updateData: UpdateCommandDto = {
           productsNumber: selectedProducts.length,
           PrixVente: totalPrixVente,
@@ -296,112 +290,20 @@ const CommandsPage = () => {
       .catch(() => showToast('Erreur lors de l\'export PDF', 'error'));
   };
 
-  const handleDeleteAll = () => {
-    confirm({
-      title: 'Supprimer toutes les commandes',
-      message: 'Cette action supprime définitivement toutes les commandes. Continuer ?',
-      confirmLabel: 'Tout supprimer',
-      onConfirm: async () => {
-        const result = await deleteAllCommands().unwrap();
-        showToast(`${result.deleted} commandes supprimées`, 'success');
-        setPage(1);
-      },
-    });
-  };
 
-  const getStatusBadge = (status: string) => {
-    const statusMap = {
-      NOT_DELIVERED: { label: 'Non livré', color: 'bg-orange-100 text-orange-800' },
-      DELIVERED: { label: 'Livré', color: 'bg-blue-100 text-blue-800' },
-    };
-    const statusInfo = statusMap[status as keyof typeof statusMap] || statusMap.NOT_DELIVERED;
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
-        {statusInfo.label}
-      </span>
-    );
-  };
-
-  const columns: Column<Command>[] = [
-    { header: 'N° Produits', accessor: 'productsNumber' },
-    { header: 'Total', accessor: 'PrixVente', render: (value) => `${value} TND` },
-    { header: 'Prix Achat', accessor: 'PrixAchat', render: (value) => `${value} TND` },
-    {
-      header: 'Statut',
-      accessor: 'status',
-      render: (value) => getStatusBadge(value),
-    },
-    {
-      header: 'Date Livraison',
-      accessor: 'dateLivraison',
-      render: (value) => (value ? new Date(value).toLocaleDateString('fr-FR') : '-'),
-    },
-    { header: 'Adresse', accessor: 'adresseLivraison' },
-  ];
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">Gestion des Commandes</h1>
-        <p className="bo-muted mt-2">Gérez toutes les commandes</p>
-        <button type="button" onClick={handleDeleteAll} className="mt-3 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">
-          Supprimer toutes les commandes
-        </button>
-      </div>
-
-      <ReusableTable
-        toolbarExtra={<ExcelButton entity="commands" params={{ search, status: statusFilter }} compact />}
-        data={data?.data || []}
-        columns={columns}
-        isLoading={isLoading}
-        searchPlaceholder="Rechercher par adresse..."
-        onSearch={setSearch}
-        filters={
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-          >
-            <option value="">Tous les statuts</option>
-            <option value="NOT_DELIVERED">Non livré</option>
-            <option value="DELIVERED">Livré</option>
-          </select>
-        }
-        infinite={infinite}
-        actions={(row) => (
-          <>
-            <button
-              onClick={() => handleView(row)}
-              className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-              title="Voir"
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleStatusChange(row)}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Modifier statut
-            </button>
-            <button
-              onClick={() => handleEdit(row)}
-              disabled={isWebCommand(row)}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleDelete(row.id)}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </>
-        )}
+      <CommandsList
+        onOpen={handleView}
         onAdd={handleAdd}
-        addButtonLabel="Ajouter une commande"
-        onExportCsv={handleExportCsv}
-        onExportPdf={handleExportPdf}
+        headerExtra={
+          <div className="hidden items-center gap-2 md:flex">
+            <ExcelButton entity="commands" params={{ search, status: statusFilter }} compact />
+            <button type="button" onClick={handleExportCsv} className="bd-focus min-h-[44px] rounded-2xl border border-bd-line/10 bg-bd-surface px-3 text-sm font-extrabold text-bd-ink shadow-card">CSV</button>
+            <button type="button" onClick={handleExportPdf} className="bd-focus min-h-[44px] rounded-2xl border border-bd-line/10 bg-bd-surface px-3 text-sm font-extrabold text-bd-ink shadow-card">PDF</button>
+          </div>
+        }
       />
 
       {dialog}
@@ -413,7 +315,7 @@ const CommandsPage = () => {
           setViewCommandId(null);
           setSelectedCommand(null);
         }}
-        title="Détail commande"
+        title="Détail de la commande"
         size="xl"
       >
         {viewLoading ? (
@@ -435,7 +337,7 @@ const CommandsPage = () => {
                     <div className="mt-1 text-sm font-semibold text-gray-900">{firstClient.phoneNumber || '—'}</div>
                   </div>
                   <div className="rounded-xl bg-gray-50 px-4 py-3">
-                    <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Nb produits</div>
+                    <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Articles</div>
                     <div className="mt-1 text-sm font-semibold text-gray-900">
                       {(viewCommand as any).commandDetails?.length ?? 0} / {viewCommand.productsNumber}
                     </div>
@@ -446,26 +348,26 @@ const CommandsPage = () => {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-gray-50 px-4 py-3">
-                <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Adresse</div>
-                <div className="mt-1 text-sm font-semibold text-gray-900">{viewCommand.adresseLivraison}</div>
+                <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Adresse de livraison</div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">{viewCommand.adresseLivraison || 'Non renseignée'}</div>
               </div>
               <div className="rounded-xl bg-gray-50 px-4 py-3">
                 <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Statut</div>
-                <div className="mt-1 text-sm font-semibold text-gray-900">{viewCommand.status}</div>
+                <div className="bd-ui mt-1"><OrderStatusControl command={viewCommand} /></div>
               </div>
               <div className="rounded-xl bg-gray-50 px-4 py-3">
                 <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Total</div>
                 <div className="mt-1 text-sm font-semibold text-gray-900">{viewCommand.PrixVente} TND</div>
               </div>
               <div className="rounded-xl bg-gray-50 px-4 py-3">
-                <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Date livraison</div>
+                <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Date de livraison</div>
                 <div className="mt-1 text-sm font-semibold text-gray-900">
                   {viewCommand.dateLivraison ? new Date(viewCommand.dateLivraison).toLocaleDateString('fr-FR') : '-'}
                 </div>
               </div>
               <div className="rounded-xl bg-gray-50 px-4 py-3">
                 <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Origine</div>
-                <div className="mt-1 text-sm font-semibold text-gray-900">{isWebCommand(viewCommand) ? 'Web' : 'Backoffice'}</div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">{isWebCommand(viewCommand) ? 'Site web' : 'Boutique (backoffice)'}</div>
               </div>
             </div>
 
@@ -480,7 +382,7 @@ const CommandsPage = () => {
                       <div className="flex items-center gap-3">
                         {d.product?.photos?.[0]?.photoDoc ? (
                           <img
-                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${d.product.photos[0].photoDoc.startsWith('/') ? '' : '/'}${d.product.photos[0].photoDoc}`}
+                            src={uploadUrl(d.product.photos[0].photoDoc)}
                             alt={d.product?.productName || ''}
                             className="h-12 w-12 rounded-lg border object-cover"
                           />
@@ -501,16 +403,27 @@ const CommandsPage = () => {
               </div>
             ) : null}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  const id = viewCommand.id;
+                  setViewOpen(false);
+                  setViewCommandId(null);
+                  handleDelete(id);
+                }}
+                className="mr-auto inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" /> Supprimer
+              </button>
               <button
                 onClick={() => {
                   setViewOpen(false);
                   setViewCommandId(null);
                   if (viewCommand) handleEdit(viewCommand);
                 }}
-                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Modifier
+                <Pencil className="h-4 w-4" /> Modifier
               </button>
               <button
                 onClick={() => {
@@ -537,11 +450,8 @@ const CommandsPage = () => {
           setSelectedProducts([]);
           setDeliveryAddress('');
           setDeliveryDate(null);
-          setProductsPage(1);
-          setClientsPage(1);
           setCoClientsPage(1);
           setAllProducts([]);
-          setAllClients([]);
           setAllCoClients([]);
         }}
         title={isEditMode ? 'Modifier la commande' : 'Ajouter une commande'}
@@ -549,7 +459,7 @@ const CommandsPage = () => {
       >
         {isEditMode && isWebCommand(selectedCommand) ? (
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            Commande créée depuis le web: modification limitée au statut.
+            Commande passée sur le site : seuls le statut, la date et l'adresse de livraison sont modifiables.
           </div>
         ) : null}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -560,25 +470,13 @@ const CommandsPage = () => {
                 {(selectedCommand.commandDetails || []).map((d: any) => d.product?.productName || d.productId).join(', ')}
               </div>
             ) : (
-              <MultiSelectCheckbox
-                items={allProducts}
-                getOptionLabel={(product) => {
-                  const depotInfo = product.isDepot && product.depotPercentage
-                    ? ` - Dépôt ${product.depotPercentage}%`
-                    : '';
-                  const soldBadge = (product as any).isSold ? ' 🔴 VENDU' : '';
-                  return `${product.productName} - ${product.PrixVente} TND${depotInfo}${soldBadge}`;
+              <ProductMultiPicker
+                value={selectedProducts}
+                selectedProducts={allProducts}
+                onChange={(ids, picked) => {
+                  setSelectedProducts(ids);
+                  setAllProducts((prev) => [...prev.filter((x) => !picked.some((p) => p.id === x.id)), ...picked]);
                 }}
-                getOptionValue={(product) => product.id}
-                selectedValues={selectedProducts}
-                onChange={setSelectedProducts}
-                onLoadMore={() => {
-                  if (productsData?.meta && productsPage < productsData.meta.totalPages) {
-                    setProductsPage((prev) => prev + 1);
-                  }
-                }}
-                hasMore={productsData?.meta ? productsPage < productsData.meta.totalPages : false}
-                isLoading={productsLoading}
               />
             )}
             <p className="text-xs text-gray-500 mt-1">
@@ -589,21 +487,11 @@ const CommandsPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-              <InfiniteSelect
-                items={allClients}
-                getOptionLabel={(client) => `${client.firstName} ${client.lastName}`}
-                getOptionValue={(client) => client.id}
+              <ClientCombobox
                 value={selectedClient}
-                onChange={(value) => setSelectedClient(value as string)}
+                onChange={(id) => setSelectedClient(id)}
+                address={deliveryAddress}
                 disabled={!!(isEditMode && isWebCommand(selectedCommand))}
-                onLoadMore={() => {
-                  if (clientsData?.meta && clientsPage < clientsData.meta.totalPages) {
-                    setClientsPage((prev) => prev + 1);
-                  }
-                }}
-                hasMore={clientsData?.meta ? clientsPage < clientsData.meta.totalPages : false}
-                isLoading={clientsLoading}
-                placeholder="Sélectionner un client..."
               />
             </div>
           </div>
@@ -614,18 +502,15 @@ const CommandsPage = () => {
               selected={deliveryDate}
               onChange={(date) => setDeliveryDate(date)}
               dateFormat="dd/MM/yyyy"
-              disabled={!!(isEditMode && isWebCommand(selectedCommand))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholderText="Sélectionner une date"
             />
           </div>
 
           <AddressMapSelector
+            marker="order"
             value={deliveryAddress}
-            onChange={(address) => {
-              if (isEditMode && isWebCommand(selectedCommand)) return;
-              setDeliveryAddress(address);
-            }}
+            onChange={(address) => setDeliveryAddress(address)}
             onPositionConfirm={(lat, lng) => {
               console.log('Position confirmed:', lat, lng);
             }}
@@ -647,10 +532,9 @@ const CommandsPage = () => {
             </button>
             <button
               type="submit"
-              disabled={!!(isEditMode && isWebCommand(selectedCommand))}
               className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
-              {isEditMode ? 'Enregistrer' : 'Créer'}
+              {isEditMode ? 'Enregistrer' : 'Créer la commande'}
             </button>
           </div>
         </form>
@@ -674,8 +558,9 @@ const CommandsPage = () => {
               onChange={(e) => setNewStatus(e.target.value as any)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
-              <option value="NOT_DELIVERED">Non livré</option>
-              <option value="DELIVERED">Livré</option>
+              <option value="NOT_DELIVERED">Reçue</option>
+              <option value="ACCEPTED">Acceptée</option>
+              <option value="DELIVERED">Livrée</option>
             </select>
           </div>
           <div>

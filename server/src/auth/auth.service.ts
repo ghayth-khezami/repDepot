@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   UnauthorizedException,
   BadRequestException,
@@ -49,14 +50,18 @@ export class AuthService {
         email: user.email,
         username: user.username,
         role: user.role,
+        phoneNumber: user.phoneNumber,
       },
     };
   }
 
-  async requestRegisterCode(email: string, password: string, username?: string) {
+  async requestRegisterCode(email: string, password: string, username?: string, phoneNumber?: string) {
     const existing = await this.userService.findByEmail(email);
     if (existing) {
       return { message: "Si cet email est éligible, un code de vérification a été envoyé." };
+    }
+    if (phoneNumber && (await this.prisma.user.findUnique({ where: { phoneNumber }, select: { id: true } }))) {
+      throw new ConflictException("Ce numéro de téléphone est déjà associé à un compte.");
     }
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -66,8 +71,8 @@ export class AuthService {
 
     await this.prisma.pendingUser.upsert({
       where: { email },
-      update: { codeHash, passwordHash, username: username || null, expiresAt },
-      create: { email, codeHash, passwordHash, username: username || null, expiresAt },
+      update: { codeHash, passwordHash, username: username || null, phoneNumber: phoneNumber || null, expiresAt },
+      create: { email, codeHash, passwordHash, username: username || null, phoneNumber: phoneNumber || null, expiresAt },
     });
 
     // En prod: brancher un SMTP ici. En dev: on log le code.
@@ -95,6 +100,7 @@ export class AuthService {
         email: pending.email,
         password: pending.passwordHash,
         username: pending.username,
+        phoneNumber: pending.phoneNumber,
         isVerified: true,
       },
     });
@@ -109,6 +115,7 @@ export class AuthService {
         email: created.email,
         username: created.username,
         role: created.role,
+        phoneNumber: created.phoneNumber,
       },
     };
   }
@@ -140,6 +147,7 @@ export class AuthService {
           email: existing.email,
           username: existing.username,
           role: existing.role,
+          phoneNumber: existing.phoneNumber,
         },
       };
     }
@@ -164,8 +172,59 @@ export class AuthService {
         email: created.email,
         username: created.username,
         role: created.role,
+        phoneNumber: created.phoneNumber,
       },
     };
+  }
+
+  /** Google accounts have no phone: the customer adds it to see the orders placed with it. */
+  async setPhone(userId: string, phoneNumber: string) {
+    const other = await this.prisma.user.findUnique({ where: { phoneNumber }, select: { id: true } });
+    if (other && other.id !== userId) throw new ConflictException("Ce numéro de téléphone est déjà associé à un autre compte.");
+    const u = await this.prisma.user.update({ where: { id: userId }, data: { phoneNumber } });
+    return { id: u.id, email: u.email, username: u.username, role: u.role, phoneNumber: u.phoneNumber };
+  }
+
+  /**
+   * "Mes commandes": every order whose client has this account's phone or email — including orders
+   * placed as a guest before the account existed (guest clients are stored with that phone).
+   */
+  async myCommands(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, phoneNumber: true } });
+    if (!user) throw new UnauthorizedException();
+    const or: Array<Record<string, unknown>> = [{ email: user.email.toLowerCase() }];
+    if (user.phoneNumber) or.push({ phoneNumber: user.phoneNumber }, { email: `guest.${user.phoneNumber}@bebedepot.local` });
+    const commands = await this.prisma.command.findMany({
+      where: { commandDetails: { some: { client: { OR: or } } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        status: true,
+        PrixVente: true,
+        adresseLivraison: true,
+        dateLivraison: true,
+        createdAt: true,
+        acceptedAt: true,
+        deliveredAt: true,
+        commandDetails: {
+          select: {
+            product: { select: { id: true, productName: true, ref: true, PrixVente: true, photos: { take: 1, orderBy: { createdAt: "asc" }, select: { photoDoc: true } } } },
+          },
+        },
+      },
+    });
+    return commands.map(({ commandDetails, status, ...c }) => ({
+      ...c,
+      status: status === "GOT_PROFIT" ? "DELIVERED" : status,
+      products: commandDetails.map((d) => ({
+        id: d.product.id,
+        name: d.product.productName,
+        ref: d.product.ref,
+        price: d.product.PrixVente,
+        photo: d.product.photos[0]?.photoDoc ?? null,
+      })),
+    }));
   }
 
   async validateToken(token: string) {

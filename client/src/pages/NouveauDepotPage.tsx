@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Sparkles } from 'lucide-react';
+import { useCreateCoClientMutation } from '../store/api/coClientApi';
 import { useCreateDepotMutation, useGetDeposantOverviewQuery, useGetDepotQuery, type CreateDepotInput } from '../store/api/depotApi';
 import { useToast } from '../context/ToastContext';
 import { apiErrorCode, apiErrorMessage, apiErrorPayload } from '../lib/apiError';
@@ -23,6 +24,7 @@ export default function NouveauDepotPage() {
   const { draft, dispatch, clear } = useDepotDraft();
   const { showToast } = useToast();
   const [createDepot] = useCreateDepotMutation();
+  const [createCoClient] = useCreateCoClientMutation();
   const [submitting, setSubmitting] = useState<'items' | 'skip' | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const { data: contract, isLoading: contractLoading } = useGetDepotQuery(draft.contractId ?? '', { skip: !draft.contractId });
@@ -79,11 +81,51 @@ export default function NouveauDepotPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const submit = async (withItems: boolean, src: DepotDraft = draft): Promise<boolean> => {
+  /**
+   * "Passer sans dépôt": no contract. A new déposant is just saved; an existing one is left as is.
+   * Then back to the déposants list.
+   */
+  const skipWithoutDepot = async () => {
+    if (draft.mode === 'existing' && draft.existing) {
+      showToast(`Aucun dépôt créé pour ${draft.existing.firstName}`, 'info');
+      restart();
+      return;
+    }
+    const d = draft.deposant;
+    setSubmitting('skip');
+    try {
+      await createCoClient({
+        firstName: d.firstName.trim(),
+        lastName: d.lastName.trim(),
+        phoneNumber: d.phone,
+        email: d.email.trim() || undefined,
+        address: d.address.trim() || undefined,
+        RIB: d.rib.replace(/\s/g, '') || undefined,
+        gender: d.gender,
+        lat: d.lat,
+        lng: d.lng,
+      } as never).unwrap();
+      showToast(`Déposant ${d.firstName.trim()} ${d.lastName.trim()} ajouté (sans contrat)`, 'success');
+      restart();
+    } catch (e) {
+      showToast(apiErrorMessage(e, "Impossible d'enregistrer le déposant"), 'error', 6000);
+    } finally {
+      setSubmitting(null);
+    }
+  };
+
+  const currentDraft = draft;
+  const submit = async (withItems: boolean, src: DepotDraft = currentDraft): Promise<boolean> => {
+    // Articles step "Passer sans dépôt" (not the voice wizard, which passes its own draft).
+    if (!withItems && src === currentDraft) {
+      await skipWithoutDepot();
+      return false;
+    }
     const draft = src;
     const d = draft.deposant;
     const payload: CreateDepotInput = {
       durationMonths: draft.durationMonths,
+      depositDate: draft.depositDate || undefined,
       internalNote: draft.internalNote.trim() || undefined,
       items: withItems
         ? draft.items.map((it) => ({
@@ -108,6 +150,7 @@ export default function NouveauDepotPage() {
               lat: d.lat,
               lng: d.lng,
               rib: d.rib.replace(/\s/g, '') || undefined,
+              gender: d.gender,
             },
           }),
     };
@@ -197,11 +240,22 @@ export default function NouveauDepotPage() {
   }
 
   return (
-    <div className="bd-ui mx-auto max-w-6xl space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+    <div className="bd-ui w-full space-y-5">
+      <header className="-mt-[66px] flex flex-wrap items-end justify-between gap-3 pl-[54px] pr-[54px] md:mt-0 md:px-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={restart}
+            aria-label="Retour aux déposants"
+            title="Retour aux déposants"
+            className="bd-focus flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-bd-line/10 bg-bd-surface text-bd-ink shadow-card active:scale-95"
+          >
+            <ArrowLeft size={20} aria-hidden />
+          </button>
+          <div className="min-w-0">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-bd-pink-strong">Dépôt-vente</p>
-          <h1 className="text-3xl font-black text-bd-ink">Nouveau dépôt</h1>
+          <h1 className="truncate text-2xl font-black text-bd-ink sm:text-3xl">{created ? `Contrat ${contract?.contractNumber ?? ""}` : "Nouveau dépôt"}</h1>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {!created && (draft.deposant.firstName || draft.items.some((i) => i.name || i.price)) ? (
@@ -230,7 +284,7 @@ export default function NouveauDepotPage() {
       {wizard}
 
       {draft.step === 0 ? (
-        <DeposantStep draft={draft} dispatch={dispatch} onNext={() => goTo(1)} />
+        <DeposantStep draft={draft} dispatch={dispatch} onNext={() => goTo(1)} onSkip={() => void skipWithoutDepot()} skipping={submitting === 'skip'} />
       ) : draft.step === 1 ? (
         <ArticlesStep draft={draft} dispatch={dispatch} onBack={() => goTo(0)} onSubmit={submit} submitting={submitting} />
       ) : contractLoading || !contract ? (
@@ -239,7 +293,7 @@ export default function NouveauDepotPage() {
           <Skeleton className="h-64" />
         </div>
       ) : (
-        <ContractView contract={contract} justCreated onNewDepot={restart} />
+        <ContractView contract={contract} justCreated onFinish={restart} />
       )}
     </div>
   );

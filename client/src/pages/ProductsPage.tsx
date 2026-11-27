@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   useUpdateProductMutation,
   useDeleteProductMutation,
+  useGetProductQuery,
 } from '../store/api/productApi';
 import { useGetCategoryHierarchyQuery } from '../store/api/categoryApi';
 import { useGetCoClientsQuery } from '../store/api/coClientApi';
@@ -19,6 +20,8 @@ import { apiErrorMessage } from '../lib/apiError';
 import ExcelButton from '../components/ExcelButton';
 import ProductAssistant, { type ProductAiResult } from '../features/products/ProductAssistant';
 import ProductDetailSheet from '../features/products/ProductDetailSheet';
+import PhotoSlots, { MAX_PHOTOS, useFileUrls, type PhotoSlot } from '../components/PhotoSlots';
+import { uploadUrl } from '../lib/apiBase';
 import ProductsList from '../features/products/ProductsList';
 import { COMMISSION_VALUES, DEFAULT_COMMISSION } from '../lib/commission';
 import { setNativeValue } from '../lib/speech';
@@ -38,6 +41,7 @@ const ProductsPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [photos, setPhotos] = useState<(string | File)[]>([]); // Can be base64 previews or File objects
   const [existingPhotos, setExistingPhotos] = useState<any[]>([]); // Photos from server
+  const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]); // deleted on save
   const [depotPercentage, setDepotPercentage] = useState<number>(0);
   const [surcharge, setSurcharge] = useState<number>(0);
   const [isDepot, setIsDepot] = useState(false);
@@ -95,6 +99,7 @@ const ProductsPage = () => {
   // Load initial data when modal opens
   useEffect(() => {
     if (isModalOpen) {
+      setRemovedPhotoIds([]);
       setCoClientsPage(1);
       setAllCoClients([]);
       if (coClientsData?.data) {
@@ -278,6 +283,18 @@ const ProductsPage = () => {
     }
   };
 
+  // /products?edit=<id> (from a déposant's suivi): open the editor for that product.
+  const editParam = searchParams.get('edit');
+  const { data: productToEdit } = useGetProductQuery(editParam ?? '', { skip: !editParam });
+  useEffect(() => {
+    if (!editParam || !productToEdit) return;
+    void handleEdit(productToEdit as Product);
+    const next = new URLSearchParams(searchParams);
+    next.delete('edit');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editParam, productToEdit]);
+
   const handleDelete = (id: string) => {
     confirm({
       title: 'Supprimer le produit',
@@ -290,22 +307,38 @@ const ProductsPage = () => {
     });
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length) return;
-    const { compressImagesForUpload } = await import('../lib/compressImage');
-    const compressed = await compressImagesForUpload(Array.from(files));
-    setPhotos((prev) => [...prev, ...compressed]);
-    e.target.value = '';
+  const [compressing, setCompressing] = useState(false);
+  const addPhotos = async (files: File[]) => {
+    const room = MAX_PHOTOS - existingPhotos.length - photos.length;
+    if (room <= 0) {
+      showToast(`Maximum ${MAX_PHOTOS} photos par produit`, 'warning');
+      return;
+    }
+    if (files.length > room) showToast(`Seulement ${room} photo${room > 1 ? 's' : ''} ajoutée${room > 1 ? 's' : ''} (maximum ${MAX_PHOTOS})`, 'info');
+    setCompressing(true);
+    try {
+      const { compressImagesForUpload } = await import('../lib/compressImage');
+      const compressed = await compressImagesForUpload(files.slice(0, room));
+      setPhotos((prev) => [...prev, ...compressed].slice(0, MAX_PHOTOS - existingPhotos.length));
+    } finally {
+      setCompressing(false);
+    }
   };
 
-  const removePhoto = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  const removePhotoSlot = (key: string) => {
+    if (key.startsWith('new-')) {
+      const index = Number(key.slice(4));
+      setPhotos((prev) => prev.filter((_, i) => i !== index));
+      return;
+    }
+    setExistingPhotos((prev) => prev.filter((p) => p.id !== key));
+    setRemovedPhotoIds((prev) => [...prev, key]);
   };
-
-  const removeExistingPhoto = (photoId: string) => {
-    setExistingPhotos((prev) => prev.filter((p) => p.id !== photoId));
-  };
+  const newPhotoUrls = useFileUrls(photos);
+  const photoSlots: PhotoSlot[] = [
+    ...existingPhotos.map((p) => ({ key: p.id as string, src: uploadUrl(p.photoDoc) })),
+    ...newPhotoUrls.map((src, i) => ({ key: `new-${i}`, src })),
+  ];
 
   const calculateEarnings = (prixVente: number, prixAchat: number, percentage: number) => {
     const profit = prixVente - prixAchat;
@@ -341,11 +374,12 @@ const ProductsPage = () => {
       subSubCategory3Ids: selectedSubSubCategory3Ids,
       coclientId: selectedCoClientId || undefined,
       ref: ((formData.get('ref') as string) || '').trim() || undefined,
-      status: (formData.get('status') as string) || undefined,
     };
-    if (baseData.status === 'VENDU' && formData.get('payoutStatus')) {
-      baseData.payoutStatus = formData.get('payoutStatus') as string;
-    }
+    // One "Statut" select: En vente / Vendu / Payé / Retiré (Payé = vendu + déposant payé).
+    const stage = (formData.get('stage') as string) || 'EN_VENTE';
+    baseData.status = stage === 'PAYE' ? 'VENDU' : stage;
+    if (stage === 'PAYE') baseData.payoutStatus = 'PAYE';
+    else if (stage === 'VENDU' && isDepot) baseData.payoutStatus = 'A_PERCEVOIR';
 
     if (isDepot) {
       baseData.depotPercentage = depotPercentage;
@@ -404,6 +438,16 @@ const ProductsPage = () => {
         showToast('Produit créé avec succès', 'success');
       }
 
+      // Photos removed in the form are deleted first (frees room for the new ones, max 4).
+      if (isEditMode && removedPhotoIds.length) {
+        const token = localStorage.getItem('token');
+        await Promise.all(
+          removedPhotoIds.map((photoId) =>
+            fetch(`${apiBaseUrl}/product-photos/${photoId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
+          ),
+        );
+      }
+
       // Upload photos as files to server/uploads
       if (isEditMode && photos.length > 0 && productId) {
         const token = localStorage.getItem('token');
@@ -421,7 +465,8 @@ const ProductsPage = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to upload product photos');
+          const body = await response.json().catch(() => null);
+          throw { data: body ?? { message: "Les photos n'ont pas pu être envoyées." } };
         }
         showToast('Photos téléchargées avec succès', 'success');
       }
@@ -430,6 +475,7 @@ const ProductsPage = () => {
       setSelectedProduct(null);
       setPhotos([]);
       setExistingPhotos([]);
+      setRemovedPhotoIds([]);
       setSurcharge(0);
       setDepotPercentage(0);
       setIsDepot(false);
@@ -646,31 +692,24 @@ const ProductsPage = () => {
                 <p className="mt-1 text-xs text-gray-500">Contrat {selectedProduct.depositRequest.contractNumber}</p>
               ) : null}
             </div>
-            <div>
-              <label htmlFor="product-status" className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+            <div className="sm:col-span-2">
+              <label htmlFor="product-stage" className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
               <select
-                id="product-status"
-                name="status"
-                defaultValue={selectedProduct?.status || 'EN_VENTE'}
+                id="product-stage"
+                name="stage"
+                key={`${selectedProduct?.id ?? 'new'}-${isDepot}`}
+                defaultValue={
+                  selectedProduct?.status === 'VENDU' && selectedProduct?.payoutStatus === 'PAYE' && isDepot
+                    ? 'PAYE'
+                    : selectedProduct?.status || 'EN_VENTE'
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="EN_VENTE">En vente</option>
-                <option value="VENDU">Vendu</option>
+                <option value="VENDU">{isDepot ? 'Vendu — paiement à remettre' : 'Vendu'}</option>
+                {isDepot ? <option value="PAYE">Payé — déposant payé</option> : null}
                 <option value="RETIRE">Retiré</option>
               </select>
-            </div>
-            <div>
-              <label htmlFor="product-payout" className="block text-sm font-medium text-gray-700 mb-1">Paiement déposant</label>
-              <select
-                id="product-payout"
-                name="payoutStatus"
-                defaultValue={selectedProduct?.payoutStatus || 'A_PERCEVOIR'}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="A_PERCEVOIR">À percevoir</option>
-                <option value="PAYE">Payé</option>
-              </select>
-              <p className="mt-1 text-xs text-gray-500">Pris en compte si « Vendu ».</p>
             </div>
           </div>
           <div>
@@ -840,93 +879,7 @@ const ProductsPage = () => {
             />
           </div>
 
-          {/* Photos Upload - FIRST */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Photos du produit</label>
-            <div className="flex items-center gap-2 mb-2">
-              <label className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors flex items-center gap-2">
-                <Upload className="w-4 h-4" />
-                <span className="text-sm">Ajouter des photos</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-            
-            {/* Existing Photos from Server */}
-            {existingPhotos.length > 0 && (
-              <div className="mb-4 mt-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Photos existantes:</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {existingPhotos.map((photo) => {
-                    const baseUrl = apiBaseUrl;
-                    const photoUrl = photo.photoDoc.startsWith('http')
-                      ? photo.photoDoc
-                      : `${baseUrl}${photo.photoDoc.startsWith('/') ? '' : '/'}${photo.photoDoc}`;
-                    return (
-                      <div key={photo.id} className="relative">
-                        <img
-                          src={photoUrl}
-                          alt={`Photo ${photo.id}`}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-300"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeExistingPhoto(photo.id)}
-                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            
-            {/* New Photos (File previews) */}
-            {photos.length > 0 && (
-              <div className="mb-4 mt-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Nouvelles photos:</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {photos.map((photo, index) => {
-                    const photoUrl = photo instanceof File ? URL.createObjectURL(photo) : photo;
-                    return (
-                      <div key={index} className="relative">
-                        <img
-                          src={photoUrl}
-                          alt={`Nouvelle photo ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-300"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (photo instanceof File) {
-                              URL.revokeObjectURL(photoUrl);
-                            }
-                            removePhoto(index);
-                          }}
-                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+          <PhotoSlots slots={photoSlots} onAdd={(files) => void addPhotos(files)} onRemove={removePhotoSlot} busy={compressing} />
 
           {/* Toggle for Depot Mode */}
           <div>

@@ -39,4 +39,19 @@ export class StatsQueryDto {
   @Min(2000)
   @Max(2100)
   year?: number;
+
+  @ApiPropertyOptional({ description: "Map points: page (1-based)", example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ description: "Map points per page (max 100)", example: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
 }

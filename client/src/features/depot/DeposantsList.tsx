@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, FileSpreadsheet, FileText, UserPlus, Users } from 'lucide-react';
+import { FileSpreadsheet, FileText, Plus, UserPlus, Users } from 'lucide-react';
+import PersonIllustration from '../../components/PersonIllustration';
 import { useGetCoClientsFeedInfiniteQuery } from '../../store/api/coClientApi';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useToast } from '../../context/ToastContext';
 import { downloadAuthed } from '../../lib/download';
 import { cn } from '../../lib/cn';
 import { exportPath } from '../../components/ExcelButton';
-import { EmptyState, Fab, InfiniteSentinel, ListRow, PageHeader, SearchBar, SegmentedFilter, Skeleton } from '../../components/ui';
+import { EmptyState, Fab, InfiniteSentinel, ListRow, PageHeader, Pager, SearchBar, SegmentedFilter, Skeleton, useDesktopPager, useIsDesktop } from '../../components/ui';
 import type { DeposantSummary } from '../../store/api/depotApi';
 import type { CoClient } from '../../types';
 import DeposantSuivi from './DeposantSuivi';
@@ -15,15 +16,14 @@ type Row = CoClient & { _count?: { products: number; depositRequests: number } }
 type Seg = 'all' | 'with' | 'without';
 
 const fmtPhone = (p: string) => p.replace(/^(\d{2})(\d{3})(\d{3})$/, '$1 $2 $3');
-const AVATAR = ['bg-emerald-100 text-emerald-700', 'bg-pink-100 text-pink-700', 'bg-amber-100 text-amber-700', 'bg-violet-100 text-violet-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700'];
 
 /**
  * Déposants (first screen of "Dépôt"): search, Tous / Avec articles / Sans article, Excel + PDF,
- * compact rows (tap = suivi, → = new dépôt), infinite scroll, one "Nouveau déposant" button.
+ * compact rows (tap = suivi, + = new dépôt for that person), infinite scroll, one "Nouveau déposant" button.
  */
 export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d: DeposantSummary) => void; onNew: () => void; onDictate: () => void }) {
   const [q, setQ] = useState('');
-  const search = useDebouncedValue(q.trim(), 300);
+  const search = useDebouncedValue(q.trim());
   const [seg, setSeg] = useState<Seg>('all');
   const [suiviId, setSuiviId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -32,6 +32,16 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
   const pages = feed.data?.pages ?? [];
   const rows = useMemo(() => pages.flatMap((p) => p.data) as Row[], [pages]);
   const meta = pages[0]?.meta;
+  const isDesktop = useIsDesktop();
+  const pager = useDesktopPager({
+    items: rows,
+    total: meta?.total,
+    hasNextPage: !!feed.hasNextPage,
+    isFetchingNextPage: feed.isFetchingNextPage,
+    fetchNextPage: () => void feed.fetchNextPage(),
+    resetKey: `${search}|${seg}`,
+  });
+  const visible = isDesktop ? pager.pageItems : rows;
 
   const pick = (r: Row) =>
     onPick({
@@ -40,6 +50,7 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
       firstName: r.firstName,
       lastName: r.lastName,
       phone: r.phoneNumber,
+      gender: r.gender ?? null,
       productsCount: r._count?.products ?? 0,
       contractsCount: r._count?.depositRequests ?? 0,
     });
@@ -56,11 +67,11 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
   };
 
   return (
-    <div className="bd-ui mx-auto max-w-3xl pb-24">
+    <div className="bd-ui w-full pb-24">
       {suiviId ? <DeposantSuivi id={suiviId} onClose={() => setSuiviId(null)} /> : null}
       <PageHeader eyebrow="Dépôt-vente" title="Déposants" onDictate={onDictate} />
 
-      <div className="space-y-3">
+      <div className="space-y-3 md:sticky md:top-16 md:z-20 md:-mx-8 md:bg-bd-bg/90 md:px-8 md:pb-3 md:pt-1 md:backdrop-blur">
         <SearchBar value={q} onChange={setQ} placeholder="Nom, téléphone, email ou RIB" />
         <SegmentedFilter<Seg>
           label="Filtrer les déposants"
@@ -99,19 +110,14 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
       {feed.isLoading ? (
         <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[72px]" />)}</div>
       ) : rows.length ? (
-        <ul className={cn('space-y-2 transition-opacity', feed.isFetching && !feed.isFetchingNextPage && 'opacity-60')}>
-          {rows.map((r, i) => {
+        <ul className={cn('grid gap-2 transition-opacity lg:grid-cols-2 2xl:grid-cols-3', feed.isFetching && !feed.isFetchingNextPage && 'opacity-60')}>
+          {visible.map((r) => {
             const n = r._count?.products ?? 0;
             return (
               <ListRow
                 key={r.id}
                 onClick={() => setSuiviId(r.id)}
-                thumb={
-                  <span className={cn('flex h-full w-full items-center justify-center rounded-full text-sm font-black', AVATAR[i % AVATAR.length])}>
-                    {r.firstName[0]}
-                    {r.lastName[0]}
-                  </span>
-                }
+                thumb={<PersonIllustration gender={r.gender} size={48} />}
                 title={`${r.firstName} ${r.lastName}`}
                 subtitle={<span className="tabular-nums">{r.number ? `N° ${r.number} · ` : ''}{fmtPhone(r.phoneNumber)}</span>}
                 trailing={
@@ -123,16 +129,23 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
                       type="button"
                       onClick={() => pick(r)}
                       aria-label={`Nouveau dépôt pour ${r.firstName}`}
+                      title="Nouveau dépôt"
                       className="bd-focus flex h-11 w-11 items-center justify-center rounded-xl bg-grad-pink-strong text-white shadow-glow-pink active:scale-90"
                     >
-                      <ArrowRight size={18} aria-hidden />
+                      <Plus size={22} strokeWidth={2.6} aria-hidden />
                     </button>
                   </div>
                 }
               />
             );
           })}
-          <InfiniteSentinel onReach={() => feed.hasNextPage && !feed.isFetchingNextPage && void feed.fetchNextPage()} disabled={!feed.hasNextPage} loading={feed.isFetchingNextPage} />
+          <li className="col-span-full list-none">
+            {isDesktop ? (
+              <Pager page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize} loading={pager.loading} onPage={pager.setPage} />
+            ) : (
+            <InfiniteSentinel onReach={() => feed.hasNextPage && !feed.isFetchingNextPage && void feed.fetchNextPage()} disabled={!feed.hasNextPage} loading={feed.isFetchingNextPage} />
+            )}
+          </li>
         </ul>
       ) : (
         <EmptyState icon={Users} title={search ? 'Aucun déposant trouvé' : seg === 'without' ? 'Tous les déposants ont des articles' : 'Aucun déposant pour le moment'}>

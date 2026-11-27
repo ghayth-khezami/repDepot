@@ -40,6 +40,9 @@ export interface CoClient {
   email: string | null;
   phoneNumber: string;
   RIB: string | null;
+  gender?: 'F' | 'M' | null;
+  lat?: number | null;
+  lng?: number | null;
   createdAt: string;
   updatedAt: string;
 }

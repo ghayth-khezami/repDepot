@@ -32,7 +32,8 @@
     "create:user": "ts-node src/scripts/create-user.ts",
     "seed:admin": "ts-node prisma/seed-admin.ts",
     "user:role": "ts-node src/scripts/set-user-role.ts",
-    "bulk:users": "ts-node src/scripts/bulk-insert-users.ts"
+    "bulk:users": "ts-node src/scripts/bulk-insert-users.ts",
+    "db:reset-keep-admin": "node scripts/reset-db-keep-admin.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

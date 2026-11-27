@@ -10,6 +10,11 @@ import { UpdateCommandDto } from "./dto/update-command.dto";
 import { CommandQueryDto } from "./dto/command-query.dto";
 import { PaginatedResponse } from "../common/dto/pagination.dto";
 import { sanitizePlainText } from "../common/utils/sanitize-text";
+import { SiteSettingsService } from "../site-settings/site-settings.service";
+import { SurPlaceCommandDto } from "./dto/sur-place-command.dto";
+
+/** Shared client used for in-shop sales ("Achat sur place"). */
+export const WALK_IN_EMAIL = "sur-place@bebedepot.local";
 
 /** Sets soldAt (first sale only) and the default payout status for dépôt products. */
 async function stampSold(tx: any, productIds: string[]) {
@@ -30,21 +35,32 @@ export class CommandService {
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
+    private siteSettings: SiteSettingsService,
   ) {}
 
   private async resolvePricing(productIds: string[]) {
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, isDispo: true, PrixVente: true, PrixAchat: true, isDepot: true },
+      select: {
+        id: true,
+        isDispo: true,
+        status: true,
+        PrixVente: true,
+        PrixAchat: true,
+        isDepot: true,
+        _count: { select: { commandDetails: true } },
+      },
     });
 
     if (products.length !== productIds.length) {
-      throw new BadRequestException("One or more products were not found.");
+      throw new BadRequestException("Un ou plusieurs articles sont introuvables.");
     }
 
-    const unavailable = products.filter((p) => p.isDispo === false).map((p) => p.id);
+    // An article marked « Vendu » in the backoffice but not yet in an order can still get its order
+    // ("Continuer la commande" / "Achat sur place"). Only articles already in an order, or withdrawn, are refused.
+    const unavailable = products.filter((p) => p._count.commandDetails > 0 || p.status === ProductStatus.RETIRE || (p.isDispo === false && p.status !== ProductStatus.VENDU));
     if (unavailable.length > 0) {
-      throw new BadRequestException("One or more products are already ordered.");
+      throw new BadRequestException("Un ou plusieurs articles sont déjà dans une commande (ou retirés).");
     }
 
     const PrixVente = products.reduce((sum, p) => sum + p.PrixVente, 0);
@@ -134,6 +150,35 @@ export class CommandService {
       productsNumber: pricing.productsNumber,
       status: createCommandDto.status ?? CommandStatus.NOT_DELIVERED,
     });
+  }
+
+  /** In-shop sale: "Client sur place", shop address, delivered immediately, dated `date` (default now). */
+  async createSurPlace(dto: SurPlaceCommandDto) {
+    const productIds = [...new Set(dto.productIds)];
+    const pricing = await this.resolvePricing(productIds);
+    const shop = await this.siteSettings.getShopContact();
+    const when = dto.date ? new Date(dto.date) : new Date();
+    const walkIn = await this.prisma.client.upsert({
+      where: { email: WALK_IN_EMAIL },
+      update: {},
+      create: { email: WALK_IN_EMAIL, firstName: "Client", lastName: "sur place", address: shop.address, phoneNumber: "00000000" },
+    });
+    const command = await this.persistCommandInTx(this.prisma, {
+      productIds,
+      clientId: walkIn.id,
+      coClientId: undefined,
+      adresseLivraison: `Achat sur place — ${shop.address}`,
+      dateLivraison: when.toISOString(),
+      PrixVente: pricing.PrixVente,
+      PrixAchat: pricing.PrixAchat,
+      productsNumber: pricing.productsNumber,
+      status: CommandStatus.DELIVERED,
+    });
+    if (command) {
+      await this.prisma.command.update({ where: { id: command.id }, data: { createdAt: when, acceptedAt: when, deliveredAt: when } });
+      await this.prisma.product.updateMany({ where: { id: { in: productIds } }, data: { soldAt: when } });
+    }
+    return command;
   }
 
   private async persistCommandInTx(
@@ -255,14 +300,27 @@ export class CommandService {
     const where: any = {};
 
     if (search) {
-      where.adresseLivraison = {
-        contains: search,
-        mode: "insensitive" as const,
-      };
+      const q = { contains: search, mode: "insensitive" as const };
+      const digits = search.replace(/\D/g, "");
+      where.OR = [
+        { adresseLivraison: q },
+        { id: { startsWith: search.toLowerCase() } },
+        {
+          commandDetails: {
+            some: {
+              OR: [
+                { client: { OR: [{ firstName: q }, { lastName: q }, ...(digits.length >= 3 ? [{ phoneNumber: { contains: digits } }] : [])] } },
+                { product: { OR: [{ productName: q }, { ref: q }] } },
+              ],
+            },
+          },
+        },
+      ];
     }
 
     if (status) {
-      where.status = status;
+      // "DELIVERED" also covers the legacy GOT_PROFIT status.
+      where.status = status === "DELIVERED" ? { in: ["DELIVERED", "GOT_PROFIT"] } : status;
     }
 
     const [data, total] = await Promise.all([
@@ -307,6 +365,16 @@ export class CommandService {
       }),
       this.prisma.command.count({ where }),
     ]);
+    // Counts per status for the filter tabs (same search, any status).
+    const { status: _ignored, ...searchOnly } = where;
+    const grouped = await this.prisma.command.groupBy({ by: ["status"], where: searchOnly, _count: { _all: true } });
+    const n = (s: string) => grouped.filter((g) => g.status === s).reduce((t, g) => t + g._count._all, 0);
+    const counts = {
+      all: grouped.reduce((t, g) => t + g._count._all, 0),
+      NOT_DELIVERED: n("NOT_DELIVERED"),
+      ACCEPTED: n("ACCEPTED"),
+      DELIVERED: n("DELIVERED") + n("GOT_PROFIT"),
+    };
 
     return {
       data,
@@ -315,6 +383,7 @@ export class CommandService {
         limit: actualLimit,
         total,
         totalPages: Math.ceil(total / actualLimit),
+        counts,
       },
     };
   }
@@ -367,10 +436,11 @@ export class CommandService {
       && command.commandDetails.some((d) => !!d.client)
       && command.commandDetails.every((d) => !d.coClient);
     if (isLikelyWebOrder) {
-      const forbiddenKeys = ["productsNumber", "PrixVente", "PrixAchat", "adresseLivraison", "productIds", "clientId"];
+      // Web orders: products / client / prices are the customer's; status, date and address can be edited.
+      const forbiddenKeys = ["productsNumber", "PrixVente", "PrixAchat", "productIds", "clientId"];
       const hasForbidden = forbiddenKeys.some((k) => (updateCommandDto as any)[k] !== undefined);
       if (hasForbidden) {
-        throw new BadRequestException("Web orders can only update status/date.");
+        throw new BadRequestException("Commande web : seuls le statut, la date et l'adresse de livraison sont modifiables.");
       }
     }
 
@@ -378,6 +448,18 @@ export class CommandService {
     const data: any = { ...rest };
     if (updateCommandDto.dateLivraison) {
       data.dateLivraison = new Date(updateCommandDto.dateLivraison);
+    }
+    if (updateCommandDto.adresseLivraison !== undefined) {
+      data.adresseLivraison = sanitizePlainText(updateCommandDto.adresseLivraison, 500);
+    }
+    // Timestamps for the customer's stepper (Reçue → Acceptée → Livrée).
+    if (updateCommandDto.status && updateCommandDto.status !== command.status) {
+      const now = new Date();
+      if (updateCommandDto.status === CommandStatus.NOT_DELIVERED) Object.assign(data, { acceptedAt: null, deliveredAt: null });
+      if (updateCommandDto.status === CommandStatus.ACCEPTED) Object.assign(data, { acceptedAt: command.acceptedAt ?? now, deliveredAt: null });
+      if (updateCommandDto.status === CommandStatus.DELIVERED || updateCommandDto.status === CommandStatus.GOT_PROFIT) {
+        Object.assign(data, { acceptedAt: command.acceptedAt ?? now, deliveredAt: command.deliveredAt ?? now });
+      }
     }
 
     if (productIds && productIds.length > 0 && !isLikelyWebOrder) {

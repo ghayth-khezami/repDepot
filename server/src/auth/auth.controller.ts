@@ -7,6 +7,7 @@ import {
   HttpStatus,
   UseGuards,
   Req,
+  Patch,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
@@ -16,6 +17,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { VerifyDto } from "./dto/verify.dto";
 import { GoogleAuthDto } from "./dto/google-auth.dto";
+import { SetPhoneDto } from "./dto/phone.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -39,7 +41,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: "Code envoyé par email" })
   @ApiResponse({ status: 409, description: "Email déjà utilisé" })
   async register(@Body() dto: RegisterDto) {
-    return this.authService.requestRegisterCode(dto.email, dto.password, dto.username);
+    return this.authService.requestRegisterCode(dto.email, dto.password, dto.username, dto.phoneNumber);
   }
 
   @Post("verify")
@@ -59,6 +61,22 @@ export class AuthController {
   @ApiResponse({ status: 200, description: "Connexion Google réussie" })
   async google(@Body() dto: GoogleAuthDto) {
     return this.authService.googleSignIn(dto.idToken, dto.intent);
+  }
+
+  @Get("me/commands")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Mes commandes (incl. celles passées avant l'inscription avec mon téléphone)" })
+  myCommands(@Req() req: { user: { id: string } }) {
+    return this.authService.myCommands(req.user.id);
+  }
+
+  @Patch("me/phone")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Ajouter / changer mon téléphone" })
+  setPhone(@Req() req: { user: { id: string } }, @Body() dto: SetPhoneDto) {
+    return this.authService.setPhone(req.user.id, dto.phoneNumber);
   }
 
   @Get("me")

@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
+
+export const MAX_PRODUCT_PHOTOS = 4;
 
 @Injectable()
 export class ProductPhotoService {
@@ -16,6 +18,16 @@ export class ProductPhotoService {
         photoDoc,
       },
     });
+  }
+
+  /** A product shows at most MAX_PRODUCT_PHOTOS photos (backoffice + boutique gallery). */
+  async assertRoom(productId: string, adding: number) {
+    const existing = await this.prisma.productPhoto.count({ where: { idProduct: productId } });
+    if (existing + adding > MAX_PRODUCT_PHOTOS) {
+      throw new BadRequestException(
+        `Maximum ${MAX_PRODUCT_PHOTOS} photos par produit (déjà ${existing}). Supprimez-en avant d'en ajouter.`,
+      );
+    }
   }
 
   async createMany(productId: string, photoDocs: string[]) {

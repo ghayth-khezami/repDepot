@@ -400,9 +400,17 @@ export class ProductService {
     const productsWithSoldStatus = data.map((product) => {
       const { commandDetails, ...rest } = product;
       const hasSoldCommand = commandDetails.some(
-        (detail) => detail.command.status === "DELIVERED",
+        (detail) => detail.command.status === "DELIVERED" || detail.command.status === "GOT_PROFIT",
       );
-      const withSold = { ...rest, isSold: hasSoldCommand };
+      // Status of the product's order (admin): Reçue / Acceptée / Livrée — "Livrée" = paid by the client and delivered.
+      const orderStatus = commandDetails.length
+        ? hasSoldCommand
+          ? "DELIVERED"
+          : commandDetails.some((d) => d.command.status === "ACCEPTED")
+            ? "ACCEPTED"
+            : "NOT_DELIVERED"
+        : null;
+      const withSold = sanitize ? { ...rest, isSold: hasSoldCommand } : { ...rest, isSold: hasSoldCommand, orderStatus };
       return sanitize ? sanitizeProductForStorefront(withSold) : withSold;
     });
 
@@ -662,8 +670,8 @@ export class ProductService {
       await this.syncCategoryLinks(tx, id, updateProductDto);
       return product;
     });
-    if (stageChanged && (toStage === "VENDU" || toStage === "PAYE")) {
-      // After commit. The dedicated lifecycle endpoint awaits this to report "Déposant notifié".
+    if (stageChanged) {
+      // After commit: live suivi pages refresh; VENDU / PAYE also notify the déposant.
       void publishProductStatusChanged({ productIds: [id], to: toStage });
     }
     return updated;
@@ -683,7 +691,8 @@ export class ProductService {
     assertTransition(from, to, p.isDepot);
     if (from === to) return { id, from, stage: to, notification: null };
     await this.prisma.product.update({ where: { id }, data: stageData(to, p.isDepot, { soldAt: p.soldAt, paidAt: p.paidAt }) });
-    const notification = to === "VENDU" || to === "PAYE" ? await publishProductStatusChanged({ productIds: [id], to }) : null;
+    const summary = await publishProductStatusChanged({ productIds: [id], to });
+    const notification = to === "VENDU" || to === "PAYE" ? summary : null;
     return { id, from, stage: to, notification };
   }
 
@@ -734,7 +743,9 @@ export class ProductService {
   };
 
   async getFeaturedProducts() {
+    // Storefront "Sélection": only articles still available (sold / withdrawn ones are hidden).
     const rows = await this.prisma.featuredProduct.findMany({
+      where: { product: { isDispo: true, status: ProductStatus.EN_VENTE } },
       orderBy: { sortOrder: "asc" },
       take: 8,
       include: {

@@ -6,6 +6,8 @@ export interface StatsQueryParams {
   categoryId?: string;
   period?: 'month' | 'year' | 'all';
   limit?: number;
+  /** Map points page (1-based). */
+  page?: number;
   /** Calendar year for monthly charts. */
   year?: number;
 }
@@ -59,7 +61,15 @@ export interface TotalSurcharge {
 export interface RevenueBreakdown {
   totalRevenue: number;
   buyingRevenue: number;
+  /** Commission dépôt + ventes des produits achat. */
   depotRevenue: number;
+  commission?: number;
+  achatSales?: number;
+}
+
+export interface MapPage<T> {
+  data: T[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
 }
 
 export interface MonthlySoldProducts {
@@ -79,6 +89,11 @@ export interface CommandLocation {
   revenue: number;
   date: string;
   client: string;
+  status?: string;
+  /** Not delivered yet → pulses on the map. */
+  pending?: boolean;
+  /** In-shop sale ("Achat sur place"). */
+  surPlace?: boolean;
 }
 
 export interface DepotKpis {
@@ -106,6 +121,12 @@ export interface DepotLocation {
   address: string;
   lat: number | null;
   lng: number | null;
+  gender: 'F' | 'M' | null;
+  expiresAt?: string;
+  /** Contract ends within 14 days with articles still on sale → red. */
+  ending?: boolean;
+  /** Sold articles not paid to the déposant yet → yellow. */
+  unpaid?: boolean;
 }
 
 export const statsApi = baseApi.injectEndpoints({
@@ -114,7 +135,7 @@ export const statsApi = baseApi.injectEndpoints({
       query: (params) => ({ url: '/stats/depot-kpis', params }),
       providesTags: ['Product', 'CoClient', 'DepositRequest'],
     }),
-    getDepotLocations: builder.query<DepotLocation[], StatsQueryParams>({
+    getDepotLocations: builder.query<MapPage<DepotLocation>, StatsQueryParams>({
       query: (params) => ({ url: '/stats/depot-locations', params }),
       providesTags: ['CoClient', 'DepositRequest'],
     }),
@@ -181,7 +202,7 @@ export const statsApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Product'],
     }),
-    getCommandLocations: builder.query<CommandLocation[], StatsQueryParams>({
+    getCommandLocations: builder.query<MapPage<CommandLocation>, StatsQueryParams>({
       query: (params) => ({
         url: '/stats/command-locations',
         params,
@@ -211,5 +232,7 @@ export const {
   useGetMonthlySoldProductsQuery,
   useGetDepotVsBuyingQuery,
   useGetCommandLocationsQuery,
+  useLazyGetCommandLocationsQuery,
+  useLazyGetDepotLocationsQuery,
   useGetTotalSurchargeQuery,
 } = statsApi;

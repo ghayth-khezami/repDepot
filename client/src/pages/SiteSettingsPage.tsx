@@ -46,7 +46,7 @@ const SiteSettingsPage = () => {
   };
 
   return (
-    <div className="bd-ui mx-auto max-w-3xl">
+    <div className="bd-ui w-full">
       <header className="mb-6">
         <h1 className="text-3xl font-black text-bd-ink">Boutique & YouTube</h1>
         <p className="mt-1 text-bd-muted">Coordonnées affichées sur la page de suivi des déposants et sur les contrats.</p>
@@ -76,7 +76,7 @@ const SiteSettingsPage = () => {
 
           <Card className="p-5 sm:p-6">
             <CardTitle icon={FileText} tone="violet" title="Termes du contrat" subtitle="Une condition par ligne. Imprimées sur chaque contrat de dépôt-vente." />
-            <Field label="Conditions" htmlFor="contract-terms" hint="Vide = conditions par défaut (25 %, 3 mois, −50 % après 2 mois au-delà de 50 TND).">
+            <Field label="Conditions" htmlFor="contract-terms" hint="{commission} et {duree} sont remplacés par la commission et la durée choisies pour chaque dépôt. Vide = conditions par défaut.">
               <textarea
                 id="contract-terms"
                 rows={6}

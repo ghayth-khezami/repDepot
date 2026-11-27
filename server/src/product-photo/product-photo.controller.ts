@@ -57,13 +57,14 @@ export class ProductPhotoController {
     @UploadedFile() file: Express.Multer.File,
     @Body("productId") productId: string,
   ) {
-    if (!file) throw new BadRequestException("No file uploaded");
+    if (!file) throw new BadRequestException("Aucune photo reçue.");
+    await this.productPhotoService.assertRoom(productId, 1);
     const url = await this.cloudinary.uploadFile(file, "products");
     return this.productPhotoService.create(productId, url);
   }
 
   @Post("upload-multiple")
-  @UseInterceptors(FilesInterceptor("files", 20, productUpload))
+  @UseInterceptors(FilesInterceptor("files", 4, productUpload))
   @ApiConsumes("multipart/form-data")
   @ApiBody({
     schema: {
@@ -79,7 +80,8 @@ export class ProductPhotoController {
     @UploadedFiles() files: Express.Multer.File[],
     @Body("productId") productId: string,
   ) {
-    if (!files?.length) throw new BadRequestException("No files uploaded");
+    if (!files?.length) throw new BadRequestException("Aucune photo reçue.");
+    await this.productPhotoService.assertRoom(productId, files.length);
     const urls = await this.cloudinary.uploadFiles(files, "products");
     await this.productPhotoService.createMany(productId, urls);
     return this.productPhotoService.findByProduct(productId);
@@ -88,10 +90,11 @@ export class ProductPhotoController {
   @Post()
   @ApiOperation({ summary: "Add photos to a product (legacy URL list)" })
   async create(@Body() body: { productId: string; photoDocs: string[] }) {
-    const urls = (body.photoDocs ?? []).filter((u) => u.startsWith("http"));
+    const urls = (body.photoDocs ?? []).filter((u) => u.startsWith("https://") || u.startsWith("/uploads/"));
     if (!urls.length) {
-      throw new BadRequestException("photoDocs must be Cloudinary HTTPS URLs");
+      throw new BadRequestException("Photos invalides.");
     }
+    await this.productPhotoService.assertRoom(body.productId, urls.length);
     return this.productPhotoService.createMany(body.productId, urls);
   }
 

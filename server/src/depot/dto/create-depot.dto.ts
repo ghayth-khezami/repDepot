@@ -4,6 +4,7 @@ import { Transform, Type } from "class-transformer";
 import {
   ArrayMaxSize,
   IsArray,
+  IsDateString,
   IsEmail,
   IsIn,
   IsNumber,
@@ -88,6 +89,11 @@ export class NewDeposantDto {
   @IsOptional()
   @Matches(/^\d{20}$/, { message: "Le RIB doit contenir exactement 20 chiffres." })
   rib?: string;
+
+  @ApiPropertyOptional({ enum: ["F", "M"], description: "F = femme, M = homme (illustration)" })
+  @IsOptional()
+  @IsIn(["F", "M"], { message: "Choisissez Femme ou Homme." })
+  gender?: "F" | "M";
 }
 
 export class DepotItemDto {
@@ -124,11 +130,11 @@ export class DepotItemDto {
   @IsUUID("4")
   subSubCategory1Id?: string;
 
-  @ApiPropertyOptional({ type: [String], description: "Cloudinary URLs from /media/upload" })
+  @ApiPropertyOptional({ type: [String], description: "URLs returned by /media/upload (Cloudinary https URL or /uploads/… fallback)" })
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(8)
-  @IsUrl({ protocols: ["https"], require_protocol: true }, { each: true })
+  @ArrayMaxSize(4, { message: "Maximum 4 photos par article." })
+  @Matches(/^(https:\/\/\S+|\/uploads\/[\w./-]+)$/, { each: true, message: "Photo invalide." })
   photos?: string[];
 }
 
@@ -148,6 +154,11 @@ export class CreateDepotDto {
   @Type(() => Number)
   @IsIn([1, 3, 6], { message: "Durée: 1, 3 ou 6 mois." })
   durationMonths: number;
+
+  @ApiPropertyOptional({ description: "Date du dépôt (YYYY-MM-DD). Défaut : aujourd'hui. Le contrat court à partir de cette date." })
+  @IsOptional()
+  @IsDateString({}, { message: "Date de dépôt invalide." })
+  depositDate?: string;
 
   @ApiPropertyOptional()
   @Transform(trimOrUndef)

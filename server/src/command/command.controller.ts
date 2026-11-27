@@ -23,6 +23,7 @@ import { Response } from "express";
 import { CommandService } from "./command.service";
 import { CreateCommandDto } from "./dto/create-command.dto";
 import { CheckoutCommandDto } from "./dto/checkout-command.dto";
+import { SurPlaceCommandDto } from "./dto/sur-place-command.dto";
 import { UpdateCommandDto } from "./dto/update-command.dto";
 import { CommandQueryDto } from "./dto/command-query.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -47,6 +48,14 @@ export class CommandController {
   @ApiResponse({ status: 201, description: "Command created" })
   checkout(@Body() dto: CheckoutCommandDto) {
     return this.commandService.createFromCheckout(dto);
+  }
+
+  @Post("sur-place")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Admin: in-shop sale (client sur place, delivered at once)" })
+  createSurPlace(@Body() dto: SurPlaceCommandDto) {
+    return this.commandService.createSurPlace(dto);
   }
 
   @Post()
@@ -239,8 +248,9 @@ export class CommandController {
       // Table data
       x = startX + 2;
       const statusLabels: { [key: string]: string } = {
-        NOT_DELIVERED: "Non livré",
-        DELIVERED: "Livré",
+        NOT_DELIVERED: "Reçue",
+        ACCEPTED: "Acceptée",
+        DELIVERED: "Livrée",
       };
       const rowData = [
         cmd.id.substring(0, 8),

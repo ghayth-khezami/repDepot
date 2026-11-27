@@ -15,10 +15,15 @@ export function getCommandStatusBadge(status: string): StatusBadge {
         label: "Terminée",
         className: "border-violet-200 bg-violet-50 text-violet-800",
       };
+    case "ACCEPTED":
+      return {
+        label: "Acceptée",
+        className: "border-sky-200 bg-sky-50 text-sky-800",
+      };
     case "NOT_DELIVERED":
     default:
       return {
-        label: "En préparation",
+        label: "Reçue",
         className: "border-amber-200 bg-amber-50 text-amber-900",
       };
   }

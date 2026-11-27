@@ -122,6 +122,8 @@ export function SuiviAppActions({ token }: { token: string }) {
   const [iosHelp, setIosHelp] = useState(false);
   const [push, setPush] = useState<"unsupported" | "off" | "on" | "denied" | "busy">("off");
   const [msg, setMsg] = useState<string | null>(null);
+  /** Shown once the app is installed (opened from the home-screen icon): one tap to allow notifications. */
+  const [askPush, setAskPush] = useState(false);
 
   const registration = useCallback(async () => {
     if (!("serviceWorker" in navigator)) return null;
@@ -137,6 +139,7 @@ export function SuiviAppActions({ token }: { token: string }) {
     const onInstalled = () => {
       setInstalled(true);
       setInstallEvt(null);
+      setAskPush(true);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
@@ -149,13 +152,24 @@ export function SuiviAppActions({ token }: { token: string }) {
       void registration().then(async (reg) => {
         const sub = await reg?.pushManager.getSubscription();
         if (sub) setPush("on");
+        else if (isStandalone()) {
+          // Opened from the installed app and alerts not on yet → ask (once per session).
+          try {
+            if (!sessionStorage.getItem(`bd-suivi-askpush-${token}`)) {
+              sessionStorage.setItem(`bd-suivi-askpush-${token}`, "1");
+              window.setTimeout(() => setAskPush(true), 6000); // after the welcome animation
+            }
+          } catch {
+            window.setTimeout(() => setAskPush(true), 6000);
+          }
+        }
       });
     }
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, [registration]);
+  }, [registration, token]);
 
   const install = async () => {
     if (installEvt) {
@@ -197,6 +211,7 @@ export function SuiviAppActions({ token }: { token: string }) {
       });
       if (!res.ok) throw new Error("subscribe failed");
       setPush("on");
+      setAskPush(false);
       setMsg("C'est activé ! Vous serez prévenu(e) dès qu'un article est vendu 🎉");
     } catch {
       setPush("off");
@@ -258,6 +273,37 @@ export function SuiviAppActions({ token }: { token: string }) {
       ) : null}
       {msg ? <p className="mt-2 text-center text-sm font-bold text-bd-ink">{msg}</p> : null}
 
+      {askPush && push !== "on" ? (
+        <div className="fixed inset-0 z-[96] flex items-end justify-center bg-black/45 p-3 sm:items-center" onClick={() => setAskPush(false)}>
+          <div className="suivi-pop w-full max-w-sm overflow-hidden rounded-[30px] bg-white text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-br from-[#6D28D9] via-[#A21CAF] to-[#DB2777] px-6 pb-6 pt-8 text-white">
+              <span className="suivi-medal mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/95 text-[#A21CAF] shadow-xl">
+                <BellRing aria-hidden className="suivi-bell h-10 w-10" />
+              </span>
+              <h2 className="mt-4 text-2xl font-black">Activez les notifications</h2>
+              <p className="mt-1 text-sm font-bold text-white/90">Soyez prévenu(e) à la seconde où un article est vendu, et quand votre paiement est prêt.</p>
+            </div>
+            <div className="space-y-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                disabled={push === "busy"}
+                onClick={() => void enablePush()}
+                className="unstyled flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-grad-pink-strong text-base font-black text-white shadow-glow-pink active:scale-[0.98] disabled:opacity-60"
+              >
+                <Bell aria-hidden className="h-5 w-5" /> {push === "busy" ? "Activation…" : "Activer les notifications"}
+              </button>
+              {push === "denied" ? (
+                <p className="text-xs font-bold text-bd-muted">Les notifications sont bloquées : autorisez-les dans les réglages du téléphone.</p>
+              ) : null}
+              {msg ? <p className="text-sm font-bold text-bd-ink">{msg}</p> : null}
+              <button type="button" onClick={() => setAskPush(false)} className="unstyled min-h-[44px] w-full text-sm font-extrabold text-bd-muted">
+                Plus tard
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {iosHelp ? (
         <div className="fixed inset-0 z-[90] flex items-end bg-black/40 p-3" onClick={() => setIosHelp(false)}>
           <div className="suivi-sheet w-full rounded-[28px] bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -285,105 +331,5 @@ export function SuiviAppActions({ token }: { token: string }) {
         </div>
       ) : null}
     </section>
-  );
-}
-
-/* ───────────────────────── "Bonne nouvelle" on return ───────────────────────── */
-
-export interface NewsItem {
-  ref: string;
-  name: string;
-  status: "EN_VENTE" | "VENDU" | "RETIRE";
-  payoutStatus: "A_PERCEVOIR" | "PAYE" | null;
-  depositorMillimes: number;
-  photo: string | null;
-}
-
-const fmtTnd = (m: number) => `${Math.floor(m / 1000)}.${String(m % 1000).padStart(3, "0")} TND`;
-
-/**
- * Remembers (per contract, on this device) which articles were sold / paid at the last visit.
- * When the déposant(e) comes back and something changed: confetti + the list of good news.
- */
-function SuiviNews({ token, items, firstName }: { token: string; items: NewsItem[]; firstName: string }) {
-  const [news, setNews] = useState<{ sold: NewsItem[]; paid: NewsItem[] } | null>(null);
-
-  useEffect(() => {
-    const key = `bd-suivi-seen-${token}`;
-    const sold = items.filter((i) => i.status === "VENDU").map((i) => i.ref);
-    const paid = items.filter((i) => i.status === "VENDU" && i.payoutStatus === "PAYE").map((i) => i.ref);
-    let prev: { sold: string[]; paid: string[] } | null = null;
-    try {
-      prev = JSON.parse(localStorage.getItem(key) || "null");
-      localStorage.setItem(key, JSON.stringify({ sold, paid }));
-    } catch {
-      return; // storage blocked: no history to compare, show nothing
-    }
-    if (!prev) return; // first visit on this device
-    const before = prev;
-    const newPaid = items.filter((i) => paid.includes(i.ref) && !before.paid.includes(i.ref));
-    const newSold = items.filter((i) => sold.includes(i.ref) && !before.sold.includes(i.ref) && !newPaid.includes(i));
-    if (newSold.length || newPaid.length) setNews({ sold: newSold, paid: newPaid });
-  }, [token, items]);
-
-  if (!news) return null;
-  const total = [...news.sold, ...news.paid].reduce((t, i) => t + i.depositorMillimes, 0);
-  const rows = [...news.paid.map((i) => ({ i, paid: true })), ...news.sold.map((i) => ({ i, paid: false }))];
-  return (
-    <div role="dialog" aria-label="Bonne nouvelle" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/45 p-3 sm:items-center" onClick={() => setNews(null)}>
-      {["🎉", "💰", "✨", "🎊", "💖", "⭐", "🎉", "💜", "✨", "🎊"].map((e, i) => (
-        <span key={i} aria-hidden className="suivi-float" style={{ left: `${4 + i * 9.5}%`, animationDelay: `${(i % 5) * 0.25}s`, fontSize: `${20 + (i % 3) * 8}px` }}>
-          {e}
-        </span>
-      ))}
-      <div className="suivi-sheet relative w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-gradient-to-br from-[#6D28D9] via-[#9333EA] to-[#DB2777] px-6 pb-6 pt-7 text-center text-white">
-          <p className="suivi-logo text-5xl" aria-hidden>
-            {news.paid.length ? "💰" : "🎉"}
-          </p>
-          <h2 className="mt-3 text-2xl font-black">Bonne nouvelle {firstName} !</h2>
-          <p className="mt-1 text-sm font-bold text-white/90">
-            {news.paid.length && news.sold.length
-              ? "Des articles vendus et un paiement prêt depuis votre dernière visite."
-              : news.paid.length
-                ? `Votre paiement est prêt (${news.paid.length} article${news.paid.length > 1 ? "s" : ""}).`
-                : `${news.sold.length} article${news.sold.length > 1 ? "s" : ""} vendu${news.sold.length > 1 ? "s" : ""} depuis votre dernière visite.`}
-          </p>
-          <p className="mt-3 text-3xl font-black tabular-nums">+{fmtTnd(total)}</p>
-        </div>
-        <ul className="max-h-[40dvh] space-y-2 overflow-y-auto p-4">
-          {rows.map(({ i, paid }, idx) => (
-            <li key={i.ref} className="suivi-rise flex items-center gap-3 rounded-2xl bg-bd-bg p-2.5" style={{ animationDelay: `${0.15 + idx * 0.08}s` }}>
-              <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-bd-lilac text-xl">
-                {i.photo ? <Image src={i.photo} alt="" fill sizes="48px" className="object-cover" /> : paid ? "💰" : "🎉"}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-black text-bd-ink">{i.name}</span>
-                <span className={`block text-xs font-extrabold ${paid ? "text-bd-violet-strong" : "text-bd-success"}`}>
-                  {paid ? "Paiement prêt ✅" : "Vendu 🎉"} · {fmtTnd(i.depositorMillimes)}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <p className="mb-3 text-center text-xs font-bold text-bd-muted">📞 Contactez Madame Khezami pour organiser votre paiement.</p>
-          <button type="button" onClick={() => setNews(null)} className="unstyled flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-grad-pink-strong text-base font-black text-white shadow-glow-pink">
-            Voir mes articles
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Welcome (once per visit) → then the "Bonne nouvelle" screen if something sold / was paid since last time. */
-export function SuiviIntro({ token, firstName, items }: { token: string; firstName: string; items: NewsItem[] }) {
-  const [welcomeDone, setWelcomeDone] = useState(false);
-  return (
-    <>
-      <SuiviWelcome firstName={firstName} token={token} onDone={() => setWelcomeDone(true)} />
-      {welcomeDone ? <SuiviNews token={token} items={items} firstName={firstName} /> : null}
-    </>
   );
 }

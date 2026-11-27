@@ -4,12 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/cn';
 import { Blobs, OtpInput } from './ui';
 
-const LENGTH = 6;
+const LENGTH = 4;
 
 /**
  * Quick-unlock screen shown when the app is reopened with a saved session.
  * One hidden real input (OtpInput) receives the phone keyboard, paste and SMS autofill;
- * the 6 boxes are only visual. Submits by itself on the 6th digit.
+ * the 4 boxes are only visual. Submits by itself on the 4th digit.
  */
 export default function PinLockScreen() {
   const { unlock, logout, user } = useAuth();

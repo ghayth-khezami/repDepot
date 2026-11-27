@@ -26,7 +26,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="-mt-[66px] mb-4 flex min-h-[48px] items-center gap-2 pl-[54px] md:mt-0 md:pl-0">
+    <header className="-mt-[66px] mb-4 flex min-h-[48px] items-center gap-2 pl-[54px] pr-[54px] md:mt-0 md:px-0">
       <div className="min-w-0 flex-1">
         {eyebrow ? <p className="truncate text-[11px] font-black uppercase tracking-[0.16em] text-bd-pink-strong">{eyebrow}</p> : null}
         <h1 className="truncate text-[22px] font-extrabold leading-tight text-bd-ink">{title}</h1>

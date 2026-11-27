@@ -18,7 +18,9 @@ interface ShopContextValue {
   refreshData: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   googleLogin: (idToken: string, intent?: "CLIENT" | "DEPOSER") => Promise<void>;
-  register: (email: string, password: string, username?: string) => Promise<void>;
+  register: (email: string, password: string, username?: string, phoneNumber?: string) => Promise<void>;
+  /** Update the stored user (e.g. after adding a phone number). */
+  updateUser: (u: AuthUser) => void;
   verifyRegister: (email: string, code: string) => Promise<void>;
   logout: () => void;
   addToCart: (product: Product) => void;
@@ -80,8 +82,13 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     setUser(res.user);
   };
 
-  const register = async (email: string, password: string, username?: string) => {
-    await api.register(email, password, username);
+  const updateUser = (u: AuthUser) => {
+    setUser(u);
+    storage.setUser(u);
+  };
+
+  const register = async (email: string, password: string, username?: string, phoneNumber?: string) => {
+    await api.register(email, password, username, phoneNumber);
   };
 
   const googleLogin = async (idToken: string, intent?: "CLIENT" | "DEPOSER") => {
@@ -237,6 +244,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     login,
     googleLogin,
     register,
+    updateUser,
     verifyRegister,
     logout,
     addToCart,

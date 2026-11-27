@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { InfiniteSentinel } from './ui/mobile';
+import { Pager, useDesktopPager } from './ui/pager';
 import { Search, ChevronLeft, ChevronRight, Download, FileText, Grid, List } from 'lucide-react';
 
 export interface Column<T> {
@@ -52,9 +53,9 @@ function ReusableTable<T extends { id: string }>({
   infinite,
 }: ReusableTableProps<T>) {
   const [searchValue, setSearchValue] = useState('');
-  const debouncedSearch = useDebouncedValue(searchValue, 1000);
+  const debouncedSearch = useDebouncedValue(searchValue);
   const [isMobile, setIsMobile] = useState(false);
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
   const [userPreference, setUserPreference] = useState<'table' | 'cards' | null>(null);
 
   // Detect mobile screen size and auto-switch view mode
@@ -66,7 +67,7 @@ function ReusableTable<T extends { id: string }>({
       if (mobile) {
         setViewMode('cards');
       } else {
-        setViewMode(userPreference || 'table');
+        setViewMode(userPreference || 'cards');
       }
     };
     
@@ -92,6 +93,18 @@ function ReusableTable<T extends { id: string }>({
     setSearchValue(value);
   };
 
+  // Desktop: pages of 12 cards (fetches the next server page only when needed). Phone: infinite scroll.
+  const pager = useDesktopPager({
+    items: data,
+    total: infinite?.total,
+    hasNextPage: !!infinite?.hasNextPage,
+    isFetchingNextPage: !!infinite?.isFetchingNextPage,
+    fetchNextPage: () => infinite?.fetchNextPage(),
+    resetKey: debouncedSearch,
+  });
+  const paged = !!infinite && !isMobile;
+  const rows = paged ? pager.pageItems : data;
+
   const renderCell = (column: Column<T>, row: T) => {
     if (typeof column.accessor === 'function') {
       return column.accessor(row);
@@ -101,9 +114,9 @@ function ReusableTable<T extends { id: string }>({
   };
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow-sm dark:bg-slate-900 dark:shadow-slate-900/50">
-      {/* Search and Filters */}
-      <div className="mb-6 space-y-4">
+    <div className="rounded-3xl bg-white p-4 shadow-sm dark:bg-slate-900 dark:shadow-slate-900/50 md:p-6">
+      {/* Search and Filters — stays visible while scrolling on desktop */}
+      <div className="mb-6 space-y-4 md:sticky md:top-16 md:z-20 md:-mx-6 md:-mt-6 md:rounded-t-3xl md:bg-white/95 md:px-6 md:pb-4 md:pt-6 md:backdrop-blur dark:md:bg-slate-900/95">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           {onSearch && (
             <div className="flex-1 w-full sm:w-auto relative">
@@ -188,7 +201,7 @@ function ReusableTable<T extends { id: string }>({
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                   </td>
                 </tr>
-              ) : data.length === 0 ? (
+              ) : rows.length === 0 && !pager.loading ? (
                 <tr>
                   <td
                     colSpan={columns.length + (actions ? 1 : 0)}
@@ -198,7 +211,7 @@ function ReusableTable<T extends { id: string }>({
                   </td>
                 </tr>
               ) : (
-                data.map((row) => (
+                rows.map((row) => (
                   <tr
                     key={row.id}
                     className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800/60"
@@ -228,11 +241,11 @@ function ReusableTable<T extends { id: string }>({
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
             </div>
-          ) : data.length === 0 ? (
+          ) : rows.length === 0 && !pager.loading ? (
             <div className="py-8 text-center text-gray-500 dark:text-gray-400">Aucune donnée disponible</div>
           ) : (
-            <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-4 sm:gap-6`}>
-              {data.map((row, index) => {
+            <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'} gap-4 sm:gap-6`}>
+              {rows.map((row, index) => {
                 // Find photo column
                 const photoColumn = columns.find((col) => col.header === 'Photo' || col.header === 'photo');
                 const photoCell = photoColumn ? renderCell(photoColumn, row) : null;
@@ -297,7 +310,11 @@ function ReusableTable<T extends { id: string }>({
       )}
 
       {/* Pagination */}
-      {infinite ? (
+      {paged ? (
+        <div className="bd-ui">
+          <Pager page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize} loading={pager.loading} onPage={pager.setPage} />
+        </div>
+      ) : infinite ? (
         <div className="bd-ui">
           <InfiniteSentinel onReach={() => infinite.hasNextPage && !infinite.isFetchingNextPage && infinite.fetchNextPage()} disabled={!infinite.hasNextPage} loading={infinite.isFetchingNextPage} />
           {!infinite.hasNextPage && infinite.total ? <p className="pb-2 text-center text-xs font-bold text-bd-muted">{infinite.total} résultat{infinite.total > 1 ? 's' : ''}</p> : null}

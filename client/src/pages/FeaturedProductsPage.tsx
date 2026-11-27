@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { Heart, Search, X } from 'lucide-react';
 import {
   useGetFeaturedProductsQuery,
@@ -17,6 +18,7 @@ const FeaturedProductsPage = () => {
   const [initialized, setInitialized] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search.trim());
   const [setFeatured, { isLoading: saving }] = useSetFeaturedProductsMutation();
 
   useEffect(() => {
@@ -28,7 +30,7 @@ const FeaturedProductsPage = () => {
   const { data: productsData, isLoading: productsLoading } = useGetProductsQuery({
     page,
     limit: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const selectedIds = [...selected.keys()];

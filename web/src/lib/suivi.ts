@@ -15,6 +15,8 @@ export interface SuiviItem {
   status: SuiviStatus;
   depositedAt: string;
   soldAt: string | null;
+  /** Set when the déposant has been paid (status VENDU + payout PAYE). */
+  paidAt?: string | null;
   payoutStatus: SuiviPayout | null;
 }
 
@@ -51,8 +53,6 @@ export interface SuiviData {
 
 export type SuiviResult = { kind: "ok"; data: SuiviData } | { kind: "not_found" } | { kind: "error" };
 
-/** Status changes in Produits show up here within ≤ 30 s (ISR-style cached fetch). */
-export const SUIVI_REVALIDATE_SECONDS = 30;
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{22,64}$/;
 
@@ -64,7 +64,8 @@ export async function fetchSuivi(token: string): Promise<SuiviResult> {
   try {
     const res = await fetch(`${getServerApiUrl()}/public/suivi/${encodeURIComponent(token)}`, {
       headers,
-      next: { revalidate: SUIVI_REVALIDATE_SECONDS, tags: [`suivi:${token}`] },
+      // Never cached: a sale must show the moment the page is (re)opened. Live updates come over the socket.
+      cache: "no-store",
     });
     if (res.status === 404) return { kind: "not_found" };
     if (!res.ok) return { kind: "error" };

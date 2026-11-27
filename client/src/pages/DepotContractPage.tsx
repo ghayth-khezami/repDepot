@@ -112,7 +112,7 @@ export default function DepotContractPage({ mode = 'view' }: { mode?: 'view' | '
   const { data, isLoading, isError } = useGetDepotQuery(id, { skip: !id });
 
   return (
-    <div className="bd-ui mx-auto max-w-6xl space-y-5">
+    <div className="bd-ui w-full space-y-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link to={mode === 'add' ? `/depots/${id}` : '/deposit-requests'} className={buttonClass('ghost', 'sm', '-ml-3 mb-1')}>

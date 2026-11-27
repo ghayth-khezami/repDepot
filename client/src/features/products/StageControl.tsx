@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Check, ChevronDown, RotateCcw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Check, ChevronDown, Clock3, RotateCcw, ShoppingBag, Truck } from 'lucide-react';
+import { useCreateSurPlaceCommandMutation } from '../../store/api/commandApi';
 import { store } from '../../store/store';
 import { productApi, type NotifySummary, type ProductStage } from '../../store/api/productApi';
 import { useToast } from '../../context/ToastContext';
@@ -78,16 +80,24 @@ export default function StageControl({
   isDepot,
   size = 'md',
   onChanged,
+  variant = 'chip',
 }: {
   productId: string;
   stage: ProductStage;
   isDepot: boolean;
   size?: 'sm' | 'md';
   onChanged?: (s: ProductStage) => void;
+  /** "action": one big button for the next step (Marquer comme vendu → Marquer comme payé). */
+  variant?: 'chip' | 'action';
 }) {
   const [local, setLocal] = useState<ProductStage | null>(null);
   const [open, setOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  /** After "Vendu": what kind of sale? (order to deliver / in-shop sale / later) */
+  const [nextStep, setNextStep] = useState(false);
+  const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [createSurPlace, { isLoading: creatingSale }] = useCreateSurPlaceCommandMutation();
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const current = local ?? stage;
   const meta = STAGE_META[current];
@@ -110,12 +120,47 @@ export default function StageControl({
       },
       onDone: () => setLocal(null),
     });
+    if (to === 'VENDU') setNextStep(true);
+  };
+
+  const sellInShop = async () => {
+    try {
+      await createSurPlace({ productIds: [productId], date: new Date(`${saleDate}T12:00:00`).toISOString() }).unwrap();
+      showToast('Commande « achat sur place » créée', 'success');
+      setNextStep(false);
+    } catch (e) {
+      showToast(apiErrorMessage(e, 'Création de la commande impossible'), 'error', 6000);
+    }
   };
 
   const options: ProductStage[] = isDepot ? ['EN_VENTE', 'VENDU', 'PAYE', 'RETIRE'] : ['EN_VENTE', 'VENDU', 'RETIRE'];
 
+  const nextAction: { to: ProductStage; label: string; icon: typeof Check } | null =
+    current === 'EN_VENTE' ? { to: 'VENDU', label: 'Marquer comme vendu', icon: ShoppingBag } : current === 'VENDU' && isDepot ? { to: 'PAYE', label: 'Marquer comme payé', icon: Check } : null;
+
   return (
     <>
+      {variant === 'action' ? (
+        nextAction ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              pick(nextAction.to);
+            }}
+            className={cn(
+              'bd-focus inline-flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-[15px] font-extrabold text-white transition active:scale-[0.98]',
+              nextAction.to === 'VENDU' ? 'bg-grad-green-strong shadow-[0_10px_24px_rgba(22,163,74,0.3)]' : 'bg-grad-violet-strong shadow-glow-violet',
+            )}
+          >
+            <nextAction.icon size={18} aria-hidden /> {nextAction.label}
+          </button>
+        ) : (
+          <span className={cn('inline-flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-extrabold', meta.chip)}>
+            <Check size={16} aria-hidden /> {meta.label}
+          </span>
+        )
+      ) : (
       <button
         type="button"
         onClick={(e) => {
@@ -133,6 +178,7 @@ export default function StageControl({
         {meta.label}
         <ChevronDown size={size === 'sm' ? 12 : 14} aria-hidden />
       </button>
+      )}
       <BottomSheet
         open={open}
         onClose={() => {
@@ -182,6 +228,53 @@ export default function StageControl({
             })}
           </ul>
         )}
+      </BottomSheet>
+
+      <BottomSheet open={nextStep} onClose={() => setNextStep(false)} title="Article vendu 🎉 Et maintenant ?">
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              setNextStep(false);
+              navigate(`/commands?productId=${productId}`);
+            }}
+            className="bd-focus flex min-h-[64px] w-full items-center gap-3 rounded-2xl bg-grad-pink-strong px-4 text-left text-white shadow-glow-pink active:scale-[0.99]"
+          >
+            <Truck size={22} aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block font-extrabold">Continuer la commande</span>
+              <span className="block text-xs font-semibold text-white/85">Client, adresse et date de livraison</span>
+            </span>
+          </button>
+          <div className="rounded-2xl border border-bd-line/10 bg-bd-bg p-3">
+            <p className="flex items-center gap-2 font-extrabold text-bd-ink">
+              <ShoppingBag size={20} className="text-bd-violet" aria-hidden /> Achat sur place
+            </p>
+            <p className="mb-2 text-xs font-semibold text-bd-muted">Client inconnu, vendu en boutique — la commande est créée et marquée livrée.</p>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                aria-label="Date de la vente"
+                data-dictation="off"
+                value={saleDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setSaleDate(e.target.value)}
+                className="bd-input min-w-0 flex-1"
+              />
+              <button
+                type="button"
+                disabled={creatingSale || !saleDate}
+                onClick={() => void sellInShop()}
+                className="bd-focus min-h-[44px] shrink-0 rounded-2xl bg-grad-violet-strong px-4 text-sm font-extrabold text-white disabled:opacity-60"
+              >
+                {creatingSale ? 'Création…' : 'Créer'}
+              </button>
+            </div>
+          </div>
+          <button type="button" onClick={() => setNextStep(false)} className="bd-focus flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl font-extrabold text-bd-muted">
+            <Clock3 size={16} aria-hidden /> Plus tard
+          </button>
+        </div>
       </BottomSheet>
     </>
   );

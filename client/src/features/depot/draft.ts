@@ -26,6 +26,8 @@ export interface DraftDeposant {
   lat?: number;
   lng?: number;
   rib: string;
+  /** F = femme, M = homme (illustration on cards and on the dépôts map). */
+  gender?: 'F' | 'M';
 }
 
 export interface DepotDraft {
@@ -37,6 +39,8 @@ export interface DepotDraft {
   defaultCommission: number;
   lastCategoryId: string;
   durationMonths: 1 | 3 | 6;
+  /** YYYY-MM-DD; empty = today. The contract and its duration start on this date. */
+  depositDate: string;
   internalNote: string;
   contractId: string | null;
 }
@@ -66,6 +70,7 @@ const initialDraft = (): DepotDraft => ({
   defaultCommission: 25,
   lastCategoryId: '',
   durationMonths: 3,
+  depositDate: '',
   internalNote: '',
   contractId: null,
 });

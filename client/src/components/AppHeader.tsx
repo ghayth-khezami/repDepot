@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { Bell, CalendarDays, Check, ChevronDown } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useGetDepositRequestsQuery } from '../store/api/depositRequestApi';
 import { cn } from '../lib/cn';
 import { Illustration } from './ui';
 
@@ -116,7 +114,7 @@ function DateRangePill({ value, onChange }: { value: DateRangeKey; onChange: (v:
   );
 }
 
-/** "Bonjour !" header: greeting, optional date filter, notification bell (pending demandes), avatar. */
+/** "Bonjour !" header: greeting, optional date filter, avatar (the bell lives in the layout, top-right). */
 export default function AppHeader({
   title = 'Bonjour !',
   subtitle = 'Voici un aperçu de votre activité',
@@ -131,8 +129,6 @@ export default function AppHeader({
   extra?: ReactNode;
 }) {
   const { user } = useAuth();
-  const { data: pending } = useGetDepositRequestsQuery({ page: 1, limit: 1, status: 'PENDING' }, { pollingInterval: 60_000 });
-  const pendingCount = pending?.meta.total ?? 0;
   const initials = (user?.username || user?.email || 'A')
     .split(/[\s@.]+/)
     .filter(Boolean)
@@ -155,18 +151,6 @@ export default function AppHeader({
         {extra}
         {range && onRangeChange ? <DateRangePill value={range} onChange={onRangeChange} /> : null}
         <span aria-hidden className="hidden h-8 w-px bg-bd-line/15 sm:block" />
-        <Link
-          to="/deposit-requests"
-          aria-label={pendingCount ? `${pendingCount} demande(s) de dépôt en attente` : 'Aucune demande en attente'}
-          className="bd-focus relative flex h-11 w-11 items-center justify-center rounded-full bg-bd-surface text-bd-violet shadow-card transition hover:text-bd-pink-strong"
-        >
-          <Bell size={20} aria-hidden />
-          {pendingCount ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-grad-pink-strong px-1 text-[11px] font-black text-white ring-2 ring-bd-surface tabular-nums">
-              {pendingCount > 9 ? '9+' : pendingCount}
-            </span>
-          ) : null}
-        </Link>
         <span
           title={user?.username || user?.email}
           className="flex h-11 w-11 items-center justify-center rounded-full bg-grad-violet-strong text-sm font-black text-white ring-4 ring-bd-surface shadow-card"

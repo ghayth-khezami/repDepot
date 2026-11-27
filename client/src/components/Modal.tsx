@@ -1,6 +1,6 @@
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 import { FormAssistantButton } from './FormAssistant';
 
 interface ModalProps {
@@ -42,7 +42,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md', assistant = true
   // Portal to <body>: never positioned against an animated/transformed page wrapper (no jump on open).
   // `.bo-page` keeps the legacy page button styles for forms inside.
   return createPortal(
-    <div className="bo-page fixed inset-0 z-50 flex items-end justify-center bg-bd-ink/45 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="bo-page fixed inset-0 z-[90] flex items-end justify-center bg-bd-ink/45 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         role="dialog"
         aria-modal="true"
@@ -50,6 +50,16 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md', assistant = true
         className={`bd-anim-fade-up max-h-[92dvh] w-full overflow-y-auto rounded-t-[28px] bg-bd-surface shadow-2xl sm:rounded-[28px] ${sizeClasses[size]}`}
       >
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-bd-line/10 bg-bd-surface/95 px-5 py-4 backdrop-blur sm:px-6">
+          <span className="bd-ui contents">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Retour"
+              className="bd-focus -ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-bd-line/10 bg-bd-surface text-bd-ink shadow-card transition active:scale-95"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden />
+            </button>
+          </span>
           <h2 className="min-w-0 flex-1 truncate text-lg font-black text-bd-ink sm:text-xl">{title}</h2>
           {assistant === true ? <FormAssistantButton getRoot={getRoot} title={title} /> : assistant || null}
           <span className="bd-ui contents">

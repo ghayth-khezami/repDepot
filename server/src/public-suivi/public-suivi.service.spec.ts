@@ -95,7 +95,7 @@ describe("PublicSuiviService", () => {
     expect(res.deposant).toEqual({ firstName: "Sarra", lastInitial: "B" });
     expect(Object.keys(res.contract).sort()).toEqual(["depositDate", "durationMonths", "expiresAt", "number"]);
     expect(Object.keys(res.items[0]).sort()).toEqual(
-      ["category", "depositedAt", "depositorMillimes", "name", "payoutStatus", "photo", "priceMillimes", "ref", "soldAt", "status"],
+      ["category", "depositedAt", "depositorMillimes", "name", "paidAt", "payoutStatus", "photo", "priceMillimes", "ref", "soldAt", "status"],
     );
     expect(Object.keys(res.shop).sort()).toEqual(["address", "hours", "mapsUrl", "phoneDisplay", "phoneTel", "whatsapp"]);
     expect(Object.keys(res.shop.hours[0]).sort()).toEqual(["closeTime", "isClosed", "openTime", "weekday"]);

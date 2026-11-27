@@ -17,22 +17,27 @@ export class NotificationService {
   ) {}
 
   onModuleInit() {
-    const timer = setInterval(() => void this.sendOverdueOrderReminders(), 15 * 60 * 1000);
+    // Checks every 5 min; an order notification still unread after 2 h is pushed to the admins' phones.
+    const timer = setInterval(() => void this.sendOverdueOrderReminders(), 5 * 60 * 1000);
     timer.unref();
   }
 
   async notifyCommandCreated(command: Command & { commandDetails?: Array<{ product?: { productName: string; photos?: Array<{ photoDoc: string }> }; client?: { firstName: string; lastName: string; phoneNumber: string } }> }) {
-    const title = "Nouvelle commande";
-    const detail = command.commandDetails?.[0];
-    const clientName = detail?.client ? `${detail.client.firstName} ${detail.client.lastName}` : "Client";
-    const productName = detail?.product?.productName || `${command.productsNumber} article(s)`;
-    const productImage = detail?.product?.photos?.[0]?.photoDoc;
-    const body = `Le client ${clientName} a commandé ${productName} · ${command.PrixVente.toFixed(3)} TND · ${command.adresseLivraison}`;
+    const title = "🛍️ Nouvelle commande";
+    const detail = command.commandDetails?.find((d) => d.client) ?? command.commandDetails?.[0];
+    const clientName = detail?.client ? `${detail.client.firstName} ${detail.client.lastName}`.trim() : "Client";
+    const names = (command.commandDetails ?? []).map((d) => d.product?.productName).filter(Boolean) as string[];
+    const productName = names.length ? names.join(", ") : `${command.productsNumber} article(s)`;
+    const productImage = command.commandDetails?.find((d) => d.product?.photos?.[0])?.product?.photos?.[0]?.photoDoc;
+    const phone = detail?.client?.phoneNumber ? ` (${detail.client.phoneNumber})` : "";
+    const body =
+      `${clientName}${phone} a commandé ${names.length > 1 ? `${names.length} articles : ` : ""}${productName} — ` +
+      `${command.PrixVente.toFixed(3)} TND · Livraison : ${command.adresseLivraison}`;
     await this.dispatch({
       type: NotificationType.COMMAND_CREATED,
       title,
       body,
-      linkPath: "/commands",
+      linkPath: `/commands?id=${command.id}`,
       entityId: command.id,
       clientName,
       clientPhone: detail?.client?.phoneNumber,
@@ -107,12 +112,15 @@ export class NotificationService {
 
       this.gateway.emitNotification(payload);
 
-      await this.pushService.sendToAdmins({
-        title: input.title,
-        body: input.body,
-        linkPath: input.linkPath,
-        entityId: input.entityId,
-      });
+      // Orders: in-app at once; the phone push comes as a reminder if still unread after 2 h.
+      if (input.type !== NotificationType.COMMAND_CREATED) {
+        await this.pushService.sendToAdmins({
+          title: input.title,
+          body: input.body,
+          linkPath: input.linkPath,
+          entityId: input.entityId,
+        });
+      }
     } catch (err) {
       this.logger.error(`Failed to dispatch notification: ${String(err)}`);
     }
@@ -149,16 +157,30 @@ export class NotificationService {
     return { ok: true };
   }
 
+  /** Order notifications not opened ("vu") within 2 h → push to the admins' phones (+ email), once. */
   private async sendOverdueOrderReminders() {
-    const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
     const overdue = await this.prisma.notification.findMany({
       where: { type: NotificationType.COMMAND_CREATED, read: false, reminderSentAt: null, createdAt: { lte: cutoff } },
       take: 25,
     });
-    for (const notification of overdue) {
-      if (!notification.clientName || !notification.productName || notification.orderPrice == null) continue;
-      await this.emailService.sendOrderNotification({ clientName: notification.clientName, productName: notification.productName, price: notification.orderPrice, address: notification.orderAddress || "", orderId: notification.entityId || "", productImage: notification.productImage, reminder: true, createdAt: notification.createdAt });
-      await this.prisma.notification.update({ where: { id: notification.id }, data: { reminderSentAt: new Date() } });
+    for (const n of overdue) {
+      // Claim first so two instances never remind twice.
+      const claimed = await this.prisma.notification.updateMany({ where: { id: n.id, reminderSentAt: null }, data: { reminderSentAt: new Date() } });
+      if (!claimed.count) continue;
+      try {
+        await this.pushService.sendToAdmins({
+          title: "⏰ Commande non traitée",
+          body: `Depuis 2 h : ${n.body}`,
+          linkPath: n.linkPath ?? (n.entityId ? `/commands?id=${n.entityId}` : "/commands"),
+          entityId: n.entityId ?? undefined,
+        });
+        if (n.clientName && n.productName && n.orderPrice != null) {
+          await this.emailService.sendOrderNotification({ clientName: n.clientName, productName: n.productName, price: n.orderPrice, address: n.orderAddress || "", orderId: n.entityId || "", productImage: n.productImage, reminder: true, createdAt: n.createdAt });
+        }
+      } catch (e) {
+        this.logger.warn(`Order reminder failed for ${n.id}: ${(e as Error).message}`);
+      }
     }
   }
 }

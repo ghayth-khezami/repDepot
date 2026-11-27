@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   Delete,
+  Patch,
   Query,
   HttpCode,
   HttpStatus,
@@ -20,7 +21,7 @@ import {
 } from "@nestjs/swagger";
 import { Response } from "express";
 import { CoClientService } from "./co-client.service";
-import { CreateCoClientDto } from "./dto/create-co-client.dto";
+import { CreateCoClientDto, UpdateCoClientDto } from "./dto/create-co-client.dto";
 import { CoClientQueryDto } from "./dto/co-client-query.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -294,6 +295,12 @@ export class CoClientController {
   @ApiResponse({ status: 200, description: "CoClient product history" })
   getProductHistory(@Param("id") id: string) {
     return this.coClientService.getProductHistory(id);
+  }
+
+  @Patch(":id")
+  @ApiOperation({ summary: "Update a déposant (name, phone, address, RIB, gender…)" })
+  update(@Param("id") id: string, @Body() dto: UpdateCoClientDto) {
+    return this.coClientService.update(id, dto);
   }
 
   @Delete(":id")

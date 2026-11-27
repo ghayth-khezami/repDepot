@@ -16,9 +16,9 @@ export type SiteSettingsPatch = Partial<Omit<SiteSettings, 'id' | 'updatedAt'>>;
 
 /** Same default as server/src/depot/contract-pdf.ts (used until the admin edits the terms). */
 export const DEFAULT_CONTRACT_TERMS = [
-  'Une commission de 25 % du prix de vente réalisé sera reversée au dépositaire par le déposant.',
-  'Les articles ayant dépassé 3 mois de dépôt seront retournés au déposant et ne seront plus maintenus en dépôt.',
-  "Les articles d'une valeur supérieure à 50 TND verront leur prix réduit de 50 % après 2 mois de dépôt, et seront retournés au déposant à l'issue de 3 mois.",
+  'Une commission de {commission} du prix de vente réalisé sera reversée au dépositaire par le déposant.',
+  'Les articles ayant dépassé {duree} mois de dépôt seront retournés au déposant et ne seront plus maintenus en dépôt.',
+  "Les articles d'une valeur supérieure à 50 TND verront leur prix réduit de 50 % après {dureeReduction} mois de dépôt, et seront retournés au déposant à l'issue de {duree} mois.",
 ].join('\n');
 
 export const siteSettingsApi = baseApi.injectEndpoints({

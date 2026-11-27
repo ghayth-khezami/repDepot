@@ -1,7 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
   IsEmail,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -73,6 +74,11 @@ export class CreateCoClientDto {
   @Matches(/^\d{20}$/, { message: "Le RIB doit contenir exactement 20 chiffres." })
   RIB?: string;
 
+  @ApiPropertyOptional({ enum: ["F", "M"], description: "F = femme, M = homme (illustration)" })
+  @IsOptional()
+  @IsIn(["F", "M"], { message: "Choisissez Femme ou Homme." })
+  gender?: "F" | "M";
+
   @ApiPropertyOptional({
     description: "Optional login password (creates DEPOSER account). Not needed for QR tracking.",
     minLength: 6,
@@ -82,3 +88,6 @@ export class CreateCoClientDto {
   @MinLength(6)
   password?: string;
 }
+
+/** Every field optional; the login password is managed elsewhere. */
+export class UpdateCoClientDto extends PartialType(OmitType(CreateCoClientDto, ["password"] as const)) {}

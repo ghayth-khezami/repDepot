@@ -15,9 +15,12 @@ import {
   CircleDot,
 } from 'lucide-react';
 import { useGetProductsFeedInfiniteQuery, type ProductFeedArgs, type ProductStage } from '../../store/api/productApi';
-import { useGetCategoryHierarchyQuery } from '../../store/api/categoryApi';
-import { useGetDepositRequestsQuery } from '../../store/api/depositRequestApi';
-import { useSearchDeposantsQuery } from '../../store/api/depotApi';
+import { useGetCategoriesFeedInfiniteQuery } from '../../store/api/categoryApi';
+import { useGetCoClientsFeedInfiniteQuery } from '../../store/api/coClientApi';
+import InfinitePickerList from '../../components/InfinitePickerList';
+import HeartButton from './HeartButton';
+import OrderBadge from './OrderBadge';
+import type { Category, CoClient } from '../../types';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useToast } from '../../context/ToastContext';
 import { downloadAuthed } from '../../lib/download';
@@ -40,12 +43,15 @@ import {
   SheetSection,
   SheetTile,
   Skeleton,
+  Pager,
+  useDesktopPager,
+  useIsDesktop,
 } from '../../components/ui';
 import StageControl, { STAGE_META, stageFrom } from './StageControl';
 import type { Product } from '../../types';
 
 type Segment = 'all' | 'depot' | 'achat';
-type Picker = 'category' | 'lot' | 'stage' | 'deposant' | 'actions' | null;
+type Picker = 'category' | 'stage' | 'deposant' | 'actions' | null;
 
 const SORTS: Array<{ value: ProductFeedArgs['sort'] | undefined; label: string }> = [
   { value: undefined, label: 'Plus récents' },
@@ -58,51 +64,6 @@ function qs(params: Record<string, unknown>) {
   Object.entries(params).forEach(([k, v]) => v !== undefined && v !== '' && q.set(k, String(v)));
   const s = q.toString();
   return s ? `?${s}` : '';
-}
-
-/** Searchable list inside a bottom sheet (categories, lots, déposants). */
-function PickerList({
-  items,
-  selected,
-  onPick,
-  placeholder,
-  search,
-  onSearch,
-  loading,
-}: {
-  items: Array<{ id: string; label: string; hint?: string }>;
-  selected?: string;
-  onPick: (id: string, label: string) => void;
-  placeholder: string;
-  search: string;
-  onSearch: (v: string) => void;
-  loading?: boolean;
-}) {
-  return (
-    <div>
-      <SearchBar value={search} onChange={onSearch} placeholder={placeholder} className="mb-3" />
-      {loading ? (
-        <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-12" />)}</div>
-      ) : items.length ? (
-        <ul className="max-h-[50dvh] space-y-1 overflow-y-auto">
-          {items.map((it) => (
-            <li key={it.id}>
-              <button
-                type="button"
-                onClick={() => onPick(it.id, it.label)}
-                className={cn('bd-focus flex min-h-[48px] w-full items-center justify-between gap-2 rounded-xl px-3 text-left', selected === it.id ? 'bg-bd-lilac text-bd-violet-strong' : 'hover:bg-bd-bg')}
-              >
-                <span className="truncate font-extrabold">{it.label}</span>
-                {it.hint ? <span className="shrink-0 text-xs font-bold text-bd-muted">{it.hint}</span> : null}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="py-6 text-center text-sm font-bold text-bd-muted">Aucun résultat.</p>
-      )}
-    </div>
-  );
 }
 
 export default function ProductsList({
@@ -121,7 +82,7 @@ export default function ProductsList({
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [q, setQ] = useState(initialSearch);
-  const search = useDebouncedValue(q.trim(), 300);
+  const search = useDebouncedValue(q.trim());
   const [segment, setSegment] = useState<Segment>('all');
   const [category, setCategory] = useState<{ id: string; label: string } | null>(null);
   const [lot, setLot] = useState<{ id: string; label: string } | null>(contractId ? { id: contractId, label: 'Contrat filtré' } : null);
@@ -147,17 +108,24 @@ export default function ProductsList({
   const meta = pages[0]?.meta;
   const counts = meta?.counts;
 
-  // Picker data (only while open)
-  const { data: categories, isLoading: catLoading } = useGetCategoryHierarchyQuery(undefined, { skip: picker !== 'category' });
-  const { data: lots, isLoading: lotLoading } = useGetDepositRequestsQuery({ page: 1, limit: 50 }, { skip: picker !== 'lot' });
-  const depSearch = useDebouncedValue(pickerSearch.trim(), 250);
-  const { data: deposants, isFetching: depLoading } = useSearchDeposantsQuery(depSearch, { skip: picker !== 'deposant' });
+  // Picker data (only while open), page by page with server-side search
+  const pSearch = useDebouncedValue(pickerSearch.trim()) || undefined;
+  const catFeed = useGetCategoriesFeedInfiniteQuery({ search: pSearch }, { skip: picker !== 'category' });
+  const depFeed = useGetCoClientsFeedInfiniteQuery({ search: pSearch }, { skip: picker !== 'deposant' });
+  const isDesktop = useIsDesktop();
+  const pager = useDesktopPager({
+    items: products,
+    total: meta?.total,
+    hasNextPage: !!feed.hasNextPage,
+    isFetchingNextPage: feed.isFetchingNextPage,
+    fetchNextPage: () => void feed.fetchNextPage(),
+    resetKey: JSON.stringify(args),
+  });
 
   const openPicker = (p: Picker) => {
     setPickerSearch('');
     setPicker(p);
   };
-  const filterText = (label: string) => label.toLowerCase().includes(pickerSearch.trim().toLowerCase());
 
   const download = async (key: string, path: string, name: string) => {
     setBusy(key);
@@ -172,11 +140,16 @@ export default function ProductsList({
   const filterParams = { search: search || undefined, isDepot: args.isDepot, categoryId: category?.id, depositRequestId: lot?.id, stage: stage ?? undefined, coclientId: deposant?.id };
 
   return (
-    <div className="bd-ui mx-auto max-w-3xl pb-24">
+    <div className="bd-ui w-full pb-24">
       <PageHeader eyebrow="Catalogue" title="Produits" subtitle="Achats et articles déposés (D-…)" onMore={() => openPicker('actions')} />
 
-      <div className="space-y-3">
-        <SearchBar value={q} onChange={setQ} placeholder="Nom, réf., déposant ou téléphone…" />
+      <div className="space-y-3 md:sticky md:top-16 md:z-20 md:-mx-8 md:bg-bd-bg/90 md:px-8 md:pb-3 md:pt-1 md:backdrop-blur">
+        <div className="flex items-center gap-3">
+          <SearchBar value={q} onChange={setQ} placeholder="Nom, réf., déposant ou téléphone…" className="flex-1" />
+          <button type="button" onClick={onAdd} className="bd-focus hidden min-h-[48px] shrink-0 items-center gap-2 rounded-2xl bg-grad-pink-strong px-5 font-extrabold text-white shadow-glow-pink md:inline-flex">
+            <Plus size={18} aria-hidden /> Ajouter
+          </button>
+        </div>
         <SegmentedFilter<Segment>
           label="Type de produit"
           value={segment}
@@ -189,7 +162,7 @@ export default function ProductsList({
         />
         <FilterChips>
           <FilterChip icon={Tag} label={category?.label ?? 'Catégorie'} active={!!category} onClick={() => openPicker('category')} onClear={() => setCategory(null)} />
-          <FilterChip icon={Layers} label={lot?.label ?? 'Lot de dépôt'} active={!!lot} onClick={() => openPicker('lot')} onClear={() => (setLot(null), onClearContract())} />
+          {lot ? <FilterChip icon={Layers} label={lot.label} active onClick={() => (setLot(null), onClearContract())} onClear={() => (setLot(null), onClearContract())} /> : null}
           <FilterChip icon={CircleDot} label={stage ? STAGE_META[stage].label : 'Statut'} active={!!stage} onClick={() => openPicker('stage')} onClear={() => setStage(null)} />
           <FilterChip icon={UserRound} label={deposant?.label ?? 'Déposant'} active={!!deposant} onClick={() => openPicker('deposant')} onClear={() => setDeposant(null)} />
         </FilterChips>
@@ -206,6 +179,51 @@ export default function ProductsList({
         <div className="space-y-2">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-[76px]" />)}</div>
       ) : feed.isError ? (
         <EmptyState icon={Package} title="Impossible de charger les produits" action={<button type="button" onClick={() => void feed.refetch()} className="bd-focus rounded-full bg-grad-pink-strong px-5 py-2.5 font-extrabold text-white">Réessayer</button>} />
+      ) : products.length && isDesktop ? (
+        <>
+          <ul className={cn('grid grid-cols-2 gap-4 transition-opacity lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5', (pager.loading || (feed.isFetching && !feed.isFetchingNextPage)) && 'opacity-60')}>
+            {pager.pageItems.map((p) => (
+              <li key={p.id} className="bd-anim-fade-up group flex flex-col overflow-hidden rounded-3xl border border-bd-line/10 bg-bd-surface shadow-card transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(76,29,149,0.16)]">
+                <button type="button" onClick={() => onOpen(p)} className="bd-focus relative block aspect-[4/3] w-full overflow-hidden bg-bd-lilac/50 text-left">
+                  {p.photos?.[0] ? (
+                    <img src={uploadUrl(p.photos[0].photoDoc)} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                  ) : (
+                    <Package size={40} aria-hidden className="absolute inset-0 m-auto text-bd-violet/50" />
+                  )}
+                  <span className={cn('absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-extrabold shadow', p.isDepot ? 'bg-white/95 text-bd-violet-strong' : 'bg-white/95 text-bd-pink-strong')}>
+                    {p.isDepot ? 'Dépôt' : 'Achat'}
+                  </span>
+                </button>
+                <div className="flex flex-1 flex-col gap-2 p-4">
+                  <button type="button" onClick={() => onOpen(p)} className="bd-focus min-w-0 rounded-lg text-left">
+                    <span className="block truncate text-[11px] font-extrabold uppercase tracking-wide text-bd-muted">
+                      {p.ref ?? ''} · {p.depositRequest?.contractNumber ?? (p.isDepot ? 'Dépôt' : 'Stock boutique')}
+                    </span>
+                    <span className="mt-0.5 line-clamp-2 min-h-[2.6em] text-[15px] font-extrabold leading-tight text-bd-ink">{p.productName}</span>
+                  </button>
+                  <p className="text-lg font-black tabular-nums text-bd-ink">{formatTnd(toMillimes(p.PrixVente))}</p>
+                  <div className="mt-auto flex flex-wrap items-center gap-1">
+                    <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} size="sm" />
+                    <OrderBadge status={(p as { orderStatus?: string | null }).orderStatus} />
+                    <span className="flex-1" />
+                    <HeartButton productId={p.id} name={p.productName} />
+                    <button
+                      type="button"
+                      aria-label={`QR de ${p.productName}`}
+                      title="Carte QR"
+                      onClick={() => void download(`qr-${p.id}`, `/products/${p.id}/qr-card/pdf`, `qr-${p.ref ?? p.id}.pdf`)}
+                      className="bd-focus flex h-10 w-10 items-center justify-center rounded-xl text-bd-violet hover:bg-bd-lilac/60"
+                    >
+                      <QrCode size={18} aria-hidden />
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+            {pager.loading && !pager.pageItems.length ? [0, 1, 2, 3].map((i) => <li key={i}><Skeleton className="h-72" /></li>) : null}
+          </ul>
+          <Pager page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize} loading={pager.loading} onPage={(n) => { pager.setPage(n); window.document.querySelector('.bo-page')?.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+        </>
       ) : products.length ? (
         <ul className={cn('space-y-2 transition-opacity', feed.isFetching && !feed.isFetchingNextPage && 'opacity-60')}>
           {products.map((p) => {
@@ -223,10 +241,12 @@ export default function ProductsList({
                       {p.isDepot ? 'Dépôt' : 'Achat'}
                     </span>
                     <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} size="sm" />
+                    <OrderBadge status={(p as { orderStatus?: string | null }).orderStatus} />
                   </>
                 }
                 trailing={
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <HeartButton productId={p.id} name={p.productName} className="h-9 w-9" />
                     <span className="text-right">
                       <span className="block text-[15px] font-black tabular-nums text-bd-ink">{formatTnd(toMillimes(p.PrixVente), false)}</span>
                       <span className="block text-[10px] font-extrabold text-bd-muted">TND</span>
@@ -257,27 +277,14 @@ export default function ProductsList({
 
       {/* Pickers */}
       <BottomSheet open={picker === 'category'} onClose={() => setPicker(null)} title="Catégorie">
-        <PickerList
+        <InfinitePickerList<Category>
+          feed={catFeed}
           placeholder="Rechercher une catégorie"
           search={pickerSearch}
           onSearch={setPickerSearch}
-          loading={catLoading}
           selected={category?.id}
-          items={(categories ?? []).filter((c) => filterText(c.categoryName)).map((c) => ({ id: c.id, label: c.categoryName }))}
-          onPick={(id, label) => (setCategory({ id, label }), setPicker(null))}
-        />
-      </BottomSheet>
-      <BottomSheet open={picker === 'lot'} onClose={() => setPicker(null)} title="Lot de dépôt">
-        <PickerList
-          placeholder="DV-2026-…"
-          search={pickerSearch}
-          onSearch={setPickerSearch}
-          loading={lotLoading}
-          selected={lot?.id}
-          items={(lots?.data ?? [])
-            .filter((d) => d.contractNumber && filterText(`${d.contractNumber} ${d.fullName}`))
-            .map((d) => ({ id: d.id, label: d.contractNumber!, hint: d.fullName }))}
-          onPick={(id, label) => (setLot({ id, label }), setPicker(null))}
+          toItem={(c) => ({ id: c.id, label: c.categoryName })}
+          onPick={(it) => (setCategory({ id: it.id, label: it.label }), setPicker(null))}
         />
       </BottomSheet>
       <BottomSheet open={picker === 'stage'} onClose={() => setPicker(null)} title="Statut">
@@ -296,14 +303,14 @@ export default function ProductsList({
         </ul>
       </BottomSheet>
       <BottomSheet open={picker === 'deposant'} onClose={() => setPicker(null)} title="Déposant">
-        <PickerList
-          placeholder="Nom ou téléphone"
+        <InfinitePickerList<CoClient>
+          feed={depFeed}
+          placeholder="Nom, téléphone ou N°"
           search={pickerSearch}
           onSearch={setPickerSearch}
-          loading={depLoading && !deposants}
           selected={deposant?.id}
-          items={(deposants ?? []).map((d) => ({ id: d.id, label: `${d.firstName} ${d.lastName}`, hint: `N° ${d.number}` }))}
-          onPick={(id, label) => (setDeposant({ id, label }), setPicker(null))}
+          toItem={(d) => ({ id: d.id, label: `${d.firstName} ${d.lastName}`, hint: d.number ? `N° ${d.number}` : undefined })}
+          onPick={(it) => (setDeposant({ id: it.id, label: it.label }), setPicker(null))}
         />
       </BottomSheet>
 

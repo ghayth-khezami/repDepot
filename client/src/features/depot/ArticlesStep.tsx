@@ -48,8 +48,8 @@ export default function ArticlesStep({
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-      <Card className="p-4 sm:p-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+      <Card className="min-w-0 p-4 sm:p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-black text-bd-ink">Articles déposés</h2>
@@ -113,7 +113,7 @@ export default function ArticlesStep({
             Générer le contrat
           </Button>
           <Button variant="secondary" icon={SkipForward} loading={submitting === 'skip'} disabled={!!submitting} onClick={() => onSubmit(false)}>
-            Passer, pas d'articles maintenant
+            Passer sans dépôt
           </Button>
         </div>
       </div>
@@ -131,7 +131,7 @@ export default function ArticlesStep({
             </span>
           </div>
           <div className="grid grid-cols-[auto_1fr] gap-2">
-            <Button variant="secondary" size="icon" aria-label="Passer, pas d'articles maintenant" loading={submitting === 'skip'} disabled={!!submitting} onClick={() => onSubmit(false)}>
+            <Button variant="secondary" size="icon" aria-label="Passer sans dépôt" loading={submitting === 'skip'} disabled={!!submitting} onClick={() => onSubmit(false)}>
               {submitting === 'skip' ? null : <SkipForward size={18} aria-hidden />}
             </Button>
             <Button icon={FileSignature} loading={submitting === 'items'} disabled={!!submitting || uploading} onClick={generate}>

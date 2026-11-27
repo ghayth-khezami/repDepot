@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { useGetCategoriesQuery, useGetCategoriesFeedInfiniteQuery, useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation, useGetCategoryQuery } from '../store/api/categoryApi';
+import { useGetCategoriesFeedInfiniteQuery, useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation, useGetCategoryQuery } from '../store/api/categoryApi';
 import { useInfiniteList } from '../hooks/useInfiniteList';
-import ReusableTable, { Column } from '../components/ReusableTable';
 import Modal from '../components/Modal';
 import SubCategoriesPanel from '../components/SubCategoriesPanel';
 import SubSubCategoriesPanel from '../components/SubSubCategoriesPanel';
 import CropImageModal from '../components/CropImageModal';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../types';
-import { Edit, Image as ImageIcon, Trash2, Layers, Plus, Search, Sparkles } from 'lucide-react';
+import { Edit, FolderTree, Trash2, Layers, Plus } from 'lucide-react';
+import { EmptyState, Fab, InfiniteSentinel, ListRow, PageHeader, Pager, SearchBar, SegmentedFilter, Skeleton, useDesktopPager, useIsDesktop } from '../components/ui';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { uploadUrl } from '../lib/apiBase';
 import { useToast } from '../context/ToastContext';
 import { useConfirmDialog } from '../components/ConfirmDialog';
 
@@ -33,9 +35,8 @@ const toStickerUrl = (path?: string) => {
 
 const CategoriesPage = () => {
   const [tab, setTab] = useState<'categories' | 'subcategories' | 'subsubcategories'>('categories');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const search = useDebouncedValue(q.trim());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -45,7 +46,7 @@ const CategoriesPage = () => {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [subsModalId, setSubsModalId] = useState<string | null>(null);
 
-  const { data, isLoading, infinite } = useInfiniteList<Category>(useGetCategoriesFeedInfiniteQuery({search }));
+  const { data, isLoading, infinite } = useInfiniteList<Category>(useGetCategoriesFeedInfiniteQuery({ search: search || undefined }));
   const { data: categoryDetail } = useGetCategoryQuery(subsModalId ?? '', { skip: !subsModalId });
   const [createCategory] = useCreateCategoryMutation();
   const [updateCategory] = useUpdateCategoryMutation();
@@ -89,172 +90,135 @@ const CategoriesPage = () => {
     }
   };
 
-  const columns: Column<Category>[] = [
-    {
-      header: 'Photo carte',
-      accessor: 'coverDoc',
-      render: (value, row) => {
-        const raw = value ? String(value) : row.icon?.startsWith('/uploads') ? row.icon : '';
-        const src = toStickerUrl(raw);
-        return src ? (
-          <img src={src} alt="" className="h-10 w-14 rounded-lg object-cover" />
-        ) : (
-          <span className="inline-flex h-10 w-14 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
-            <ImageIcon className="h-4 w-4" />
-          </span>
-        );
+
+  const openAdd = () => {
+    setIsEditMode(false);
+    setSelectedCategory(null);
+    setSelectedIcon('');
+    setCoverFile(null);
+    setCoverPreview('');
+    setCropFile(null);
+    setIsModalOpen(true);
+  };
+  const openEdit = (row: Category) => {
+    setIsEditMode(true);
+    setSelectedCategory(row);
+    setSelectedIcon(row.icon || '');
+    setCoverFile(null);
+    setCropFile(null);
+    setCoverPreview(row.coverDoc ? uploadUrl(row.coverDoc) : '');
+    setIsModalOpen(true);
+  };
+  const askDelete = (row: Category) =>
+    confirm({
+      title: 'Supprimer la catégorie',
+      message: `Supprimer « ${row.categoryName} » ?`,
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
+        await deleteCategory(row.id).unwrap();
+        showToast('Catégorie supprimée', 'success');
       },
-    },
-    {
-      header: 'Icône',
-      accessor: 'icon',
-      render: (value) => {
-        const src = toStickerUrl(value ? String(value) : '');
-        return src ? (
-          <img src={src} alt="" className="h-8 w-8 rounded-lg object-contain" />
-        ) : (
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
-            <ImageIcon className="h-4 w-4" />
-          </span>
-        );
-      },
-    },
-    { header: 'Nom', accessor: 'categoryName' },
-    { header: 'Description', accessor: 'description' },
-    {
-      header: 'Date',
-      accessor: 'createdAt',
-      render: (value) => new Date(value).toLocaleDateString('fr-FR'),
-    },
-  ];
+    });
+
+  const rows = data?.data ?? [];
+  const isDesktop = useIsDesktop();
+  const pager = useDesktopPager({
+    items: rows,
+    total: infinite.total,
+    hasNextPage: infinite.hasNextPage,
+    isFetchingNextPage: infinite.isFetchingNextPage,
+    fetchNextPage: infinite.fetchNextPage,
+    resetKey: search,
+  });
+  const visible = isDesktop ? pager.pageItems : rows;
+  const thumbOf = (row: Category) => {
+    const raw = row.coverDoc ? uploadUrl(row.coverDoc) : toStickerUrl(row.icon || '');
+    return raw ? <img src={raw} alt="" loading="lazy" className="h-full w-full object-cover" /> : <FolderTree size={22} aria-hidden />;
+  };
 
   return (
-    <div className="category-admin space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-[#fff1f5] px-6 py-7 text-[#4b1f35] shadow-sm ring-1 ring-[#f7c8d8] sm:px-8">
-        <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full border-[18px] border-pink-300/40" />
-        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-pink-600">
-              <Sparkles className="h-4 w-4" /> Catalogue
+    <div className="category-admin space-y-4">
+      <div className="bd-ui">
+        <PageHeader eyebrow="Catalogue" title="Catégories" subtitle="Rayons, sous-catégories et familles" />
+        <div className="space-y-3 md:sticky md:top-16 md:z-20 md:-mx-8 md:bg-bd-bg/90 md:px-8 md:pb-3 md:pt-1 md:backdrop-blur">
+          <SegmentedFilter<'categories' | 'subcategories' | 'subsubcategories'>
+            label="Niveau"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'categories', label: 'Catégories', count: tab === 'categories' ? infinite.total : undefined },
+              { value: 'subcategories', label: 'Sous-cat.' },
+              { value: 'subsubcategories', label: 'Sous-sous-cat.' },
+            ]}
+          />
+          {tab === 'categories' ? (
+            <div className="flex items-center gap-3">
+              <SearchBar value={q} onChange={setQ} placeholder="Rechercher une catégorie" className="flex-1" />
+              <button type="button" onClick={openAdd} className="bd-focus hidden min-h-[48px] shrink-0 items-center gap-2 rounded-2xl bg-grad-pink-strong px-5 font-extrabold text-white shadow-glow-pink md:inline-flex">
+                <Plus size={18} aria-hidden /> Nouvelle catégorie
+              </button>
             </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">Catégories & sous-catégories</h1>
-            <p className="mt-2 max-w-xl text-sm text-[#7d5368]">Structurez la boutique, du rayon principal jusqu&apos;aux familles de produits.</p>
-          </div>
-          <button type="button" onClick={() => { setIsEditMode(false); setSelectedCategory(null); setSelectedIcon(''); setCoverFile(null); setCoverPreview(''); setCropFile(null); setIsModalOpen(true); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-pink-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-pink-600">
-            <Plus className="h-4 w-4" /> Nouvelle catégorie
-          </button>
+          ) : null}
         </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 border-b border-gray-200 pb-2">
-        <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setTab('categories')}
-          className={`border-b-2 px-4 py-2 text-sm font-semibold transition ${
-            tab === 'categories'
-              ? 'border-pink-500 text-pink-600'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          Catégories
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('subcategories')}
-          className={`border-b-2 px-4 py-2 text-sm font-semibold transition ${
-            tab === 'subcategories'
-              ? 'border-pink-500 text-pink-600'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          Sous-catégories
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('subsubcategories')}
-          className={`border-b-2 px-4 py-2 text-sm font-semibold transition ${
-            tab === 'subsubcategories'
-              ? 'border-pink-500 text-pink-600'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          Sous-sous-catégories
-        </button>
-        </div>
-        <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><Search className="h-4 w-4" /> Recherche instantanée dans la liste</div>
       </div>
 
       {tab === 'categories' ? (
-        <ReusableTable
-          data={data?.data || []}
-          columns={columns}
-          isLoading={isLoading}
-          searchPlaceholder="Rechercher..."
-          onSearch={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          infinite={infinite}
-          actions={(row) => (
-            <>
-              <button
-                type="button"
-                title="Sous-catégories"
-                onClick={() => setSubsModalId(row.id)}
-                className="rounded-lg p-2 text-pink-600 hover:bg-pink-50"
-              >
-                <Layers className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditMode(true);
-                  setSelectedCategory(row);
-                  setSelectedIcon(row.icon || '');
-                  setCoverFile(null);
-                  setCropFile(null);
-                  setCoverPreview(
-                    row.coverDoc
-                      ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${row.coverDoc}`
-                      : '',
-                  );
-                  setIsModalOpen(true);
-                }}
-                className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  confirm({
-                    title: 'Supprimer la catégorie',
-                    message: 'Supprimer cette catégorie ?',
-                    confirmLabel: 'Supprimer',
-                    onConfirm: async () => {
-                      await deleteCategory(row.id).unwrap();
-                      showToast('Catégorie supprimée', 'success');
-                    },
-                  })
-                }
-                className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </>
+        <div className="bd-ui pb-24">
+          <p className="mb-2 text-sm font-bold text-bd-muted tabular-nums">{infinite.total != null ? `${infinite.total} catégorie${infinite.total > 1 ? 's' : ''}` : ' '}</p>
+          {isLoading ? (
+            <div className="grid gap-2 md:grid-cols-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[76px] md:h-56" />)}</div>
+          ) : rows.length ? (
+            <ul className="grid gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-3 2xl:grid-cols-4">
+              {visible.map((row) =>
+                isDesktop ? (
+                  <li key={row.id} className="bd-anim-fade-up group flex flex-col overflow-hidden rounded-3xl border border-bd-line/10 bg-bd-surface shadow-card transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(76,29,149,0.16)]">
+                    <button type="button" onClick={() => setSubsModalId(row.id)} className="bd-focus flex aspect-[16/9] w-full items-center justify-center overflow-hidden bg-bd-lilac/50 text-bd-violet">
+                      {thumbOf(row)}
+                    </button>
+                    <div className="flex flex-1 flex-col gap-1 p-4">
+                      <p className="truncate text-[15px] font-extrabold text-bd-ink">{row.categoryName}</p>
+                      <p className="line-clamp-2 min-h-[2.5em] text-xs font-semibold text-bd-muted">{row.description || 'Sans description'}</p>
+                      <div className="mt-auto flex items-center gap-1 pt-2">
+                        <button type="button" onClick={() => setSubsModalId(row.id)} className="bd-focus inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-bd-lilac/70 text-sm font-extrabold text-bd-violet-strong">
+                          <Layers size={16} aria-hidden /> Sous-catégories
+                        </button>
+                        <button type="button" aria-label="Modifier" onClick={() => openEdit(row)} className="bd-focus flex h-10 w-10 items-center justify-center rounded-xl text-bd-ink hover:bg-bd-lilac/60"><Edit size={17} aria-hidden /></button>
+                        <button type="button" aria-label="Supprimer" onClick={() => askDelete(row)} className="bd-focus flex h-10 w-10 items-center justify-center rounded-xl text-bd-danger hover:bg-bd-blush"><Trash2 size={17} aria-hidden /></button>
+                      </div>
+                    </div>
+                  </li>
+                ) : (
+                  <ListRow
+                    key={row.id}
+                    onClick={() => setSubsModalId(row.id)}
+                    thumb={thumbOf(row)}
+                    meta={new Date(row.createdAt).toLocaleDateString('fr-FR')}
+                    title={row.categoryName}
+                    subtitle={<span className="truncate">{row.description || 'Sans description'}</span>}
+                    trailing={
+                      <div className="flex shrink-0 items-center">
+                        <button type="button" aria-label="Modifier" onClick={() => openEdit(row)} className="bd-focus flex h-10 w-10 items-center justify-center rounded-xl text-bd-ink"><Edit size={17} aria-hidden /></button>
+                        <button type="button" aria-label="Supprimer" onClick={() => askDelete(row)} className="bd-focus flex h-10 w-10 items-center justify-center rounded-xl text-bd-danger"><Trash2 size={17} aria-hidden /></button>
+                      </div>
+                    }
+                  />
+                ),
+              )}
+              <li className="col-span-full list-none">
+                {isDesktop ? (
+                  <Pager page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize} loading={pager.loading} onPage={pager.setPage} />
+                ) : (
+                  <InfiniteSentinel onReach={() => infinite.hasNextPage && !infinite.isFetchingNextPage && infinite.fetchNextPage()} disabled={!infinite.hasNextPage} loading={infinite.isFetchingNextPage} />
+                )}
+              </li>
+            </ul>
+          ) : (
+            <EmptyState icon={FolderTree} title={search ? 'Aucune catégorie trouvée' : 'Aucune catégorie pour le moment'}>
+              {search ? `Rien ne correspond à « ${search} ».` : 'Créez votre premier rayon.'}
+            </EmptyState>
           )}
-          onAdd={() => {
-            setIsEditMode(false);
-            setSelectedCategory(null);
-            setSelectedIcon('');
-            setCoverFile(null);
-            setCoverPreview('');
-            setCropFile(null);
-            setIsModalOpen(true);
-          }}
-          addButtonLabel="Ajouter une catégorie"
-        />
+          <Fab icon={Plus} label="Catégorie" onClick={openAdd} />
+        </div>
       ) : tab === 'subcategories' ? (
         <SubCategoriesPanel />
       ) : (

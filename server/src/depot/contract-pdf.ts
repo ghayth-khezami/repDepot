@@ -4,11 +4,7 @@ import * as fs from "fs";
 import { join } from "path";
 import { formatTnd } from "../common/utils/money";
 
-export const DEFAULT_CONTRACT_TERMS = [
-  "Une commission de 25 % du prix de vente réalisé sera reversée au dépositaire par le déposant.",
-  "Les articles ayant dépassé 3 mois de dépôt seront retournés au déposant et ne seront plus maintenus en dépôt.",
-  "Les articles d'une valeur supérieure à 50 TND verront leur prix réduit de 50 % après 2 mois de dépôt, et seront retournés au déposant à l'issue de 3 mois.",
-].join("\n");
+export { DEFAULT_CONTRACT_TERMS } from "./contract-terms";
 
 export interface ContractPdfData {
   shop: { name: string; address: string; phone: string };
@@ -75,6 +71,46 @@ function loadLogo(): string | null {
     }
   }
   return null;
+}
+
+export const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+export const ARABIC_FONT = "Amiri";
+let arabicFontB64: string | null | undefined;
+
+/** Helvetica has no Arabic glyphs (that is what produced the "þ\"þè…" garbage): embed Amiri when needed. */
+export function useArabicFont(doc: jsPDF.jsPDF): boolean {
+  if (arabicFontB64 === undefined) {
+    arabicFontB64 = null;
+    for (const p of [
+      join(process.cwd(), "assets", "fonts", "Amiri-Regular.ttf"),
+      join(__dirname, "..", "..", "assets", "fonts", "Amiri-Regular.ttf"),
+      join(__dirname, "..", "..", "..", "assets", "fonts", "Amiri-Regular.ttf"),
+    ]) {
+      if (fs.existsSync(p)) {
+        arabicFontB64 = fs.readFileSync(p).toString("base64");
+        break;
+      }
+    }
+    if (!arabicFontB64) console.warn("[contract-pdf] assets/fonts/Amiri-Regular.ttf introuvable : le texte arabe sera omis du PDF.");
+  }
+  if (!arabicFontB64) return false;
+  if (!doc.getFontList()[ARABIC_FONT]) {
+    doc.addFileToVFS("Amiri-Regular.ttf", arabicFontB64);
+    doc.addFont("Amiri-Regular.ttf", ARABIC_FONT, "normal");
+  }
+  return true;
+}
+
+/**
+ * Splits "X 20, Ariana Al Ulya, أريانة العليا, Ariana" into a Latin line and an Arabic line.
+ * Mixing both scripts on one PDF line scrambles the word order, so each script gets its own line.
+ */
+export function splitByScript(value: string): { latin: string; arabic: string } {
+  const parts = value.split(/\s*[,،]\s*/).map((p) => p.trim()).filter(Boolean);
+  return {
+    latin: parts.filter((p) => !ARABIC.test(p)).join(", "),
+    arabic: parts.filter((p) => ARABIC.test(p)).join("، "),
+  };
 }
 
 function drawWatermark(doc: jsPDF.jsPDF, logo: string | null) {
@@ -180,10 +216,23 @@ export async function buildContractPdf(data: ContractPdfData): Promise<Buffer> {
     doc.setFontSize(9);
     doc.setTextColor(...INK);
     doc.text(label, labelX, y);
-    doc.setFont("helvetica", "normal");
-    const wrapped = doc.splitTextToSize(value, leftW) as string[];
-    doc.text(wrapped, valueX, y);
-    y += 5.5 * Math.max(1, wrapped.length);
+    const { latin, arabic } = ARABIC.test(value) ? splitByScript(value) : { latin: value, arabic: "" };
+    let used = 0;
+    if (latin) {
+      doc.setFont("helvetica", "normal");
+      const wrapped = doc.splitTextToSize(latin, leftW) as string[];
+      doc.text(wrapped, valueX, y);
+      used += wrapped.length;
+    }
+    if (arabic && useArabicFont(doc)) {
+      doc.setFont(ARABIC_FONT, "normal");
+      doc.setFontSize(10);
+      const wrapped = doc.splitTextToSize(arabic, leftW) as string[];
+      doc.text(wrapped, valueX, y + 5.5 * used);
+      used += wrapped.length;
+      doc.setFontSize(9);
+    }
+    y += 5.5 * Math.max(1, used);
   };
   line("Le dépositaire :", `${data.shop.name} — By Mme Khezami`);
   y += 1.5;

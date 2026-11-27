@@ -6,7 +6,6 @@ import {
   Copy,
   Download,
   MessageCircle,
-  PackagePlus,
   PenLine,
   Plus,
   Printer,
@@ -43,9 +42,27 @@ function useAuthedObjectUrl(path: string | null) {
   return url;
 }
 
+export function whatsappMessage(c: DepotContract) {
+  const n = c.items.length;
+  return [
+    `Bonjour ${c.deposant.firstName} 👋`,
+    '',
+    `Merci pour votre confiance 💜 Votre dépôt est bien enregistré.`,
+    '',
+    `📄 Contrat N° ${c.contractNumber} — ${n ? `${n} article${n > 1 ? 's' : ''}` : 'dépôt ouvert'}, valable ${c.durationMonths} mois (jusqu'au ${frDate(c.expiresAt)}).`,
+    '',
+    `📲 Suivez vos articles en temps réel (vendu, paiement prêt…) ici :`,
+    c.trackingUrl,
+    '',
+    `Vous recevrez une notification dès qu'un article est vendu 🎉`,
+    '',
+    `À très bientôt,`,
+    `Mme Khezami`,
+  ].join('\n');
+}
+
 export function whatsappLink(c: DepotContract) {
-  const text = `Bonjour ${c.deposant.firstName}, voici votre contrat de dépôt ${c.contractNumber} chez Bébé-Dépôt. Suivez vos articles ici : ${c.trackingUrl}`;
-  return `https://wa.me/216${c.deposant.phone}?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/216${c.deposant.phone}?text=${encodeURIComponent(whatsappMessage(c))}`;
 }
 
 /** A4-like contract preview — mirrors the server PDF layout (same data, same order). */
@@ -185,14 +202,14 @@ function ContractPaper({ c, qrUrl, terms }: { c: DepotContract; qrUrl: string | 
   );
 }
 
-export default function ContractView({ contract: c, justCreated, onNewDepot }: { contract: DepotContract; justCreated?: boolean; onNewDepot?: () => void }) {
+export default function ContractView({ contract: c, justCreated, onFinish }: { contract: DepotContract; justCreated?: boolean; onFinish?: () => void }) {
   const { showToast } = useToast();
   const qrUrl = useAuthedObjectUrl(`/depots/${c.id}/qr.svg`);
   const { data: settings } = useGetSiteSettingsAdminQuery();
   const [markSigned, { isLoading: signing }] = useMarkDepotSignedMutation();
-  const [busy, setBusy] = useState<'print' | 'pdf' | 'labels' | null>(null);
+  const [busy, setBusy] = useState<'print' | 'pdf' | 'labels' | 'share' | null>(null);
   const [refProblems, setRefProblems] = useState<Array<{ id: string; productName: string }> | null>(null);
-  const terms = settings?.contractTerms?.trim() || DEFAULT_CONTRACT_TERMS;
+  const terms = c.terms || settings?.contractTerms?.trim() || DEFAULT_CONTRACT_TERMS;
 
   const run = async (key: 'print' | 'pdf' | 'labels', fn: () => Promise<void>) => {
     setBusy(key);
@@ -211,6 +228,25 @@ export default function ContractView({ contract: c, justCreated, onNewDepot }: {
     }
   };
 
+  /** Phone: native share sheet → WhatsApp with the PDF attached + message. Elsewhere: wa.me with the message. */
+  const sendWhatsapp = async () => {
+    const text = whatsappMessage(c);
+    setBusy('share');
+    try {
+      const blob = await fetchAuthedBlob(`/depots/${c.id}/contract.pdf`);
+      const file = new File([blob], `contrat-${c.contractNumber}.pdf`, { type: 'application/pdf' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text });
+        return;
+      }
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return; // share sheet closed
+    } finally {
+      setBusy(null);
+    }
+    window.open(whatsappLink(c), '_blank', 'noopener,noreferrer');
+  };
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(c.trackingUrl);
@@ -225,12 +261,17 @@ export default function ContractView({ contract: c, justCreated, onNewDepot }: {
       {justCreated ? (
         <Card className="flex items-center gap-4 border-bd-success/20 bg-bd-success-bg/60 p-4 sm:p-5" role="status">
           <GradientIconTile icon={CheckCircle2} tone="green" size="lg" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-lg font-black text-bd-ink">Contrat {c.contractNumber} créé</p>
             <p className="text-sm font-bold text-bd-success">
-              {c.items.length ? `${c.items.length} article${c.items.length > 1 ? 's' : ''} mis en vente` : 'Sans article pour le moment'} · visibles dans Produits et Demandes de dépôt
+              {c.items.length ? `${c.items.length} article${c.items.length > 1 ? 's' : ''} mis en vente` : 'Sans article pour le moment'} · visibles dans Produits
             </p>
           </div>
+          {onFinish ? (
+            <Button variant="primary" icon={CheckCircle2} className="hidden shrink-0 sm:inline-flex" onClick={onFinish}>
+              Terminer
+            </Button>
+          ) : null}
         </Card>
       ) : null}
 
@@ -256,9 +297,9 @@ export default function ContractView({ contract: c, justCreated, onNewDepot }: {
             <Button variant="violet" icon={Download} loading={busy === 'pdf'} disabled={!!busy} onClick={() => run('pdf', () => downloadAuthed(`/depots/${c.id}/contract.pdf`, `contrat-${c.contractNumber}.pdf`))}>
               Télécharger PDF
             </Button>
-            <a href={whatsappLink(c)} target="_blank" rel="noopener noreferrer" className={buttonClass('success')}>
-              <MessageCircle size={18} aria-hidden /> WhatsApp
-            </a>
+            <Button variant="success" icon={MessageCircle} loading={busy === 'share'} disabled={!!busy} onClick={() => void sendWhatsapp()}>
+              WhatsApp
+            </Button>
             <Button
               variant="secondary"
               icon={Tags}
@@ -312,9 +353,9 @@ export default function ContractView({ contract: c, justCreated, onNewDepot }: {
             </Card>
           ) : null}
 
-          {onNewDepot ? (
-            <Button variant="ghost" icon={PackagePlus} className="w-full" onClick={onNewDepot}>
-              Nouveau dépôt
+          {onFinish ? (
+            <Button variant="primary" size="lg" icon={CheckCircle2} className="w-full" onClick={onFinish}>
+              Terminer · retour aux déposants
             </Button>
           ) : null}
         </aside>

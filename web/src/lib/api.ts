@@ -11,13 +11,14 @@ import {
   SubSubCategory2,
   SubSubCategory3,
   ClientFeedback,
+  MyOrder,
 } from "@/types";
 import { getClientApiUrl, getRemoteApiUrl } from "@/lib/api-url";
 
 const API_URL = getClientApiUrl();
 const REMOTE_API_URL = getRemoteApiUrl();
 
-type HttpMethod = "GET" | "POST" | "DELETE";
+type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 const GET_CACHE_TTL_MS = 5000;
 const getCache = new Map<string, { expiresAt: number; value: unknown }>();
@@ -142,6 +143,8 @@ export const api = {
       maxPrice?: number;
       sort?: "newest" | "price_asc" | "price_desc" | "name_asc";
       age?: string;
+      /** true = only articles still for sale (not sold / withdrawn). */
+      inStock?: boolean;
     },
     token?: string | null,
   ) => {
@@ -160,6 +163,7 @@ export const api = {
     if (opts?.maxPrice !== undefined) params.set("maxPrice", String(opts.maxPrice));
     if (opts?.sort) params.set("sort", opts.sort);
     if (opts?.age) params.set("age", opts.age);
+    if (opts?.inStock) params.set("isDispo", "true");
     return request<ApiPaginated<Product>>(`/products?${params.toString()}`, "GET", undefined, token);
   },
   getFeaturedProducts: () => request<Product[]>("/products/featured"),
@@ -171,12 +175,16 @@ export const api = {
       email,
       password,
     }),
-  register: (email: string, password: string, username?: string) =>
+  register: (email: string, password: string, username?: string, phoneNumber?: string) =>
     request<{ message: string }>("/auth/register", "POST", {
       email,
       password,
       username,
+      phoneNumber,
     }),
+  /** Orders of the logged-in customer (incl. those placed as a guest with the same phone). */
+  getMyOrders: (token: string) => request<MyOrder[]>("/auth/me/commands", "GET", undefined, token),
+  setMyPhone: (token: string, phoneNumber: string) => request<AuthUser>("/auth/me/phone", "PATCH", { phoneNumber }, token),
   verifyRegister: (email: string, code: string) =>
     request<{ access_token: string; user: AuthUser }>("/auth/verify", "POST", { email, code }),
   findClients: (token: string, search: string) =>

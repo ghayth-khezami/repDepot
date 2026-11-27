@@ -1,8 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { GenderPicker } from '../../components/PersonIllustration';
 import {
   AlertTriangle,
   ArrowRight,
+  CalendarDays,
   Info,
+  SkipForward,
   Landmark,
   Mail,
   MapPin,
@@ -21,10 +24,15 @@ export default function DeposantStep({
   draft,
   dispatch,
   onNext,
+  onSkip,
+  skipping,
 }: {
   draft: DepotDraft;
   dispatch: DraftDispatch;
   onNext: () => void;
+  /** "Passer sans dépôt": save the déposant only, back to the list. */
+  onSkip?: () => void;
+  skipping?: boolean;
 }) {
   const d = draft.deposant;
   const [errors, setErrors] = useState<DeposantErrors>({});
@@ -112,6 +120,10 @@ export default function DeposantStep({
               error={errors.lastName}
             />
           </div>
+          <div>
+            <p className="mb-2 text-sm font-extrabold text-bd-ink">Illustration</p>
+            <GenderPicker value={d.gender} onChange={(gender) => dispatch({ type: 'deposant', patch: { gender } })} />
+          </div>
           <PhoneField
             label="Téléphone"
             required
@@ -145,6 +157,18 @@ export default function DeposantStep({
             <span className="rounded-full bg-bd-lilac/70 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-bd-ink">Optionnel</span>
             <span className="h-px flex-1 bg-bd-line/15" />
           </div>
+
+          <TextField
+            label="Date de dépôt"
+            type="date"
+            icon={CalendarDays}
+            value={draft.depositDate}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => dispatch({ type: 'hydrate', patch: { depositDate: e.target.value } })}
+            hint="Le contrat et sa durée commencent à cette date. Vide = aujourd'hui."
+            fieldClassName="sm:max-w-xs"
+            dictation={false}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
@@ -203,7 +227,26 @@ export default function DeposantStep({
 
           <InfoNote icon={Info}>Pas de mot de passe : le déposant suit ses articles en scannant le QR de son contrat.</InfoNote>
 
-          <div className="sticky bottom-24 z-10 -mx-1 flex justify-end md:static">
+          <div className="sticky bottom-24 z-10 -mx-1 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end md:static">
+            {onSkip ? (
+              <Button
+                variant="secondary"
+                size="lg"
+                icon={SkipForward}
+                loading={skipping}
+                disabled={!!duplicate || skipping}
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setSubmitted(true);
+                  const e = validateDeposant(d);
+                  setErrors(e);
+                  if (Object.keys(e).length) return;
+                  onSkip();
+                }}
+              >
+                Passer sans dépôt
+              </Button>
+            ) : null}
             <Button type="submit" size="lg" iconRight={ArrowRight} disabled={!!duplicate} className="w-full sm:w-auto">
               Continuer vers les articles
             </Button>

@@ -4,6 +4,7 @@ import * as webpush from "web-push";
 import { PrismaService } from "../prisma/prisma.service";
 import { emptySummary, NotifySummary, onProductStatusChanged, ProductStatusChanged } from "../common/domain-events";
 import { EmailService } from "../notification/email.service";
+import { productSplit } from "../depot/depot.service";
 import { DeposantEvent, renderDeposantMessage } from "../notification/deposant-templates";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{22,64}$/;
@@ -90,6 +91,9 @@ export class DeposantPushService implements OnModuleInit, OnModuleDestroy {
         ref: true,
         productName: true,
         PrixVente: true,
+        depotPercentage: true,
+        shopAmountMillimes: true,
+        depositorAmountMillimes: true,
         coclientId: true,
         coClient: { select: { firstName: true, email: true } },
       },
@@ -103,7 +107,8 @@ export class DeposantPushService implements OnModuleInit, OnModuleDestroy {
         prenom: p.coClient?.firstName ?? "",
         produit: p.productName,
         ref: p.ref,
-        prix: (Math.round(p.PrixVente * 1000) / 1000).toFixed(3),
+        // What the déposant receives (sale price minus the shop commission).
+        prix: (productSplit(p).depositorMillimes / 1000).toFixed(3),
       });
       const log = async (channel: string, status: "sent" | "failed" | "skipped", detail?: string) => {
         summary[status === "sent" ? "sent" : status === "failed" ? "failed" : "skipped"] += 1;

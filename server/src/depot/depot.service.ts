@@ -18,7 +18,10 @@ import {
   reserveDepositorRefs,
   withUniqueRetry,
 } from "./depot-identity";
-import { buildContractPdf, DEFAULT_CONTRACT_TERMS } from "./contract-pdf";
+import { buildContractPdf } from "./contract-pdf";
+import { formatTnd } from "../common/utils/money";
+import { resolveContractTerms } from "./contract-terms";
+import { buildDeposantReportPdf, type DeposantReportData, type ReportStage } from "./deposant-report-pdf";
 
 type Tx = Prisma.TransactionClient;
 
@@ -41,6 +44,14 @@ export function addMonths(date: Date, months: number): Date {
 }
 
 /** Money split for any product (new rows carry it; legacy rows are recomputed identically). */
+/** "2026-11-20" → that day at noon (Tunis), so the date never shifts by a day across time zones. */
+export function depositDateAt(day: string): Date {
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T12:00:00+01:00`) : new Date(day);
+  if (Number.isNaN(d.getTime())) throw new BadRequestException("Date de dépôt invalide.");
+  if (d.getTime() > Date.now() + 86_400_000) throw new BadRequestException("La date de dépôt ne peut pas être dans le futur.");
+  return d;
+}
+
 export function productSplit(p: {
   PrixVente: number;
   depotPercentage: number | null;
@@ -101,6 +112,7 @@ export class DepotService {
         firstName: true,
         lastName: true,
         phoneNumber: true,
+        gender: true,
         _count: { select: { products: true, depositRequests: true } },
       },
     });
@@ -136,6 +148,133 @@ export class DepotService {
   }
 
   /** Backoffice "suivi déposant": articles, statuses, contracts and amounts (after a scan or from the list). */
+  /** Full PDF report of a déposant: identity, totals, every article (with missing info), contracts, history. */
+  async deposantReportPdf(id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const co = await this.prisma.coClient.findUnique({
+      where: { id },
+      include: {
+        products: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            ref: true,
+            productName: true,
+            description: true,
+            PrixVente: true,
+            status: true,
+            payoutStatus: true,
+            soldAt: true,
+            paidAt: true,
+            updatedAt: true,
+            createdAt: true,
+            depotPercentage: true,
+            shopAmountMillimes: true,
+            depositorAmountMillimes: true,
+            categoryId: true,
+            subCategoryId: true,
+            category: { select: { categoryName: true } },
+            depositRequest: { select: { contractNumber: true } },
+            _count: { select: { photos: true } },
+            commandDetails: { select: { command: { select: { status: true } } } },
+          },
+        },
+        depositRequests: {
+          where: { contractNumber: { not: null } },
+          orderBy: { createdAt: "asc" },
+          select: { contractNumber: true, createdAt: true, durationMonths: true, signedAt: true, _count: { select: { products: true } } },
+        },
+      },
+    });
+    if (!co) throw new NotFoundException("Déposant introuvable.");
+    const notifs = await this.prisma.deposantNotification.findMany({
+      where: { coClientId: id, status: "sent" },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true, event: true, channel: true, productId: true },
+    });
+    const shop = await this.siteSettings.getShopContact();
+
+    const totals = { total: co.products.length, onSale: 0, sold: 0, paid: 0, removed: 0, toPayMillimes: 0, paidMillimes: 0, stockValueMillimes: 0 };
+    const history: DeposantReportData["history"] = [];
+    const products: DeposantReportData["products"] = co.products.map((p) => {
+      const split = productSplit(p);
+      const stage = (p.status === "VENDU" ? (p.payoutStatus === "PAYE" ? "PAYE" : "VENDU") : p.status) as ReportStage;
+      if (stage === "EN_VENTE") {
+        totals.onSale++;
+        totals.stockValueMillimes += split.priceMillimes;
+      } else if (stage === "VENDU") {
+        totals.sold++;
+        totals.toPayMillimes += split.depositorMillimes;
+      } else if (stage === "PAYE") {
+        totals.paid++;
+        totals.paidMillimes += split.depositorMillimes;
+      } else totals.removed++;
+
+      const missing: string[] = [];
+      if (!p._count.photos) missing.push("Photo");
+      if (!p.description?.trim()) missing.push("Description");
+      if (!p.categoryId) missing.push("Catégorie");
+      if (!p.subCategoryId) missing.push("Sous-catégorie");
+      if (p.depotPercentage == null) missing.push("Commission");
+
+      const name = `« ${p.productName} » (${p.ref})`;
+      history.push({ at: p.createdAt, kind: "deposit", text: `Article déposé : ${name} — ${formatTnd(split.priceMillimes)}` });
+      if (p.soldAt) history.push({ at: p.soldAt, kind: "sold", text: `Vendu : ${name} — part déposant ${formatTnd(split.depositorMillimes)}` });
+      if (stage === "PAYE") history.push({ at: p.paidAt ?? p.soldAt ?? p.updatedAt, kind: "paid", text: `Payé au déposant : ${name} — ${formatTnd(split.depositorMillimes)}` });
+      if (stage === "RETIRE") history.push({ at: p.updatedAt, kind: "removed", text: `Retiré / rendu au déposant : ${name}` });
+
+      const orders = p.commandDetails.map((c) => c.command.status);
+      return {
+        ref: p.ref,
+        name: p.productName,
+        category: p.category?.categoryName ?? null,
+        contract: p.depositRequest?.contractNumber ?? null,
+        priceMillimes: split.priceMillimes,
+        commissionPercent: p.depotPercentage,
+        depositorMillimes: split.depositorMillimes,
+        stage,
+        depositedAt: p.createdAt,
+        soldAt: p.soldAt,
+        paidAt: stage === "PAYE" ? (p.paidAt ?? null) : null,
+        orderStatus: orders.includes("DELIVERED") || orders.includes("GOT_PROFIT") ? "DELIVERED" : orders[0] ?? null,
+        missing,
+      };
+    });
+    for (const c of co.depositRequests) {
+      history.push({ at: c.createdAt, kind: "contract", text: `Contrat ${c.contractNumber} créé (${c.durationMonths ?? 3} mois, ${c._count.products} article(s))` });
+      if (c.signedAt) history.push({ at: c.signedAt, kind: "contract", text: `Contrat ${c.contractNumber} signé` });
+    }
+    const channel: Record<string, string> = { push: "notification app", email: "email", sms: "SMS" };
+    for (const n of notifs) {
+      history.push({ at: n.createdAt, kind: "notif", text: `Déposant prévenu par ${channel[n.channel] ?? n.channel} : article ${n.event === "PAYE" ? "payé" : "vendu"}` });
+    }
+
+    const buffer = buildDeposantReportPdf({
+      shop: { name: "Bébé-Dépôt", phone: shop.phoneDisplay, address: shop.address },
+      generatedAt: new Date(),
+      deposant: {
+        number: co.number,
+        fullName: `${co.firstName} ${co.lastName}`.trim(),
+        phone: co.phoneNumber,
+        email: co.email,
+        address: co.address,
+        rib: co.RIB,
+        since: co.createdAt,
+      },
+      totals,
+      products,
+      contracts: co.depositRequests.map((c) => ({
+        number: c.contractNumber,
+        createdAt: c.createdAt,
+        durationMonths: c.durationMonths ?? 3,
+        expiresAt: addMonths(c.createdAt, c.durationMonths ?? 3),
+        signedAt: c.signedAt,
+        items: c._count.products,
+      })),
+      history,
+    });
+    const slug = `${co.firstName}-${co.lastName}`.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return { buffer, filename: `deposant-${co.number}-${slug || "fiche"}.pdf` };
+  }
+
   async deposantOverview(id: string) {
     const d = await this.prisma.coClient.findUnique({
       where: { id },
@@ -188,6 +327,7 @@ export class DepotService {
       number: d.number,
       firstName: d.firstName,
       lastName: d.lastName,
+      gender: d.gender,
       phone: d.phoneNumber,
       email: d.email,
       address: d.address,
@@ -267,6 +407,7 @@ export class DepotService {
         lat: d.lat ?? null,
         lng: d.lng ?? null,
         RIB: d.rib ?? null,
+        gender: d.gender ?? null,
       },
     });
   }
@@ -348,6 +489,8 @@ export class DepotService {
             trackingToken: generateTrackingToken(),
             durationMonths: dto.durationMonths,
             internalNote: dto.internalNote ? sanitizePlainText(dto.internalNote, 2000) : null,
+            // The contract (and its end date) starts on the chosen deposit date.
+            ...(dto.depositDate ? { createdAt: depositDateAt(dto.depositDate) } : {}),
           },
         });
         await this.createItems(tx, contract.id, deposant.id, dto.items);
@@ -478,8 +621,14 @@ export class DepotService {
       { priceMillimes: 0, shopMillimes: 0, depositorMillimes: 0 },
     );
     const co = c.coClient!;
+    const settings = await this.siteSettings.getAdmin();
+    const terms = resolveContractTerms(settings.contractTerms, {
+      commissions: items.map((it) => it.commissionPercent),
+      durationMonths: c.durationMonths ?? 3,
+    });
     return {
       id: c.id,
+      terms,
       contractNumber: c.contractNumber!,
       trackingToken: c.trackingToken!,
       trackingUrl: trackingUrl(c.trackingToken!),
@@ -509,7 +658,6 @@ export class DepotService {
     await this.ensureRefs(id);
     const c = await this.getContract(id);
     const shop = await this.siteSettings.getShopContact();
-    const settings = await this.siteSettings.getAdmin();
     const buffer = await buildContractPdf({
       shop: { name: "Bébé-Dépôt", address: shop.address, phone: shop.phoneDisplay },
       contractNumber: c.contractNumber,
@@ -532,7 +680,7 @@ export class DepotService {
         depositorMillimes: it.depositorMillimes,
       })),
       totals: c.totals,
-      terms: settings.contractTerms?.trim() || DEFAULT_CONTRACT_TERMS,
+      terms: c.terms,
       trackingUrl: c.trackingUrl,
     });
     return { buffer, filename: `contrat-${c.contractNumber}.pdf` };

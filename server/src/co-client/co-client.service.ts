@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { UserRole } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { PrismaService } from "../prisma/prisma.service";
-import { CreateCoClientDto } from "./dto/create-co-client.dto";
+import { CreateCoClientDto, UpdateCoClientDto } from "./dto/create-co-client.dto";
 import { CoClientQueryDto } from "./dto/co-client-query.dto";
 import { PaginatedResponse } from "../common/dto/pagination.dto";
 import { stageOf } from "../product/lifecycle";
@@ -59,6 +59,7 @@ export class CoClientService {
           lat: data.lat ?? null,
           lng: data.lng ?? null,
           RIB: data.RIB ?? null,
+          gender: data.gender ?? null,
           email,
           userId,
         },
@@ -216,6 +217,33 @@ export class CoClientService {
       where: { coClientId },
       orderBy: { createdAt: "desc" },
       include: { items: true },
+    });
+  }
+
+  async update(id: string, dto: UpdateCoClientDto) {
+    await this.findOne(id);
+    if (dto.phoneNumber) {
+      const same = await this.prisma.coClient.findFirst({ where: { phoneNumber: dto.phoneNumber, NOT: { id } }, select: { id: true } });
+      if (same) throw new ConflictException("Un autre déposant utilise déjà ce numéro de téléphone.");
+    }
+    const email = dto.email === undefined ? undefined : dto.email.trim().toLowerCase() || null;
+    if (email) {
+      const same = await this.prisma.coClient.findFirst({ where: { email, NOT: { id } }, select: { id: true } });
+      if (same) throw new ConflictException("Un autre déposant utilise déjà cet email.");
+    }
+    return this.prisma.coClient.update({
+      where: { id },
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phoneNumber: dto.phoneNumber,
+        address: dto.address,
+        lat: dto.lat,
+        lng: dto.lng,
+        RIB: dto.RIB,
+        gender: dto.gender,
+        email,
+      },
     });
   }
 

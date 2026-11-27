@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { BadgeCheck, Check, ChevronLeft, FileText, MessageCircle, MoreHorizontal, Package, PackagePlus, Phone, Trash2, Wallet } from 'lucide-react';
+import { BadgeCheck, Check, Download, Loader2, ChevronLeft, ChevronRight, CreditCard, FileText, Mail, MapPin, MessageCircle, MoreHorizontal, Package, Pencil, Phone, Plus, Trash2, Wallet } from 'lucide-react';
+import PersonIllustration from '../../components/PersonIllustration';
+import { downloadAuthed } from '../../lib/download';
+import ProductDetailSheet from '../products/ProductDetailSheet';
+import DeposantEditSheet from './DeposantEditSheet';
 import { useGetDeposantByTokenQuery, useGetDeposantOverviewQuery, type DeposantOverview } from '../../store/api/depotApi';
 import { useChangeLifecycleMutation } from '../../store/api/productApi';
 import { useDeleteCoClientMutation } from '../../store/api/coClientApi';
@@ -41,6 +45,38 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [paying, setPaying] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [productId, setProductId] = useState<string | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const downloadReport = async () => {
+    setReportBusy(true);
+    try {
+      await downloadAuthed(`/deposants/${d.id}/report.pdf`, `deposant-${d.number}-${d.firstName}-${d.lastName}.pdf`.toLowerCase().replace(/\s+/g, '-'));
+      showToast('Fiche PDF du déposant téléchargée', 'success');
+    } catch (e) {
+      showToast((e as Error).message || 'Téléchargement impossible', 'error');
+    } finally {
+      setReportBusy(false);
+    }
+  };
+
+  const askDelete = () => {
+    if (d.totals.total) {
+      showToast('Ce déposant a des articles : retirez-les d’abord.', 'warning');
+      return;
+    }
+    setMenu(false);
+    confirm({
+      title: 'Supprimer le déposant',
+      message: `Supprimer ${d.firstName} ${d.lastName} ? Cette action est définitive.`,
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
+        await removeDeposant(d.id).unwrap();
+        showToast('Déposant supprimé', 'success');
+        onClose();
+      },
+    });
+  };
 
   // Group the tab's articles by lot (DV-xxxx).
   const groups = useMemo(() => {
@@ -93,13 +129,24 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
           <button type="button" onClick={onClose} aria-label="Retour" className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
             <ChevronLeft size={20} aria-hidden />
           </button>
+          <PersonIllustration gender={d.gender} size={52} className="ring-2 ring-white/40" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/75">Déposant N° {d.number}</p>
             <h2 className="truncate text-[22px] font-extrabold leading-tight">
               {d.firstName} {d.lastName}
             </h2>
           </div>
-          <button type="button" onClick={() => setMenu(true)} aria-label="Plus d'actions" className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+          <button
+            type="button"
+            onClick={() => void downloadReport()}
+            disabled={reportBusy}
+            aria-label="Télécharger la fiche PDF du déposant"
+            title="Fiche PDF : articles, infos manquantes, historique"
+            className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 disabled:opacity-60"
+          >
+            {reportBusy ? <Loader2 size={20} className="animate-spin" aria-hidden /> : <Download size={20} aria-hidden />}
+          </button>
+          <button type="button" onClick={() => setMenu(true)} aria-label="Contrats et plus" className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
             <MoreHorizontal size={20} aria-hidden />
           </button>
         </div>
@@ -111,6 +158,12 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
           <a href={`https://wa.me/216${d.phone}`} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 active:scale-95">
             <MessageCircle size={18} aria-hidden />
           </a>
+          <button type="button" onClick={() => setEditing(true)} className="bd-focus inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl bg-white px-3.5 text-sm font-extrabold text-bd-violet-strong active:scale-95">
+            <Pencil size={16} aria-hidden /> Modifier
+          </button>
+          <button type="button" onClick={askDelete} aria-label="Supprimer le déposant" className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 active:scale-95">
+            <Trash2 size={18} aria-hidden />
+          </button>
         </div>
       </header>
 
@@ -142,6 +195,29 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
               </div>
             ))}
           </div>
+        </section>
+
+        <section aria-label="Informations" className="mx-4 mt-3 rounded-3xl bg-bd-surface p-4 shadow-card">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-extrabold uppercase tracking-wider text-bd-muted">Informations</p>
+            <button type="button" onClick={() => setEditing(true)} className="bd-focus inline-flex min-h-[36px] items-center gap-1 rounded-xl px-2 text-xs font-extrabold text-bd-violet hover:bg-bd-lilac/60">
+              <Pencil size={13} aria-hidden /> Modifier
+            </button>
+          </div>
+          <dl className="space-y-2 text-sm">
+            {[
+              { icon: Phone, label: 'Téléphone', value: `+216 ${fmtPhone(d.phone)}` },
+              { icon: Mail, label: 'Email', value: d.email },
+              { icon: MapPin, label: 'Adresse', value: d.address },
+              { icon: CreditCard, label: 'RIB', value: d.rib },
+            ].map((f) => (
+              <div key={f.label} className="flex items-start gap-3">
+                <f.icon size={16} className="mt-0.5 shrink-0 text-bd-violet" aria-hidden />
+                <dt className="sr-only">{f.label}</dt>
+                <dd className={cn('min-w-0 break-words font-bold', f.value ? 'text-bd-ink' : 'text-bd-muted/70')}>{f.value || `${f.label} non renseigné`}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
         {/* Tabs */}
@@ -189,7 +265,7 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
                             {sel ? <Check size={16} strokeWidth={3} aria-hidden /> : null}
                           </button>
                         ) : null}
-                        <button type="button" onClick={() => tab === 'VENDU' ? toggle(p.id) : undefined} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                        <button type="button" onClick={() => setProductId(p.id)} aria-label={`Voir ${p.name}`} className="bd-focus flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left">
                           <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-bd-lilac/60 text-bd-violet">
                             {p.photo ? <img src={uploadUrl(p.photo)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Package size={20} aria-hidden />}
                           </span>
@@ -200,6 +276,7 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
                               {formatTnd(p.priceMillimes)} · part <span className="text-bd-success">{formatTnd(p.depositorMillimes, false)}</span>
                             </span>
                           </span>
+                          <ChevronRight size={16} className="ml-auto shrink-0 text-bd-muted" aria-hidden />
                         </button>
                         <StageControl productId={p.id} stage={p.stage} isDepot size="sm" />
                       </li>
@@ -231,7 +308,7 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
         <StickyActionBar>
           <Button
             size="lg"
-            icon={PackagePlus}
+            icon={Plus}
             className="flex-1"
             onClick={() => {
               onClose();
@@ -257,30 +334,27 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
             }}
           />
         ))}
+        <SheetAction icon={Pencil} tone="violet" label="Modifier le déposant" onClick={() => { setMenu(false); setEditing(true); }} />
         <SheetAction
           icon={Trash2}
           tone="danger"
           label="Supprimer le déposant"
           hint={d.totals.total ? 'Impossible tant qu’il a des articles' : 'Action définitive'}
-          onClick={() => {
-            if (d.totals.total) {
-              showToast('Ce déposant a des articles : retirez-les d’abord.', 'warning');
-              return;
-            }
-            setMenu(false);
-            confirm({
-              title: 'Supprimer le déposant',
-              message: `Supprimer ${d.firstName} ${d.lastName} ? Cette action est définitive.`,
-              confirmLabel: 'Supprimer',
-              onConfirm: async () => {
-                await removeDeposant(d.id).unwrap();
-                showToast('Déposant supprimé', 'success');
-                onClose();
-              },
-            });
-          }}
+          onClick={askDelete}
         />
       </BottomSheet>
+      {editing ? <DeposantEditSheet d={d} open={editing} onClose={() => setEditing(false)} /> : null}
+      {productId ? (
+        <ProductDetailSheet
+          id={productId}
+          onClose={() => setProductId(null)}
+          onEdit={(p) => {
+            setProductId(null);
+            onClose();
+            navigate(`/products?edit=${p.id}`);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

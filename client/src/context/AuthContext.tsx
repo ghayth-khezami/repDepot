@@ -24,7 +24,7 @@ interface AuthContextType {
 }
 
 /** Quick-unlock code asked when the app is reopened (the session itself stays logged in). */
-const QUICK_PIN = '180125';
+const QUICK_PIN = '1801';
 const UNLOCK_KEY = 'bd-unlocked';
 
 function readUnlocked() {

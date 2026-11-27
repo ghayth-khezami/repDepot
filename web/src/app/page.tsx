@@ -33,7 +33,7 @@ export default function Home() {
           void syncLikesForProducts(list.map((p) => p.id));
           return;
         }
-        const res = await api.getProductsPage({ page: 1, limit: 8 });
+        const res = await api.getProductsPage({ page: 1, limit: 8, inStock: true });
         setFeatured(res.data);
         if (res.data.length) void syncLikesForProducts(res.data.map((p) => p.id));
       } catch {

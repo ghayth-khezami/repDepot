@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import {
-  Activity,
   Award,
   BadgeDollarSign,
   Box,
@@ -12,49 +10,30 @@ import {
   RotateCcw,
   Tag,
   DollarSign,
-  Download,
-  FileText,
   Info,
-  MapPin,
   Package,
-  PackagePlus,
-  QrCode,
-  Search,
   ShoppingBag,
   ShoppingCart,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import {
   useGetRevenueBreakdownQuery,
   useGetMonthlySoldProductsQuery,
   useGetDepotVsBuyingQuery,
-  useGetCommandLocationsQuery,
   useGetTotalSurchargeQuery,
   useGetTopProductsQuery,
   useGetDepotKpisQuery,
-  useGetDepotLocationsQuery,
 } from '../store/api/statsApi';
 import DeposantSuivi from '../features/depot/DeposantSuivi';
+import DashboardMaps from '../features/dashboard/DashboardMaps';
 import AppHeader, { DATE_RANGE_DELTA_LABEL, DATE_RANGE_LABEL, rangeFor, type DateRangeKey } from '../components/AppHeader';
 import ExcelButton from '../components/ExcelButton';
 import InstallAppButton from '../components/InstallAppButton';
 import { useGetCategoryHierarchyQuery } from '../store/api/categoryApi';
-import { Button, Card, CardTitle, EmptyState, Illustration, InfoNote, Pill, StatCard, buttonClass } from '../components/ui';
-import { downloadAuthed } from '../lib/download';
+import { Card, CardTitle, Illustration, InfoNote, StatCard } from '../components/ui';
 import { formatTnd, toMillimes } from '../lib/money';
 import { uploadUrl } from '../lib/apiBase';
-import { useToast } from '../context/ToastContext';
-
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
 
 const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 const tnd = (v?: number) => formatTnd(toMillimes(v ?? 0));
@@ -65,8 +44,6 @@ const pctDelta = (cur?: number, prev?: number) => {
 };
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const { showToast } = useToast();
   const [range, setRange] = useState<DateRangeKey | 'custom'>(() => {
     try {
       return (localStorage.getItem('bd-dash-range') as DateRangeKey | 'custom' | null) ?? 'month';
@@ -79,8 +56,6 @@ const Dashboard = () => {
   const [categoryId, setCategoryId] = useState('');
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
-  const [search, setSearch] = useState('');
-  const [busy, setBusy] = useState<string | null>(null);
   const { data: categories } = useGetCategoryHierarchyQuery();
 
   const pickRange = (r: DateRangeKey | 'custom') => {
@@ -112,73 +87,24 @@ const Dashboard = () => {
   const { data: prevSurcharge } = useGetTotalSurchargeQuery(prev ?? {}, { skip: !prev });
   const { data: monthly, isLoading: monthlyLoading } = useGetMonthlySoldProductsQuery({ year, categoryId: cat });
   const { data: depotVsBuying, isLoading: depotLoading } = useGetDepotVsBuyingQuery(cur);
-  const { data: locations, isLoading: locationsLoading } = useGetCommandLocationsQuery(cur);
   const { data: topProducts } = useGetTopProductsQuery({ ...cur, limit: 5 });
   const { data: depotKpis, isLoading: depotKpisLoading } = useGetDepotKpisQuery(cur);
   const { data: prevDepotKpis } = useGetDepotKpisQuery(prev ?? {}, { skip: !prev });
-  const { data: depotLocations, isLoading: depotLocLoading } = useGetDepotLocationsQuery(cur);
   const [suiviId, setSuiviId] = useState<string | null>(null);
 
   const deltaLabel = range === 'custom' ? 'vs période préc.' : DATE_RANGE_DELTA_LABEL[range];
   const d = (a?: number, b?: number) => (previous ? pctDelta(a, b) : null);
   const spark = monthly?.map((m) => m.count);
   const maxCount = Math.max(1, ...(monthly?.map((m) => m.count) ?? [1]));
+  const yearTotal = monthly?.reduce((t, m) => t + m.count, 0) ?? 0;
   const thisMonthSales = monthly?.find((m) => Number(m.month.split('-')[1]) === new Date().getMonth() + 1 && year === thisYear)?.count ?? 0;
-
-  const download = async (key: string, path: string, filename: string) => {
-    setBusy(key);
-    try {
-      await downloadAuthed(path, filename);
-    } catch (e) {
-      showToast((e as Error).message || 'Téléchargement impossible', 'error');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  // Geocode order addresses (cached, throttled to Nominatim's 1 req/s policy).
-  const geoCacheRef = useRef<Record<string, [number, number]>>({});
-  const [, setMapTick] = useState(0);
-  const toGeocode = useMemo(
-    () => [...(locations ?? []).map((l) => l.address), ...(depotLocations ?? []).filter((l) => l.lat == null || l.lng == null).map((l) => l.address)],
-    [locations, depotLocations],
-  );
-  useEffect(() => {
-    if (!toGeocode.length) return;
-    let cancelled = false;
-    void (async () => {
-      for (const address of toGeocode) {
-        if (cancelled) break;
-        const addr = address?.trim();
-        if (!addr || geoCacheRef.current[addr]) continue;
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${addr}, Tunisia`)}`, {
-            headers: { 'Accept-Language': 'fr' },
-          });
-          const json = await res.json();
-          const lat = parseFloat(json?.[0]?.lat);
-          const lon = parseFloat(json?.[0]?.lon);
-          if (!cancelled && Number.isFinite(lat) && Number.isFinite(lon)) {
-            geoCacheRef.current[addr] = [lat, lon];
-            setMapTick((t) => t + 1);
-          }
-        } catch {
-          /* ignore geocode errors */
-        }
-        await new Promise((r) => setTimeout(r, 1100));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [toGeocode]);
 
   const depotPct = depotVsBuying?.total ? (depotVsBuying.depot / depotVsBuying.total) * 100 : 0;
   const buyPct = depotVsBuying?.total ? (depotVsBuying.buying / depotVsBuying.total) * 100 : 0;
   const C = 2 * Math.PI * 70;
 
   return (
-    <div className="bd-ui mx-auto max-w-7xl">
+    <div className="bd-ui w-full">
       <AppHeader />
       <InstallAppButton variant="card" className="mb-4 md:hidden" />
 
@@ -244,7 +170,7 @@ const Dashboard = () => {
       <section aria-label="Indicateurs" className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={DollarSign} tone="pink" label="Revenu Total" value={tnd(revenue?.totalRevenue)} loading={revenueLoading} delta={d(revenue?.totalRevenue, prevRevenue?.totalRevenue)} deltaLabel={deltaLabel} spark={spark} />
         <StatCard icon={ShoppingBag} tone="violet" label="Revenu d'Achat" value={tnd(revenue?.buyingRevenue)} loading={revenueLoading} delta={d(revenue?.buyingRevenue, prevRevenue?.buyingRevenue)} deltaLabel={deltaLabel} spark={spark} />
-        <StatCard icon={Box} tone="amber" label="Revenu de Dépôt" value={tnd(revenue?.depotRevenue)} loading={revenueLoading} delta={d(revenue?.depotRevenue, prevRevenue?.depotRevenue)} deltaLabel={deltaLabel} spark={spark} />
+        <StatCard icon={Box} tone="amber" label="Revenu de Dépôt" value={tnd(revenue?.depotRevenue)} hint={`Commission ${tnd(revenue?.commission)} + ventes achat ${tnd(revenue?.achatSales)}`} loading={revenueLoading} delta={d(revenue?.depotRevenue, prevRevenue?.depotRevenue)} deltaLabel={deltaLabel} spark={spark} />
         <StatCard icon={Wallet} tone="purple" label="Surcharge Totale" value={tnd(surcharge?.totalSurcharge)} loading={surchargeLoading} delta={d(surcharge?.totalSurcharge, prevSurcharge?.totalSurcharge)} deltaLabel={deltaLabel} spark={spark} />
       </section>
 
@@ -290,19 +216,29 @@ const Dashboard = () => {
         </div>
       </section>
 
+      <DashboardMaps args={cur} onSuivi={setSuiviId} />
+
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
         <Card className="p-5 sm:p-6 lg:col-span-3">
           <CardTitle
             icon={TrendingUp}
             title="Produits Vendus par Mois"
             action={
-              <div className="flex gap-1.5" role="group" aria-label="Année">
-                {[thisYear - 1, thisYear, thisYear + 1].map((y) => (
-                  <Pill key={y} active={y === year} onClick={() => setYear(y)}>
-                    {y}
-                  </Pill>
-                ))}
-              </div>
+              <label className="relative">
+                <span className="sr-only">Année</span>
+                <CalendarRange size={15} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-bd-violet" />
+                <select
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  className="bd-input min-h-[40px] rounded-full border-transparent bg-bd-bg py-1 pl-9 pr-8 text-sm font-extrabold"
+                >
+                  {Array.from({ length: thisYear - 2023 + 2 }, (_, i) => thisYear + 1 - i).map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </label>
             }
           />
           <div className="grid gap-6 sm:grid-cols-[1fr_auto]">
@@ -328,7 +264,15 @@ const Dashboard = () => {
               <Illustration name="chart" className="h-32 w-32 text-[48px]" />
               <span className="inline-flex items-center gap-2 rounded-2xl bg-bd-blush px-4 py-3 text-sm font-extrabold text-bd-pink-strong">
                 <ShoppingCart size={18} aria-hidden />
-                <span className="tabular-nums">{thisMonthSales}</span> ventes ce mois-ci
+                {year === thisYear ? (
+                  <>
+                    <span className="tabular-nums">{thisMonthSales}</span> ventes ce mois-ci
+                  </>
+                ) : (
+                  <>
+                    <span className="tabular-nums">{yearTotal}</span> ventes en {year}
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -380,47 +324,6 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <Card className="relative overflow-hidden p-5 sm:p-6 lg:col-span-3">
-          <CardTitle icon={Package} title="Gestion des Produits" subtitle="Gérez tous les produits de votre boutique" />
-          <div className="flex flex-wrap gap-2.5 pr-0 sm:pr-28">
-            <Link to="/depots/nouveau" className={buttonClass('primary')}>
-              <PackagePlus size={18} aria-hidden /> Nouveau dépôt
-            </Link>
-            <Button variant="secondary" icon={QrCode} loading={busy === 'qr'} onClick={() => download('qr', '/products/export/qr/pdf', 'produits-qr.pdf')}>
-              PDF QR produits (achats)
-            </Button>
-          </div>
-          <Illustration name="bag" className="absolute bottom-3 right-4 hidden h-24 w-24 text-[56px] sm:inline-flex" />
-        </Card>
-
-        <Card className="p-5 sm:p-6 lg:col-span-2">
-          <form
-            role="search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              navigate(`/products${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''}`);
-            }}
-            className="flex flex-wrap items-center gap-2.5"
-          >
-            <label className="relative min-w-[180px] flex-1">
-              <span className="sr-only">Rechercher un produit</span>
-              <Search size={18} aria-hidden className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-bd-muted" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par nom ou réf…" className="bd-input pl-11" />
-            </label>
-            <Button variant="primary" size="icon" aria-label="Exporter CSV" title="Exporter CSV" loading={busy === 'csv'} onClick={() => download('csv', '/products/export/csv', 'produits.csv')}>
-              {busy === 'csv' ? null : <Download size={18} aria-hidden />}
-            </Button>
-            <Button variant="violet" size="icon" aria-label="Exporter PDF" title="Exporter PDF" loading={busy === 'pdf'} onClick={() => download('pdf', '/products/export/pdf', 'produits.pdf')}>
-              {busy === 'pdf' ? null : <FileText size={18} aria-hidden />}
-            </Button>
-          </form>
-          <Link to="/products" className={buttonClass('primary', 'md', 'mt-3 w-full')}>
-            Gérer les produits
-          </Link>
-        </Card>
-      </div>
-
       {topProducts?.length ? (
         <Card className="mb-6 p-5 sm:p-6">
           <CardTitle icon={Award} tone="amber" title="Top 5 des produits les plus vendus" subtitle={range === 'custom' ? 'Période personnalisée' : DATE_RANGE_LABEL[range]} />
@@ -445,85 +348,6 @@ const Dashboard = () => {
       ) : null}
 
       {suiviId ? <DeposantSuivi id={suiviId} onClose={() => setSuiviId(null)} /> : null}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <Card className="p-5 sm:p-6">
-        <CardTitle icon={MapPin} tone="green" title="Localisation des commandes" />
-        {locationsLoading ? (
-          <div className="h-80 animate-pulse rounded-2xl bg-bd-lilac" />
-        ) : locations?.length ? (
-          <div className="h-80 overflow-hidden rounded-2xl sm:h-96">
-            <MapContainer center={[34.0, 9.0]} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
-              {locations.map((loc) => {
-                const pos = geoCacheRef.current[loc.address] || [34.0, 9.0];
-                return (
-                  <Marker key={loc.id} position={pos}>
-                    <Popup>
-                      <p className="text-sm font-bold">{loc.client}</p>
-                      <p className="text-xs">{new Date(loc.date).toLocaleDateString('fr-FR')}</p>
-                      <p className="text-xs font-bold">{tnd(loc.revenue)}</p>
-                      <p className="text-xs">{loc.address}</p>
-                    </Popup>
-                  </Marker>
-                );
-              })}
-            </MapContainer>
-          </div>
-        ) : (
-          <EmptyState icon={MapPin} title="Aucune commande avec adresse" />
-        )}
-      </Card>
-
-      <Card className="p-5 sm:p-6">
-        <CardTitle icon={Store} tone="pink" title="Localisation des dépôts" subtitle={depotLocations?.length ? `${depotLocations.length} dépôt(s) sur la période` : undefined} />
-        {depotLocLoading ? (
-          <div className="h-80 animate-pulse rounded-2xl bg-bd-lilac" />
-        ) : depotLocations?.length ? (
-          <>
-            <div className="h-80 overflow-hidden rounded-2xl sm:h-96">
-              <MapContainer center={[34.0, 9.0]} zoom={6} style={{ height: '100%', width: '100%' }} className="z-0">
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
-                {depotLocations.map((loc) => {
-                  const pos: [number, number] =
-                    loc.lat != null && loc.lng != null ? [loc.lat, loc.lng] : geoCacheRef.current[loc.address] || [34.0, 9.0];
-                  return (
-                    <Marker key={loc.id} position={pos}>
-                      <Popup>
-                        <p className="text-sm font-bold">{loc.deposant} · N° {loc.number}</p>
-                        <p className="text-xs">{loc.contractNumber} · {new Date(loc.date).toLocaleDateString('fr-FR')}</p>
-                        <p className="text-xs font-bold">{loc.items} article(s) · {tnd(loc.value)}</p>
-                        <p className="text-xs">{loc.address}</p>
-                        <button type="button" onClick={() => setSuiviId(loc.deposantId)} className="mt-1 text-xs font-bold text-violet-700 underline">
-                          Voir le suivi
-                        </button>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
-              </MapContainer>
-            </div>
-            <ul className="mt-3 max-h-56 space-y-1.5 overflow-y-auto">
-              {depotLocations.slice(0, 20).map((loc) => (
-                <li key={loc.id}>
-                  <button type="button" onClick={() => setSuiviId(loc.deposantId)} className="bd-focus flex w-full items-center gap-3 rounded-xl bg-bd-bg px-3 py-2 text-left transition hover:bg-bd-lilac/60">
-                    <Activity size={15} className="shrink-0 text-bd-violet" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-extrabold text-bd-ink">{loc.deposant}</span>
-                      <span className="block truncate text-xs font-bold text-bd-muted">{loc.contractNumber} · {loc.address || 'position GPS'}</span>
-                    </span>
-                    <span className="shrink-0 text-xs font-extrabold tabular-nums text-bd-ink">{loc.items} art.</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <EmptyState icon={Store} title="Aucun dépôt localisé sur la période">
-            Ajoutez l'adresse du déposant (ou sa position sur la carte) lors du dépôt.
-          </EmptyState>
-        )}
-      </Card>
-      </div>
     </div>
   );
 };

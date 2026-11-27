@@ -12,6 +12,8 @@ model User {
   email                String                   @unique
   password             String
   username             String?                  @unique
+  /// 8 digits. Orders placed with this number (even before signing up) show in "Mes commandes".
+  phoneNumber          String?                  @unique
   isVerified           Boolean                  @default(false)
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
@@ -99,6 +101,7 @@ model PendingUser {
   email        String   @unique
   passwordHash String
   username     String?
+  phoneNumber  String?
   codeHash     String
   expiresAt    DateTime
   createdAt    DateTime @default(now())
@@ -147,6 +150,8 @@ model CoClient {
   /// 8 digits, stored without +216.
   phoneNumber     String           @unique
   RIB             String?
+  /// "F" (femme) | "M" (homme) — picks the illustration on cards and the dépôts map.
+  gender          String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   userId          String?          @unique
@@ -328,6 +333,9 @@ model Command {
   PrixAchat        Float
   status           CommandStatus   @default(NOT_DELIVERED)
   dateLivraison    DateTime?
+  /// Set when the shop accepts the order / when it is delivered (customer stepper).
+  acceptedAt       DateTime?
+  deliveredAt      DateTime?
   adresseLivraison String
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -513,7 +521,11 @@ model SiteSettings {
 }
 
 enum CommandStatus {
+  /// Reçue
   NOT_DELIVERED
+  /// Acceptée
+  ACCEPTED
+  /// Livrée
   DELIVERED
   GOT_PROFIT
 }

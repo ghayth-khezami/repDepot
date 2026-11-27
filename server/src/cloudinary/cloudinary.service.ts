@@ -1,9 +1,21 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
 } from "@nestjs/common";
 import { v2 as cloudinary } from "cloudinary";
+import { promises as fsp } from "fs";
+import { extname, join } from "path";
+
+const EXT_BY_MIME: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "image/heic": ".heic",
+  "image/heif": ".heif",
+};
 
 @Injectable()
 export class CloudinaryService {
@@ -37,23 +49,34 @@ export class CloudinaryService {
     );
   }
 
-  private assertConfigured(): void {
+  /**
+   * Uploads to Cloudinary; if Cloudinary is not configured or refuses the upload (e.g. 401/403 from a
+   * wrong key, a disabled account or a blocked server IP), the image is stored on this server under
+   * /uploads/<folder>/ instead — the photo is saved and the request succeeds rather than failing with 500.
+   */
+  async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException("Fichier image vide");
+    }
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     if (!this.configured()) {
-      throw new InternalServerErrorException(
-        "Cloudinary non configuré. Définissez CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY et CLOUDINARY_API_SECRET sur Render.",
+      this.logger.warn("Cloudinary non configuré : image enregistrée sur le serveur (/uploads).");
+      return this.saveLocally(file, folder, unique);
+    }
+    try {
+      return await this.uploadToCloudinary(file, folder, unique);
+    } catch (error) {
+      const status = (error as { http_code?: number })?.http_code;
+      this.logger.error(
+        `Cloudinary a refusé l'upload (HTTP ${status ?? "?"}) — image enregistrée sur le serveur à la place. ` +
+          `Vérifiez CLOUDINARY_URL / clés API et que le compte Cloudinary est actif.`,
+        error as any,
       );
+      return this.saveLocally(file, folder, unique);
     }
   }
 
-  async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
-    this.assertConfigured();
-    if (!file?.buffer?.length) {
-      throw new InternalServerErrorException("Fichier image vide");
-    }
-
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-
-    // Client already resizes; Cloudinary optimizes delivery — skip heavy Sharp on server.
+  private uploadToCloudinary(file: Express.Multer.File, folder: string, unique: string): Promise<string> {
     return new Promise((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
@@ -61,16 +84,10 @@ export class CloudinaryService {
             folder: `${this.rootFolder}/${folder}`,
             public_id: unique,
             resource_type: "image",
-            quality: "auto:eco",
-            fetch_format: "auto",
           },
           (error, result) => {
             if (error || !result?.secure_url) {
-              this.logger.error("Cloudinary upload failed", error);
-              reject(
-                error ??
-                  new InternalServerErrorException("Échec upload Cloudinary"),
-              );
+              reject(error ?? new Error("Réponse Cloudinary sans URL"));
               return;
             }
             resolve(result.secure_url);
@@ -78,6 +95,20 @@ export class CloudinaryService {
         )
         .end(file.buffer);
     });
+  }
+
+  private async saveLocally(file: Express.Multer.File, folder: string, unique: string): Promise<string> {
+    const safeFolder = folder.replace(/[^a-z0-9_-]/gi, "") || "misc";
+    const ext = EXT_BY_MIME[file.mimetype] ?? (extname(file.originalname || "").toLowerCase() || ".jpg");
+    const dir = join(process.cwd(), "uploads", safeFolder);
+    try {
+      await fsp.mkdir(dir, { recursive: true });
+      await fsp.writeFile(join(dir, `${unique}${ext}`), file.buffer);
+    } catch (error) {
+      this.logger.error("Enregistrement local de l'image impossible", error as any);
+      throw new InternalServerErrorException("Impossible d'enregistrer la photo. Réessayez.");
+    }
+    return `/uploads/${safeFolder}/${unique}${ext}`;
   }
 
   async uploadFiles(
@@ -102,6 +133,11 @@ export class CloudinaryService {
   }
 
   async deleteByUrl(url: string | null | undefined): Promise<void> {
+    if (url?.startsWith("/uploads/")) {
+      const rel = url.replace(/^\/uploads\//, "");
+      if (!rel.includes("..")) await fsp.unlink(join(process.cwd(), "uploads", rel)).catch(() => undefined);
+      return;
+    }
     if (!url || !this.configured()) return;
     const publicId = this.extractPublicId(url);
     if (!publicId) return;

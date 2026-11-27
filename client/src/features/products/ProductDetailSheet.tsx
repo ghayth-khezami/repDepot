@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import HeartButton from './HeartButton';
+import OrderBadge from './OrderBadge';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Camera, ChevronLeft, MoreHorizontal, Package, Pencil, Printer, QrCode, ShoppingCart, Trash2, Truck } from 'lucide-react';
@@ -26,7 +28,7 @@ type FullProduct = Product & {
   likesCount?: number;
 };
 
-const ORDER_STATUS: Record<string, string> = { NOT_DELIVERED: 'Non livrée', DELIVERED: 'Livrée', GOT_PROFIT: 'Encaissée' };
+const ORDER_STATUS: Record<string, string> = { NOT_DELIVERED: 'Reçue', ACCEPTED: 'Acceptée', DELIVERED: 'Livrée', GOT_PROFIT: 'Livrée' };
 const d = (x?: string | null) => (x ? new Date(x).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -85,7 +87,7 @@ export default function ProductDetailSheet({
     : [];
 
   return createPortal(
-    <div className="bd-ui fixed inset-0 z-[70] flex justify-end bg-bd-ink/45 backdrop-blur-sm" onClick={onClose}>
+    <div className="bd-ui fixed inset-0 z-[78] flex justify-end bg-bd-ink/45 backdrop-blur-sm" onClick={onClose}>
       {suivi ? <DeposantSuivi id={suivi} onClose={() => setSuivi(null)} /> : null}
       <aside role="dialog" aria-modal="true" aria-label="Fiche produit" onClick={(e) => e.stopPropagation()} className="bd-anim-slide-in flex h-[100dvh] w-full flex-col bg-bd-bg shadow-2xl sm:max-w-lg">
         {/* Top bar */}
@@ -97,6 +99,7 @@ export default function ProductDetailSheet({
             <p className="text-[11px] font-black uppercase tracking-[0.14em] text-bd-muted">Produit</p>
             <p className="truncate text-sm font-black text-bd-violet-strong">{p?.ref ?? '…'}</p>
           </div>
+          {p ? <HeartButton productId={p.id} name={p.productName} className="h-11 w-11 rounded-2xl border border-bd-line/10 bg-bd-surface shadow-card" /> : null}
           <button type="button" onClick={() => setMenu(true)} aria-label="Plus d'actions" className="bd-focus flex h-11 w-11 items-center justify-center rounded-2xl border border-bd-line/10 bg-bd-surface shadow-card">
             <MoreHorizontal size={20} aria-hidden />
           </button>
@@ -141,6 +144,7 @@ export default function ProductDetailSheet({
                     {p.isDepot ? 'Dépôt' : 'Achat'}
                   </span>
                   <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} size="sm" />
+                  <OrderBadge status={p.orders?.[0]?.command.status} />
                 </div>
                 <h2 className="mt-2 text-[22px] font-extrabold leading-tight text-bd-ink">{p.productName}</h2>
                 {p.depositRequest ? (
@@ -236,9 +240,11 @@ export default function ProductDetailSheet({
                   <Trash2 size={20} aria-hidden />
                 </button>
               ) : null}
-              <button type="button" onClick={() => onEdit(p)} className="bd-focus flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-grad-pink-strong text-[15px] font-extrabold text-white shadow-glow-pink active:scale-[0.98]">
-                <Pencil size={18} aria-hidden /> Modifier le produit
+              <button type="button" onClick={() => onEdit(p)} aria-label="Modifier le produit" title="Modifier le produit" className="bd-focus flex min-h-[52px] shrink-0 items-center justify-center gap-2 rounded-2xl border border-bd-line/15 bg-bd-surface px-4 text-[15px] font-extrabold text-bd-ink active:scale-[0.98]">
+                <Pencil size={18} aria-hidden /> <span className="hidden sm:inline">Modifier</span>
               </button>
+              {/* Next step: Marquer comme vendu (→ créer la commande / vendu en boutique) → Marquer comme payé */}
+              <StageControl variant="action" productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} />
             </StickyActionBar>
 
             <BottomSheet open={menu} onClose={() => setMenu(false)} title="Actions">
