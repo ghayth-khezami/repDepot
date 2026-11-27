@@ -97,15 +97,20 @@ export default function DepotChoiceSheet({
                 <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-extrabold ${c.expired ? 'bg-rose-100 text-rose-700' : 'bg-bd-success-bg text-bd-success'}`}>
                   {c.expired ? 'Terminé' : 'En cours'}
                 </span>
-                <span className="mt-3 grid grid-cols-4 gap-1.5">
-                  {c.items.slice(0, 4).map((p) => (
-                    <span key={p.id} className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-bd-lilac/60 text-bd-violet">
-                      {p.photo ? <img src={uploadUrl(p.photo)} alt="" className="h-full w-full object-cover" /> : <Package size={14} aria-hidden />}
+                <span className="mt-3 block space-y-1.5">
+                  {c.items.slice(0, 3).map((p) => (
+                    <span key={p.id} className="flex items-center gap-2">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-bd-lilac/60 text-bd-violet">
+                        {p.photo ? <img src={uploadUrl(p.photo)} alt="" className="h-full w-full object-cover" /> : <Package size={13} aria-hidden />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-extrabold text-bd-ink">{p.name}</span>
+                        <span className="block text-[10px] font-bold text-bd-muted">{p.ref} · {formatTnd(p.priceMillimes)}</span>
+                      </span>
                     </span>
                   ))}
-                  {Array.from({ length: Math.max(0, 4 - c.items.length) }, (_, i) => (
-                    <span key={`e${i}`} className="aspect-square rounded-lg border border-dashed border-bd-line/25" />
-                  ))}
+                  {c.items.length > 3 ? <span className="block text-[11px] font-extrabold text-bd-violet">+ {c.items.length - 3} autre(s) article(s)</span> : null}
+                  {!c.items.length ? <span className="block rounded-lg border border-dashed border-bd-line/25 py-3 text-center text-[11px] font-bold text-bd-muted">Aucun article</span> : null}
                 </span>
                 <span className="mt-3 block space-y-1 border-t border-dashed border-bd-line/20 pt-2 text-xs font-bold text-bd-ink">
                   <span className="flex justify-between"><span>Articles</span><span className="tabular-nums">{c.items.length}{c.sold ? ` · ${c.sold} vendu(s)` : ''}</span></span>

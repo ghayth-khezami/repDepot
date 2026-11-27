@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { BadgeCheck, Check, Download, Loader2, ChevronLeft, ChevronRight, CreditCard, FileText, Mail, MapPin, MessageCircle, MoreHorizontal, Package, Pencil, Phone, Plus, Trash2, Wallet } from 'lucide-react';
+import { BadgeCheck, Check, ChevronDown, Download, Loader2, ChevronLeft, ChevronRight, CreditCard, FileText, Mail, MapPin, MessageCircle, MoreHorizontal, Package, Pencil, Phone, Plus, Trash2, Wallet } from 'lucide-react';
 import PersonIllustration from '../../components/PersonIllustration';
 import { downloadAuthed } from '../../lib/download';
 import ProductDetailSheet from '../products/ProductDetailSheet';
@@ -31,6 +31,103 @@ const TABS: Array<{ key: Tab; label: string; empty: string }> = [
   { key: 'PAYE', label: 'Payés', empty: 'Aucun paiement enregistré.' },
 ];
 
+/** "Contrats" tab: every contract as a card with its articles, totals and actions. */
+function ContractsPanel({
+  d,
+  onOpenProduct,
+  onOpenContract,
+  onAddArticles,
+  onDelete,
+}: {
+  d: DeposantOverview;
+  onOpenProduct: (id: string) => void;
+  onOpenContract: (id: string) => void;
+  onAddArticles: (id: string) => void;
+  onDelete: (c: DeposantOverview['contracts'][number]) => void;
+}) {
+  const [openId, setOpenId] = useState<string | null>(d.contracts[0]?.id ?? null);
+  if (!d.contracts.length) return <EmptyState icon={FileText} title="Aucun contrat pour ce déposant." />;
+  return (
+    <ul className="space-y-3">
+      {d.contracts.map((c) => {
+        const items = d.products.filter((p) => p.contractId === c.id);
+        const end = new Date(c.createdAt);
+        end.setMonth(end.getMonth() + (c.durationMonths ?? 3));
+        const expired = end.getTime() < Date.now();
+        const value = items.reduce((t, p) => t + p.priceMillimes, 0);
+        const due = items.filter((p) => p.stage === 'VENDU').reduce((t, p) => t + p.depositorMillimes, 0);
+        const count = (st: string) => items.filter((p) => p.stage === st).length;
+        const open = openId === c.id;
+        return (
+          <li key={c.id} className="overflow-hidden rounded-3xl border border-bd-line/10 bg-bd-surface shadow-card">
+            <button type="button" onClick={() => setOpenId(open ? null : c.id)} aria-expanded={open} className="bd-focus flex w-full items-start gap-3 p-4 text-left">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-grad-violet-strong text-white">
+                <FileText size={20} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="truncate text-[15px] font-black tabular-nums text-bd-ink">{c.contractNumber ?? 'Contrat'}</span>
+                  <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold', expired ? 'bg-rose-100 text-rose-700' : 'bg-bd-success-bg text-bd-success')}>
+                    {expired ? 'Terminé' : 'En cours'}
+                  </span>
+                </span>
+                <span className="block text-xs font-bold text-bd-muted">
+                  {new Date(c.createdAt).toLocaleDateString('fr-FR')} → {end.toLocaleDateString('fr-FR')} · {c.signedAt ? 'signé' : 'non signé'}
+                </span>
+                <span className="mt-1.5 flex flex-wrap gap-1.5 text-[11px] font-extrabold">
+                  <span className="rounded-full bg-bd-bg px-2 py-0.5 text-bd-ink">{items.length} article{items.length > 1 ? 's' : ''} · {formatTnd(value)}</span>
+                  {count('EN_VENTE') ? <span className="rounded-full bg-bd-blush px-2 py-0.5 text-bd-pink-strong">{count('EN_VENTE')} en vente</span> : null}
+                  {count('VENDU') ? <span className="rounded-full bg-bd-success-bg px-2 py-0.5 text-bd-success">{count('VENDU')} vendu(s) · {formatTnd(due, false)} dû</span> : null}
+                  {count('PAYE') ? <span className="rounded-full bg-violet-100 px-2 py-0.5 text-bd-violet-strong">{count('PAYE')} payé(s)</span> : null}
+                </span>
+              </span>
+              <ChevronDown size={18} className={cn('mt-1 shrink-0 text-bd-muted transition', open && 'rotate-180')} aria-hidden />
+            </button>
+            {open ? (
+              <div className="border-t border-bd-line/10 px-3 pb-3 pt-2">
+                {items.length ? (
+                  <ul className="space-y-1.5">
+                    {items.map((p) => (
+                      <li key={p.id} className="flex items-center gap-3 rounded-2xl p-1.5 hover:bg-bd-bg">
+                        <button type="button" onClick={() => onOpenProduct(p.id)} className="bd-focus flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-bd-lilac/60 text-bd-violet">
+                            {p.photo ? <img src={uploadUrl(p.photo)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Package size={18} aria-hidden />}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[11px] font-extrabold text-bd-muted">{p.ref} · déposé le {shortDate(p.createdAt)}</span>
+                            <span className="block truncate text-sm font-extrabold text-bd-ink">{p.name}</span>
+                            <span className="block text-xs font-bold tabular-nums text-bd-muted">
+                              {formatTnd(p.priceMillimes)} · part <span className="text-bd-success">{formatTnd(p.depositorMillimes, false)}</span>
+                            </span>
+                          </span>
+                        </button>
+                        {p.stage !== 'RETIRE' ? <StageControl productId={p.id} stage={p.stage} isDepot size="sm" /> : <span className="text-xs font-bold text-bd-muted">Retiré</span>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-2 py-3 text-sm font-bold text-bd-muted">Aucun article dans ce contrat.</p>
+                )}
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <button type="button" onClick={() => onOpenContract(c.id)} className="bd-focus inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl bg-bd-lilac/70 text-xs font-extrabold text-bd-violet-strong">
+                    <FileText size={15} aria-hidden /> Contrat
+                  </button>
+                  <button type="button" onClick={() => onAddArticles(c.id)} className="bd-focus inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl bg-grad-pink-strong text-xs font-extrabold text-white">
+                    <Plus size={15} aria-hidden /> Articles
+                  </button>
+                  <button type="button" onClick={() => onDelete(c)} className="bd-focus inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl border border-bd-danger/30 text-xs font-extrabold text-bd-danger">
+                    <Trash2 size={15} aria-hidden /> Supprimer
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -43,6 +140,8 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
     return m;
   }, [d.products]);
   const [tab, setTab] = useState<Tab>(byStage.VENDU.length ? 'VENDU' : 'EN_VENTE');
+  /** "Contrats" view (cards with their articles) instead of the status tabs. */
+  const [showContracts, setShowContracts] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [paying, setPaying] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -254,21 +353,48 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
               key={t.key}
               type="button"
               role="tab"
-              aria-selected={tab === t.key}
+              aria-selected={!showContracts && tab === t.key}
               onClick={() => {
+                setShowContracts(false);
                 setTab(t.key);
                 setSelected(new Set());
               }}
-              className={cn('bd-focus flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition', tab === t.key ? 'bg-bd-surface text-bd-ink shadow-card' : 'text-bd-muted')}
+              className={cn('bd-focus flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition', !showContracts && tab === t.key ? 'bg-bd-surface text-bd-ink shadow-card' : 'text-bd-muted')}
             >
               {t.label} <span className="text-xs tabular-nums text-bd-violet-strong">{byStage[t.key].length}</span>
             </button>
           ))}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={showContracts}
+            onClick={() => {
+              setShowContracts(true);
+              setSelected(new Set());
+            }}
+            className={cn('bd-focus flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition', showContracts ? 'bg-bd-surface text-bd-ink shadow-card' : 'text-bd-muted')}
+          >
+            Contrats <span className="text-xs tabular-nums text-bd-violet-strong">{d.contracts.length}</span>
+          </button>
         </div>
 
         {/* Rows grouped by lot */}
         <div className="space-y-4 px-4 pb-6 pt-1">
-          {groups.length ? (
+          {showContracts ? (
+            <ContractsPanel
+              d={d}
+              onOpenProduct={setProductId}
+              onOpenContract={(id) => {
+                onClose();
+                navigate(`/depots/${id}`);
+              }}
+              onAddArticles={(id) => {
+                onClose();
+                navigate(`/depots/${id}/articles`);
+              }}
+              onDelete={askDeleteContract}
+            />
+          ) : groups.length ? (
             groups.map((g) => (
               <section key={g.id}>
                 <p className="mb-1.5 flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-bd-muted">
@@ -318,7 +444,7 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
         </div>
       </div>
 
-      {tab === 'VENDU' && byStage.VENDU.length ? (
+      {!showContracts && tab === 'VENDU' && byStage.VENDU.length ? (
         <StickyActionBar>
           <button
             type="button"
