@@ -35,7 +35,7 @@ export class EmailService {
     const host = process.env.SMTP_HOST?.trim();
     const user = process.env.SMTP_USER?.trim();
     const pass = process.env.SMTP_PASS?.trim();
-    const recipient = process.env.ADMIN_NOTIFICATION_EMAIL?.trim() || "admin.bebedepot@gmail.com";
+    const recipient = process.env.ADMIN_NOTIFICATION_EMAIL?.trim() || "bebedepot.admin@gmail.com";
     if (!host || !user || !pass) {
       this.logger.warn("SMTP settings missing — order email skipped.");
       return;

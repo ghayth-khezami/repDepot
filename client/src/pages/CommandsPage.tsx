@@ -404,18 +404,23 @@ const CommandsPage = () => {
             ) : null}
 
             <div className="flex flex-wrap justify-end gap-2 pt-2">
+              {viewCommand.status === 'CANCELLED' ? (
+                <button
+                  onClick={() => {
+                    const id = viewCommand.id;
+                    setViewOpen(false);
+                    setViewCommandId(null);
+                    handleDelete(id);
+                  }}
+                  className="mr-auto inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" /> Supprimer
+                </button>
+              ) : (
+                <p className="mr-auto self-center text-xs font-semibold text-gray-500">Pour supprimer : passez d'abord le statut à « Annulée ».</p>
+              )}
               <button
-                onClick={() => {
-                  const id = viewCommand.id;
-                  setViewOpen(false);
-                  setViewCommandId(null);
-                  handleDelete(id);
-                }}
-                className="mr-auto inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" /> Supprimer
-              </button>
-              <button
+                disabled={viewCommand.status === 'CANCELLED'}
                 onClick={() => {
                   setViewOpen(false);
                   setViewCommandId(null);

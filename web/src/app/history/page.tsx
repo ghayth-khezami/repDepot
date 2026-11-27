@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, ClipboardCheck, MapPin, Package, PackageCheck, Phone, ShoppingBag, Truck } from "lucide-react";
+import { Ban, Check, ClipboardCheck, MapPin, Package, PackageCheck, Phone, ShoppingBag, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useShop } from "@/context/ShopContext";
@@ -19,6 +19,13 @@ const frDate = (iso: string | null) =>
 const tnd = (v: number) => `${Number(v || 0).toFixed(3)} TND`;
 
 function OrderStepper({ order }: { order: MyOrder }) {
+  if (order.status === "CANCELLED") {
+    return (
+      <p className="mt-5 flex items-center gap-2 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+        <Ban size={18} aria-hidden /> Commande annulée
+      </p>
+    );
+  }
   const idx = stepIndex(order.status);
   const dates = [order.createdAt, order.acceptedAt, order.deliveredAt];
   return (
@@ -156,7 +163,7 @@ export default function HistoryPage() {
               <p className="display text-2xl text-foreground">{tnd(o.PrixVente)}</p>
             </div>
             <OrderStepper order={o} />
-            <p className="mt-4 rounded-2xl bg-[#FFF5F8] px-4 py-3 text-sm font-semibold text-[#2D2346]">{STEPS[stepIndex(o.status)].hint}</p>
+            {o.status !== "CANCELLED" ? <p className="mt-4 rounded-2xl bg-[#FFF5F8] px-4 py-3 text-sm font-semibold text-[#2D2346]">{STEPS[stepIndex(o.status)].hint}</p> : null}
             <p className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
               <MapPin size={16} className="mt-0.5 shrink-0" aria-hidden /> {o.adresseLivraison || "Adresse non renseignée"}
             </p>

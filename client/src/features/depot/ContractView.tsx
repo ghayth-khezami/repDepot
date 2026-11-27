@@ -42,23 +42,10 @@ function useAuthedObjectUrl(path: string | null) {
   return url;
 }
 
+/** WhatsApp to the déposant: greeting + tracking link only (the contract PDF is attached on phones). */
 export function whatsappMessage(c: DepotContract) {
-  const n = c.items.length;
-  return [
-    `Bonjour ${c.deposant.firstName} 👋`,
-    '',
-    `Merci pour votre confiance 💜 Votre dépôt est bien enregistré.`,
-    '',
-    `📄 Contrat N° ${c.contractNumber} — ${n ? `${n} article${n > 1 ? 's' : ''}` : 'dépôt ouvert'}, valable ${c.durationMonths} mois (jusqu'au ${frDate(c.expiresAt)}).`,
-    '',
-    `📲 Suivez vos articles en temps réel (vendu, paiement prêt…) ici :`,
-    c.trackingUrl,
-    '',
-    `Vous recevrez une notification dès qu'un article est vendu 🎉`,
-    '',
-    `À très bientôt,`,
-    `Mme Khezami`,
-  ].join('\n');
+  const civ = c.deposant.gender === 'F' ? 'Madame' : c.deposant.gender === 'M' ? 'Monsieur' : 'Madame, Monsieur';
+  return `Salut ${civ} ${c.deposant.lastName} 👋\nVous pouvez suivre vos articles ici : ${c.trackingUrl}`;
 }
 
 export function whatsappLink(c: DepotContract) {
@@ -126,6 +113,7 @@ function ContractPaper({ c, qrUrl, terms }: { c: DepotContract; qrUrl: string | 
           <tr className="[&>th]:border [&>th]:border-[#3C3C3C] [&>th]:px-2 [&>th]:py-2 [&>th]:font-black">
             <th className="w-20">Réf.</th>
             <th className="text-left">Article</th>
+            <th className="w-24">Déposé le</th>
             <th className="text-right">Prix</th>
             <th className="text-right">Com. %</th>
             <th className="text-right">Part déposant</th>
@@ -136,6 +124,7 @@ function ContractPaper({ c, qrUrl, terms }: { c: DepotContract; qrUrl: string | 
             <tr key={it.id}>
               <td className="text-center font-bold">{it.ref}</td>
               <td>{it.name}</td>
+              <td className="text-center">{frDate(it.depositedAt ?? c.createdAt)}</td>
               <td className="text-right"><Money millimes={it.priceMillimes} unit={false} /></td>
               <td className="text-right">{it.commissionPercent}%</td>
               <td className="text-right"><Money millimes={it.depositorMillimes} unit={false} /></td>
@@ -143,12 +132,13 @@ function ContractPaper({ c, qrUrl, terms }: { c: DepotContract; qrUrl: string | 
           ))}
           {Array.from({ length: Math.max(0, 6 - c.items.length) }, (_, i) => (
             <tr key={`blank-${i}`} aria-hidden>
-              <td>&nbsp;</td><td /><td /><td /><td />
+              <td>&nbsp;</td><td /><td /><td /><td /><td />
             </tr>
           ))}
           <tr className="font-black">
             <td />
             <td>Total — {c.items.length} article{c.items.length > 1 ? 's' : ''}</td>
+            <td />
             <td className="text-right"><Money millimes={c.totals.priceMillimes} unit={false} /></td>
             <td className="text-right"><Money millimes={c.totals.shopMillimes} unit={false} /></td>
             <td className="text-right"><Money millimes={c.totals.depositorMillimes} unit={false} /></td>
@@ -162,7 +152,7 @@ function ContractPaper({ c, qrUrl, terms }: { c: DepotContract; qrUrl: string | 
               <div className="min-w-0">
                 <p className="text-[11px] font-black text-[#5A5878]">{it.ref}</p>
                 <p className="font-bold">{it.name}</p>
-                <p className="text-[11px] text-[#5A5878] tabular-nums"><Money millimes={it.priceMillimes} /> · {it.commissionPercent}%</p>
+                <p className="text-[11px] text-[#5A5878] tabular-nums"><Money millimes={it.priceMillimes} /> · {it.commissionPercent}% · déposé le {frDate(it.depositedAt ?? c.createdAt)}</p>
               </div>
               <Money millimes={it.depositorMillimes} className="font-black" />
             </li>

@@ -27,6 +27,7 @@ import {
 } from '../store/api/statsApi';
 import DeposantSuivi from '../features/depot/DeposantSuivi';
 import DashboardMaps from '../features/dashboard/DashboardMaps';
+import PaymentRequestsReminder from '../features/dashboard/PaymentRequestsReminder';
 import AppHeader, { DATE_RANGE_DELTA_LABEL, DATE_RANGE_LABEL, rangeFor, type DateRangeKey } from '../components/AppHeader';
 import ExcelButton from '../components/ExcelButton';
 import InstallAppButton from '../components/InstallAppButton';
@@ -107,6 +108,7 @@ const Dashboard = () => {
     <div className="bd-ui w-full">
       <AppHeader />
       <InstallAppButton variant="card" className="mb-4 md:hidden" />
+      <PaymentRequestsReminder />
 
       <div className="mb-6 grid grid-cols-[1fr_1fr_auto] items-center gap-2 sm:flex sm:justify-end">
         <label className="relative min-w-0 sm:w-52">

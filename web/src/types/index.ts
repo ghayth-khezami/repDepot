@@ -120,7 +120,7 @@ export interface AuthUser {
   phoneNumber?: string | null;
 }
 
-export type OrderStatus = "NOT_DELIVERED" | "ACCEPTED" | "DELIVERED";
+export type OrderStatus = "NOT_DELIVERED" | "ACCEPTED" | "DELIVERED" | "CANCELLED";
 
 export interface MyOrder {
   id: string;

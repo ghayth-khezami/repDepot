@@ -22,6 +22,10 @@ import ProductAssistant, { type ProductAiResult } from '../features/products/Pro
 import ProductDetailSheet from '../features/products/ProductDetailSheet';
 import PhotoSlots, { MAX_PHOTOS, useFileUrls, type PhotoSlot } from '../components/PhotoSlots';
 import { uploadUrl } from '../lib/apiBase';
+import QuickCreate from '../features/products/QuickCreate';
+import { useCreateCategoryMutation } from '../store/api/categoryApi';
+import { useCreateSubCategoryMutation } from '../store/api/subCategoryApi';
+import { useCreateSubSubCategory1Mutation } from '../store/api/subSubCategoryApi';
 import ProductsList from '../features/products/ProductsList';
 import { COMMISSION_VALUES, DEFAULT_COMMISSION } from '../lib/commission';
 import { setNativeValue } from '../lib/speech';
@@ -143,6 +147,9 @@ const ProductsPage = () => {
     }
   }, [isModalOpen, selectedProduct]);
   const [updateProduct] = useUpdateProductMutation();
+  const [createCategoryQuick] = useCreateCategoryMutation();
+  const [createSubCategoryQuick] = useCreateSubCategoryMutation();
+  const [createSubSub1Quick] = useCreateSubSubCategory1Mutation();
   const [deleteProduct] = useDeleteProductMutation();
   const { showToast } = useToast();
   const { confirm, dialog } = useConfirmDialog();
@@ -301,8 +308,12 @@ const ProductsPage = () => {
       message: 'Êtes-vous sûr de vouloir supprimer ce produit ?',
       confirmLabel: 'Supprimer',
       onConfirm: async () => {
-        await deleteProduct(id).unwrap();
-        showToast('Produit supprimé avec succès', 'success');
+        try {
+          await deleteProduct(id).unwrap();
+          showToast('Produit supprimé', 'success');
+        } catch (e) {
+          showToast(apiErrorMessage(e, 'Suppression impossible'), 'error', 7000);
+        }
       },
     });
   };
@@ -373,7 +384,6 @@ const ProductsPage = () => {
       subSubCategory3Id: selectedSubSubCategory3Id || undefined,
       subSubCategory3Ids: selectedSubSubCategory3Ids,
       coclientId: selectedCoClientId || undefined,
-      ref: ((formData.get('ref') as string) || '').trim() || undefined,
     };
     // One "Statut" select: En vente / Vendu / Payé / Retiré (Payé = vendu + déposant payé).
     const stage = (formData.get('stage') as string) || 'EN_VENTE';
@@ -402,7 +412,6 @@ const ProductsPage = () => {
         if (baseData.facebookLink) createFormData.append('facebookLink', String(baseData.facebookLink));
         if (baseData.tiktokLink) createFormData.append('tiktokLink', String(baseData.tiktokLink));
         createFormData.append('PrixVente', String(baseData.PrixVente));
-        if (baseData.ref) createFormData.append('ref', String(baseData.ref));
         if (baseData.status) createFormData.append('status', String(baseData.status));
         if (baseData.PrixAchat !== undefined) createFormData.append('PrixAchat', String(baseData.PrixAchat));
         createFormData.append('isDepot', String(baseData.isDepot));
@@ -678,16 +687,10 @@ const ProductsPage = () => {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label htmlFor="product-ref" className="block text-sm font-medium text-gray-700 mb-1">Référence</label>
-              <input
-                id="product-ref"
-                type="text"
-                name="ref"
-                maxLength={32}
-                defaultValue={selectedProduct?.ref || ''}
-                placeholder={isEditMode ? '' : 'Auto (P-xxxxx)'}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg uppercase tabular-nums focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
+              <span className="block text-sm font-medium text-gray-700 mb-1">Référence</span>
+              <p className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-2 text-sm font-semibold tabular-nums text-gray-700">
+                {selectedProduct?.ref || 'Générée automatiquement (unique)'}
+              </p>
               {selectedProduct?.depositRequest?.contractNumber ? (
                 <p className="mt-1 text-xs text-gray-500">Contrat {selectedProduct.depositRequest.contractNumber}</p>
               ) : null}
@@ -756,7 +759,18 @@ const ProductsPage = () => {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <label className="block text-sm font-medium text-gray-700">Catégorie</label>
+                <QuickCreate
+                  label="Catégorie"
+                  onCreate={async (name) => {
+                    const c = await createCategoryQuick({ data: { categoryName: name } } as never).unwrap();
+                    setSelectedCategoryIds((ids) => [...ids, c.id]);
+                    setSelectedCategoryId((cur) => cur || c.id);
+                    return c;
+                  }}
+                />
+              </div>
               <InfiniteSelect
                 items={allCategories}
                 getOptionLabel={(cat) => cat.categoryName}
@@ -780,7 +794,20 @@ const ProductsPage = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sous-catégorie</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-sm font-medium text-gray-700">Sous-catégorie</label>
+              <QuickCreate
+                label="Sous-catégorie"
+                disabled={!selectedCategoryId}
+                disabledHint="Choisissez d'abord une catégorie"
+                onCreate={async (title) => {
+                  const sc = await createSubCategoryQuick({ title, categoryId: selectedCategoryId }).unwrap();
+                  setSelectedSubCategoryIds((ids) => [...ids, sc.id]);
+                  setSelectedSubCategoryId((cur) => cur || sc.id);
+                  return sc;
+                }}
+              />
+            </div>
             <InfiniteSelect
               items={allSubCategories}
               getOptionLabel={(s) => s.title}
@@ -802,7 +829,20 @@ const ProductsPage = () => {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sous-sous-catégorie niveau 1</label>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <label className="block text-sm font-medium text-gray-700">Sous-sous-catégorie</label>
+                <QuickCreate
+                  label="Sous-sous-catégorie"
+                  disabled={!selectedSubCategoryId}
+                  disabledHint="Choisissez d'abord une sous-catégorie"
+                  onCreate={async (title) => {
+                    const ss = await createSubSub1Quick({ title, subCategoryId: selectedSubCategoryId }).unwrap();
+                    setSelectedSubSubCategory1Ids((ids) => [...ids, ss.id]);
+                    setSelectedSubSubCategory1Id((cur) => cur || ss.id);
+                    return ss;
+                  }}
+                />
+              </div>
               <InfiniteSelect
                 items={allSubSubCategories1}
                 getOptionLabel={(item) => item.title}

@@ -34,6 +34,7 @@ import { UpdateProductDto } from "./dto/update-product.dto";
 import { ProductQueryDto } from "./dto/product-query.dto";
 import { ChangeLifecycleDto } from "./dto/change-lifecycle.dto";
 import { SetFeaturedProductsDto } from "./dto/set-featured-products.dto";
+import { PublishProductsDto } from "./dto/publish-products.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -165,6 +166,14 @@ export class ProductController {
       "products",
     );
     return this.productService.createWithPhotos(dto, photoDocs);
+  }
+
+  @Patch("admin/publish")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Admin: publier / dépublier des produits sur le site" })
+  publish(@Body() dto: PublishProductsDto) {
+    return this.productService.setPublished(dto.ids, dto.published);
   }
 
   @Get("admin/list")

@@ -234,6 +234,10 @@ export class ProductService {
     const skip = (page - 1) * actualLimit;
 
     const where: any = {};
+    // Storefront: only published products. Admin: optional "published" filter.
+    if (sanitize) where.isPublished = true;
+    else if (query.published === "yes") where.isPublished = true;
+    else if (query.published === "no") where.isPublished = false;
 
     if (search) {
       where.OR = [
@@ -428,6 +432,7 @@ export class ProductService {
 
   async getPriceRange() {
     const range = await this.prisma.product.aggregate({
+      where: { isPublished: true },
       _min: { PrixVente: true },
       _max: { PrixVente: true },
     });
@@ -506,6 +511,7 @@ export class ProductService {
 
   async findOnePublic(id: string) {
     const product = await this.findOne(id);
+    if (!(product as { isPublished?: boolean }).isPublished) throw new NotFoundException("Produit introuvable.");
     return sanitizeProductForStorefront(product);
   }
 
@@ -709,14 +715,30 @@ export class ProductService {
     return out.slice(0, 1000).map((p) => ({ id: p.id, ref: p.ref, productName: p.productName, description: p.description, PrixVente: p.PrixVente }));
   }
 
+  /**
+   * A product can only be deleted while nothing depends on it: not in an order, not sold / paid /
+   * delivered (it would break orders, déposant payouts and the history).
+   */
   async remove(id: string) {
-    await this.findOne(id);
-
-    await this.prisma.product.delete({
+    const p = await this.prisma.product.findUnique({
       where: { id },
+      select: { status: true, _count: { select: { commandDetails: true } } },
     });
+    if (!p) throw new NotFoundException("Produit introuvable.");
+    if (p._count.commandDetails > 0) {
+      throw new BadRequestException("Impossible de supprimer : ce produit fait partie d'une commande.");
+    }
+    if (p.status === ProductStatus.VENDU) {
+      throw new BadRequestException("Impossible de supprimer un produit vendu, payé ou livré. Remettez-le en vente ou retirez-le d'abord.");
+    }
+    await this.prisma.product.delete({ where: { id } });
+    return { message: "Produit supprimé" };
+  }
 
-    return { message: "Product deleted successfully" };
+  /** Publish / unpublish on the storefront (bulk). */
+  async setPublished(ids: string[], published: boolean) {
+    const res = await this.prisma.product.updateMany({ where: { id: { in: ids } }, data: { isPublished: published } });
+    return { updated: res.count, published };
   }
 
 
@@ -745,7 +767,7 @@ export class ProductService {
   async getFeaturedProducts() {
     // Storefront "Sélection": only articles still available (sold / withdrawn ones are hidden).
     const rows = await this.prisma.featuredProduct.findMany({
-      where: { product: { isDispo: true, status: ProductStatus.EN_VENTE } },
+      where: { product: { isDispo: true, status: ProductStatus.EN_VENTE, isPublished: true } },
       orderBy: { sortOrder: "asc" },
       take: 8,
       include: {

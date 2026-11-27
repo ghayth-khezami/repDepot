@@ -13,6 +13,9 @@ import {
   Tag,
   UserRound,
   CircleDot,
+  Check,
+  EyeOff,
+  Globe,
 } from 'lucide-react';
 import { useGetProductsFeedInfiniteQuery, type ProductFeedArgs, type ProductStage } from '../../store/api/productApi';
 import { useGetCategoriesFeedInfiniteQuery } from '../../store/api/categoryApi';
@@ -20,6 +23,15 @@ import { useGetCoClientsFeedInfiniteQuery } from '../../store/api/coClientApi';
 import InfinitePickerList from '../../components/InfinitePickerList';
 import HeartButton from './HeartButton';
 import OrderBadge from './OrderBadge';
+import { usePublishProductsMutation } from '../../store/api/productApi';
+
+function SiteBadge({ published, className }: { published?: boolean; className?: string }) {
+  return (
+    <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold', published ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600', className)} title={published ? 'Visible sur le site' : 'Non publié sur le site'}>
+      {published ? <Globe size={11} aria-hidden /> : <EyeOff size={11} aria-hidden />} {published ? 'En ligne' : 'Hors ligne'}
+    </span>
+  );
+}
 import type { Category, CoClient } from '../../types';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useToast } from '../../context/ToastContext';
@@ -43,6 +55,7 @@ import {
   SheetSection,
   SheetTile,
   Skeleton,
+  StickyActionBar,
   Pager,
   useDesktopPager,
   useIsDesktop,
@@ -51,7 +64,7 @@ import StageControl, { STAGE_META, stageFrom } from './StageControl';
 import type { Product } from '../../types';
 
 type Segment = 'all' | 'depot' | 'achat';
-type Picker = 'category' | 'stage' | 'deposant' | 'actions' | null;
+type Picker = 'category' | 'stage' | 'deposant' | 'site' | 'actions' | null;
 
 const SORTS: Array<{ value: ProductFeedArgs['sort'] | undefined; label: string }> = [
   { value: undefined, label: 'Plus récents' },
@@ -92,6 +105,30 @@ export default function ProductsList({
   const [picker, setPicker] = useState<Picker>(null);
   const [pickerSearch, setPickerSearch] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [site, setSite] = useState<'yes' | 'no' | null>(null);
+  /** Selection mode: pick products, then "Publier" / "Retirer du site". */
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [publish, { isLoading: publishing }] = usePublishProductsMutation();
+  const toggleSel = (id: string) =>
+    setSelected((cur) => {
+      const n = new Set(cur);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const doPublish = async (published: boolean) => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    try {
+      const r = await publish({ ids, published }).unwrap();
+      showToast(published ? `${r.updated} produit(s) publié(s) sur le site` : `${r.updated} produit(s) retiré(s) du site`, 'success');
+      setSelected(new Set());
+      setSelecting(false);
+    } catch (e) {
+      showToast((e as Error).message || 'Publication impossible', 'error');
+    }
+  };
 
   const args: ProductFeedArgs = {
     search: search || undefined,
@@ -101,6 +138,7 @@ export default function ProductsList({
     stage: stage ?? undefined,
     coclientId: deposant?.id,
     sort: SORTS[sort].value,
+    published: site ?? undefined,
   };
   const feed = useGetProductsFeedInfiniteQuery(args);
   const pages = feed.data?.pages ?? [];
@@ -146,6 +184,17 @@ export default function ProductsList({
       <div className="space-y-3 md:sticky md:top-16 md:z-20 md:-mx-8 md:bg-bd-bg/90 md:px-8 md:pb-3 md:pt-1 md:backdrop-blur">
         <div className="flex items-center gap-3">
           <SearchBar value={q} onChange={setQ} placeholder="Nom, réf., déposant ou téléphone…" className="flex-1" />
+          <button
+            type="button"
+            onClick={() => {
+              setSelecting((v) => !v);
+              setSelected(new Set());
+            }}
+            aria-pressed={selecting}
+            className={cn('bd-focus inline-flex min-h-[48px] shrink-0 items-center gap-2 rounded-2xl px-3 font-extrabold md:px-4', selecting ? 'bg-bd-ink text-white' : 'border border-bd-line/15 bg-bd-surface text-bd-ink')}
+          >
+            <Globe size={18} aria-hidden /> <span className="hidden sm:inline">{selecting ? 'Annuler' : 'Publier'}</span>
+          </button>
           <button type="button" onClick={onAdd} className="bd-focus hidden min-h-[48px] shrink-0 items-center gap-2 rounded-2xl bg-grad-pink-strong px-5 font-extrabold text-white shadow-glow-pink md:inline-flex">
             <Plus size={18} aria-hidden /> Ajouter
           </button>
@@ -165,6 +214,7 @@ export default function ProductsList({
           {lot ? <FilterChip icon={Layers} label={lot.label} active onClick={() => (setLot(null), onClearContract())} onClear={() => (setLot(null), onClearContract())} /> : null}
           <FilterChip icon={CircleDot} label={stage ? STAGE_META[stage].label : 'Statut'} active={!!stage} onClick={() => openPicker('stage')} onClear={() => setStage(null)} />
           <FilterChip icon={UserRound} label={deposant?.label ?? 'Déposant'} active={!!deposant} onClick={() => openPicker('deposant')} onClear={() => setDeposant(null)} />
+          <FilterChip icon={Globe} label={site === 'yes' ? 'En ligne' : site === 'no' ? 'Hors ligne' : 'Site'} active={!!site} onClick={() => openPicker('site')} onClear={() => setSite(null)} />
         </FilterChips>
       </div>
 
@@ -183,8 +233,15 @@ export default function ProductsList({
         <>
           <ul className={cn('grid grid-cols-2 gap-4 transition-opacity lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5', (pager.loading || (feed.isFetching && !feed.isFetchingNextPage)) && 'opacity-60')}>
             {pager.pageItems.map((p) => (
-              <li key={p.id} className="bd-anim-fade-up group flex flex-col overflow-hidden rounded-3xl border border-bd-line/10 bg-bd-surface shadow-card transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(76,29,149,0.16)]">
-                <button type="button" onClick={() => onOpen(p)} className="bd-focus relative block aspect-[4/3] w-full overflow-hidden bg-bd-lilac/50 text-left">
+              <li key={p.id} className={cn('bd-anim-fade-up group flex flex-col overflow-hidden rounded-3xl border bg-bd-surface shadow-card transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(76,29,149,0.16)]', selecting && selected.has(p.id) ? 'border-bd-violet ring-4 ring-bd-violet/20' : 'border-bd-line/10')}>
+                <button type="button" onClick={() => (selecting ? toggleSel(p.id) : onOpen(p))} className="bd-focus relative block aspect-[4/3] w-full overflow-hidden bg-bd-lilac/50 text-left">
+                  {selecting ? (
+                    <span className={cn('absolute right-3 top-3 z-[1] flex h-8 w-8 items-center justify-center rounded-lg border-2 shadow', selected.has(p.id) ? 'border-bd-violet bg-bd-violet text-white' : 'border-white bg-white/80')}>
+                      {selected.has(p.id) ? <Check size={18} strokeWidth={3} aria-hidden /> : null}
+                    </span>
+                  ) : (
+                    <SiteBadge published={p.isPublished} className="absolute right-3 top-3 z-[1]" />
+                  )}
                   {p.photos?.[0] ? (
                     <img src={uploadUrl(p.photos[0].photoDoc)} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                   ) : (
@@ -195,7 +252,7 @@ export default function ProductsList({
                   </span>
                 </button>
                 <div className="flex flex-1 flex-col gap-2 p-4">
-                  <button type="button" onClick={() => onOpen(p)} className="bd-focus min-w-0 rounded-lg text-left">
+                  <button type="button" onClick={() => (selecting ? toggleSel(p.id) : onOpen(p))} className="bd-focus min-w-0 rounded-lg text-left">
                     <span className="block truncate text-[11px] font-extrabold uppercase tracking-wide text-bd-muted">
                       {p.ref ?? ''} · {p.depositRequest?.contractNumber ?? (p.isDepot ? 'Dépôt' : 'Stock boutique')}
                     </span>
@@ -231,8 +288,18 @@ export default function ProductsList({
             return (
               <ListRow
                 key={p.id}
-                onClick={() => onOpen(p)}
-                thumb={p.photos?.[0] ? <img src={uploadUrl(p.photos[0].photoDoc)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Package size={22} aria-hidden />}
+                onClick={() => (selecting ? toggleSel(p.id) : onOpen(p))}
+                selected={selecting && selected.has(p.id)}
+                thumb={
+                  <span className="relative flex h-full w-full items-center justify-center">
+                    {p.photos?.[0] ? <img src={uploadUrl(p.photos[0].photoDoc)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Package size={22} aria-hidden />}
+                    {selecting ? (
+                      <span className={cn('absolute inset-0 flex items-center justify-center', selected.has(p.id) ? 'bg-bd-violet/70 text-white' : 'bg-black/10')}>
+                        {selected.has(p.id) ? <Check size={22} strokeWidth={3} aria-hidden /> : null}
+                      </span>
+                    ) : null}
+                  </span>
+                }
                 meta={`${p.ref ?? ''} · ${lotLabel}`}
                 title={p.productName}
                 subtitle={
@@ -242,6 +309,7 @@ export default function ProductsList({
                     </span>
                     <StageControl productId={p.id} stage={stageFrom(p)} isDepot={p.isDepot} size="sm" />
                     <OrderBadge status={(p as { orderStatus?: string | null }).orderStatus} />
+                    <SiteBadge published={p.isPublished} />
                   </>
                 }
                 trailing={
@@ -273,7 +341,53 @@ export default function ProductsList({
         </EmptyState>
       )}
 
-      <Fab icon={Plus} label="Ajouter" onClick={onAdd} />
+      {selecting ? (
+        <StickyActionBar>
+          <button
+            type="button"
+            onClick={() => {
+              const visible = (isDesktop ? pager.pageItems : products).map((p) => p.id);
+              const all = visible.every((id) => selected.has(id));
+              setSelected((cur) => {
+                const n = new Set(cur);
+                visible.forEach((id) => (all ? n.delete(id) : n.add(id)));
+                return n;
+              });
+            }}
+            className="bd-focus min-h-[52px] shrink-0 rounded-2xl border border-bd-line/15 px-3 text-sm font-extrabold text-bd-ink"
+          >
+            Tout
+          </button>
+          <button type="button" disabled={!selected.size || publishing} onClick={() => void doPublish(false)} className="bd-focus min-h-[52px] shrink-0 rounded-2xl border border-bd-line/15 px-3 text-sm font-extrabold text-bd-ink disabled:opacity-50">
+            Retirer
+          </button>
+          <button type="button" disabled={!selected.size || publishing} onClick={() => void doPublish(true)} className="bd-focus inline-flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl bg-grad-pink-strong px-4 text-[15px] font-extrabold text-white shadow-glow-pink disabled:opacity-50">
+            <Globe size={18} aria-hidden /> {selected.size ? `Publier ${selected.size} produit${selected.size > 1 ? 's' : ''}` : 'Sélectionnez des produits'}
+          </button>
+        </StickyActionBar>
+      ) : (
+        <Fab icon={Plus} label="Ajouter" onClick={onAdd} />
+      )}
+
+      <BottomSheet open={picker === 'site'} onClose={() => setPicker(null)} title="Visibilité sur le site">
+        <ul className="space-y-2">
+          {([
+            [null, 'Tous les produits'],
+            ['yes', 'En ligne (publiés)'],
+            ['no', 'Hors ligne (non publiés)'],
+          ] as const).map(([v, label]) => (
+            <li key={label}>
+              <button
+                type="button"
+                onClick={() => (setSite(v), setPicker(null))}
+                className={cn('bd-focus flex min-h-[52px] w-full items-center gap-3 rounded-2xl border px-4 font-extrabold', site === v ? 'border-bd-violet bg-bd-lilac/50' : 'border-bd-line/10')}
+              >
+                {label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </BottomSheet>
 
       {/* Pickers */}
       <BottomSheet open={picker === 'category'} onClose={() => setPicker(null)} title="Catégorie">

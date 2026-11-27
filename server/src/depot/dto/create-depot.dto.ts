@@ -130,6 +130,11 @@ export class DepotItemDto {
   @IsUUID("4")
   subSubCategory1Id?: string;
 
+  @ApiPropertyOptional({ description: "Date de dépôt de cet article (YYYY-MM-DD). Défaut : date du contrat / aujourd'hui." })
+  @IsOptional()
+  @IsDateString({}, { message: "Date de dépôt de l'article invalide." })
+  depositDate?: string;
+
   @ApiPropertyOptional({ type: [String], description: "URLs returned by /media/upload (Cloudinary https URL or /uploads/… fallback)" })
   @IsOptional()
   @IsArray()

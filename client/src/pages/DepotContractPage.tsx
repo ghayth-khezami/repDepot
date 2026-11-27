@@ -67,6 +67,7 @@ function AddArticles({ id, contractNumber, deposantName }: { id: string; contrac
           name: it.name.trim(),
           price: fromMillimes(parseTndInput(it.price) ?? 0),
           commissionPercent: it.commission,
+            depositDate: it.depositDate || undefined,
           categoryId: it.categoryId,
           photos: it.photos.length ? it.photos : undefined,
         })),

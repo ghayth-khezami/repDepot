@@ -159,6 +159,7 @@ model CoClient {
   commandDetails  CommandDetail[]
   depositRequests DepositRequest[]
   products        Product[]
+  paymentRequests PaymentRequest[]
 
   @@map("co_clients")
 }
@@ -263,6 +264,8 @@ model Product {
   /// Unique store barcode for label scanning (EAN-13 style numeric).
   barcode                String?                  @unique
   /// Human-readable unique reference printed on labels and contracts.
+  /// Visible on the storefront only once published from the backoffice.
+  isPublished            Boolean                  @default(false)
   ref                    String                   @unique @default(dbgenerated("('P-'::text || lpad((nextval('product_ref_seq'::regclass))::text, 5, '0'::text))"))
   status                 ProductStatus            @default(EN_VENTE)
   soldAt                 DateTime?
@@ -336,6 +339,7 @@ model Command {
   /// Set when the shop accepts the order / when it is delivered (customer stepper).
   acceptedAt       DateTime?
   deliveredAt      DateTime?
+  cancelledAt      DateTime?
   adresseLivraison String
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -527,6 +531,8 @@ enum CommandStatus {
   ACCEPTED
   /// Livrée
   DELIVERED
+  /// Annulée (articles remis en vente; seule une commande annulée peut être supprimée)
+  CANCELLED
   GOT_PROFIT
 }
 
@@ -567,4 +573,25 @@ enum Weekday {
 enum NotificationType {
   COMMAND_CREATED
   DEPOSIT_REQUEST_CREATED
+  PAYMENT_REQUEST
+}
+
+/// A déposant asks (from the public suivi page) to collect the money of sold articles on a date.
+model PaymentRequest {
+  id               String    @id @default(uuid())
+  coClientId       String
+  coClient         CoClient  @relation(fields: [coClientId], references: [id], onDelete: Cascade)
+  depositRequestId String?
+  productIds       String[]
+  amountMillimes   Int
+  pickupDate       DateTime
+  /// PENDING | DONE | CANCELLED
+  status           String    @default("PENDING")
+  note             String?
+  handledAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([status, pickupDate])
+  @@index([coClientId])
+  @@map("payment_requests")
 }

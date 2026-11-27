@@ -30,6 +30,8 @@ export interface DepotItemInput {
   commissionPercent: number;
   categoryId: string;
   photos?: string[];
+  /** Date de dépôt de cet article (YYYY-MM-DD). */
+  depositDate?: string;
 }
 
 export interface CreateDepotInput {
@@ -54,6 +56,8 @@ export interface ContractItem {
   status: ProductStatusValue;
   soldAt: string | null;
   payoutStatus: PayoutStatusValue | null;
+  /** Each article's own deposit date. */
+  depositedAt?: string;
 }
 
 export interface DepotContract {
@@ -74,6 +78,7 @@ export interface DepotContract {
     number: number;
     firstName: string;
     lastName: string;
+    gender?: 'F' | 'M' | null;
     phone: string;
     email: string | null;
     address: string | null;
@@ -152,6 +157,11 @@ export const depotApi = baseApi.injectEndpoints({
       query: ({ id, items }) => ({ url: `/depots/${id}/items`, method: 'POST', body: { items } }),
       invalidatesTags: (_r, _e, { id }) => [{ type: 'DepositRequest', id }, 'DepositRequest', 'Product'],
     }),
+    /** Deletes a contract and its articles (refused if an article is sold / in an order). */
+    deleteDepot: builder.mutation<{ message: string; deletedProducts: number }, string>({
+      query: (id) => ({ url: `/depots/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['DepositRequest', 'CoClient', 'Product'],
+    }),
     markDepotSigned: builder.mutation<DepotContract, string>({
       query: (id) => ({ url: `/depots/${id}/signed`, method: 'POST' }),
       invalidatesTags: (_r, _e, id) => [{ type: 'DepositRequest', id }, 'DepositRequest'],
@@ -178,5 +188,6 @@ export const {
   useGetDepotQuery,
   useAddDepotItemsMutation,
   useMarkDepotSignedMutation,
+  useDeleteDepotMutation,
   useUploadMediaMutation,
 } = depotApi;

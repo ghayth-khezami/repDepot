@@ -1,5 +1,5 @@
 import { memo, useId, useRef } from 'react';
-import { ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
+import { ImagePlus, Loader2, Plus, Trash2, X, CalendarDays } from 'lucide-react';
 import { useUploadMediaMutation } from '../../store/api/depotApi';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { compressImageForUpload } from '../../lib/compressImage';
@@ -201,6 +201,25 @@ interface RowProps {
   onRemove: (key: string) => void;
 }
 
+function DepositDateInput({ id, value, onChange, compact }: { id: string; value?: string; onChange: (v: string) => void; compact?: boolean }) {
+  return (
+    <label htmlFor={id} className={compact ? 'mt-1.5 flex items-center gap-1.5 text-[11px] font-extrabold text-bd-muted' : 'block'}>
+      {compact ? <CalendarDays size={13} aria-hidden /> : <span className="mb-1 block text-xs font-extrabold text-bd-ink">Date de dépôt</span>}
+      <input
+        id={id}
+        type="date"
+        data-dictation="off"
+        value={value ?? ''}
+        max={new Date().toISOString().slice(0, 10)}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Date de dépôt de l'article"
+        title="Date de dépôt (vide = date du contrat)"
+        className={compact ? 'min-h-[30px] rounded-lg border border-bd-line/15 bg-bd-surface px-2 text-[12px] font-bold text-bd-ink' : 'bd-input'}
+      />
+    </label>
+  );
+}
+
 const DesktopRow = memo(function DesktopRow({ item, index, errors, canRemove, onPatch, onRemove }: RowProps) {
   const id = useId();
   const patch = (p: Patch) => onPatch(item.key, p);
@@ -210,6 +229,7 @@ const DesktopRow = memo(function DesktopRow({ item, index, errors, canRemove, on
       <div>
         <NameInput id={`${id}-name`} label={`Nom de l'article ${index + 1}`} placeholder="Ex. Poussette Chicco" value={item.name} onChange={(name) => patch({ name })} error={errors?.name} />
         {errors?.name ? <p className="mt-1 text-xs font-bold text-bd-danger">{errors.name}</p> : null}
+        <DepositDateInput id={`${id}-date`} value={item.depositDate} onChange={(depositDate) => patch({ depositDate })} compact />
       </div>
       <div>
         <label htmlFor={`${id}-cat`} className="sr-only">Catégorie de l'article {index + 1}</label>
@@ -274,6 +294,9 @@ const MobileCard = memo(function MobileCard({ item, index, errors, canRemove, on
           <label htmlFor={`${id}-com`} className="mb-1 block text-xs font-extrabold text-bd-ink">Commission</label>
           <CommissionInput id={`${id}-com`} value={item.commission} onChange={(commission) => patch({ commission })} error={errors?.commission} />
         </div>
+      </div>
+      <div className="mt-3">
+        <DepositDateInput id={`${id}-date`} value={item.depositDate} onChange={(depositDate) => patch({ depositDate })} />
       </div>
       <div className="mt-3 rounded-2xl bg-bd-bg p-3">
         <SplitFigures item={item} />

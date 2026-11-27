@@ -15,6 +15,11 @@ export function getCommandStatusBadge(status: string): StatusBadge {
         label: "Terminée",
         className: "border-violet-200 bg-violet-50 text-violet-800",
       };
+    case "CANCELLED":
+      return {
+        label: "Annulée",
+        className: "border-rose-200 bg-rose-50 text-rose-700",
+      };
     case "ACCEPTED":
       return {
         label: "Acceptée",

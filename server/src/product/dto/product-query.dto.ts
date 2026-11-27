@@ -92,4 +92,9 @@ export class ProductQueryDto extends PaginationDto {
   @IsOptional()
   @IsIn(["EN_VENTE", "VENDU", "PAYE", "RETIRE"])
   stage?: "EN_VENTE" | "VENDU" | "PAYE" | "RETIRE";
+
+  @ApiPropertyOptional({ enum: ["yes", "no"], description: "Admin: publiés / non publiés sur le site" })
+  @IsOptional()
+  @IsIn(["yes", "no"])
+  published?: "yes" | "no";
 }

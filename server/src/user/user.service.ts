@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { UserRole } from "@prisma/client";
+
+/** The owner account: always ADMIN, cannot be deleted (PROTECTED_ADMIN_EMAIL overrides). */
+export const PROTECTED_ADMIN_EMAIL = (process.env.PROTECTED_ADMIN_EMAIL || "eya@bebedepot.tn").toLowerCase();
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
@@ -9,6 +13,10 @@ import * as bcrypt from "bcryptjs";
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await ensureOwnerIsAdmin(this.prisma).catch(() => undefined);
+  }
 
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({
@@ -96,9 +104,14 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    await this.findOne(id);
+    const current = await this.findOne(id);
 
     const data: any = { ...updateUserDto };
+    if ((current as { email?: string }).email?.toLowerCase() === PROTECTED_ADMIN_EMAIL) {
+      // The owner keeps the ADMIN role and her email.
+      if (data.role && data.role !== UserRole.ADMIN) throw new ForbiddenException("Le compte propriétaire reste administrateur.");
+      delete data.email;
+    }
     if (updateUserDto.password) {
       data.password = await bcrypt.hash(updateUserDto.password, 10);
     }
@@ -117,7 +130,10 @@ export class UserService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const current = await this.findOne(id);
+    if ((current as { email?: string }).email?.toLowerCase() === PROTECTED_ADMIN_EMAIL) {
+      throw new ForbiddenException("Le compte propriétaire (" + PROTECTED_ADMIN_EMAIL + ") ne peut pas être supprimé.");
+    }
 
     await this.prisma.user.delete({
       where: { id },
@@ -125,4 +141,9 @@ export class UserService {
 
     return { message: "User deleted successfully" };
   }
+}
+
+/** Startup safety net: the owner account always has the ADMIN role. */
+export async function ensureOwnerIsAdmin(prisma: PrismaService) {
+  await prisma.user.updateMany({ where: { email: PROTECTED_ADMIN_EMAIL, NOT: { role: UserRole.ADMIN } }, data: { role: UserRole.ADMIN } });
 }

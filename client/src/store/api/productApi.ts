@@ -92,6 +92,11 @@ export const productApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Product'],
     }),
+    /** Publish / unpublish on the storefront (bulk). */
+    publishProducts: builder.mutation<{ updated: number; published: boolean }, { ids: string[]; published: boolean }>({
+      query: (body) => ({ url: '/products/admin/publish', method: 'PATCH', body }),
+      invalidatesTags: ['Product'],
+    }),
     changeLifecycle: builder.mutation<
       { id: string; from: ProductStage; stage: ProductStage; notification: NotifySummary | null },
       { id: string; to: ProductStage }
@@ -126,6 +131,8 @@ export interface ProductFeedArgs {
   depositRequestId?: string;
   stage?: ProductStage;
   sort?: 'price_asc' | 'price_desc';
+  /** Storefront: published ("yes") / not published ("no"). */
+  published?: 'yes' | 'no';
 }
 export interface NotifySummary {
   sent: number;
@@ -137,6 +144,7 @@ export interface NotifySummary {
 
 export const {
   useChangeLifecycleMutation,
+  usePublishProductsMutation,
   useGetProductsFeedInfiniteQuery,
   useGetProductsQuery,
   useGetProductsInfiniteQuery,

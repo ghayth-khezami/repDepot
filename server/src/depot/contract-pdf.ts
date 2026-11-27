@@ -26,6 +26,8 @@ export interface ContractPdfData {
     commissionPercent: number;
     shopMillimes: number;
     depositorMillimes: number;
+    /** Each article's own deposit date. */
+    depositedAt?: Date;
   }>;
   totals: { priceMillimes: number; shopMillimes: number; depositorMillimes: number };
   terms: string;
@@ -41,11 +43,12 @@ const CONTENT_W = PAGE_W - MARGIN * 2;
 
 /** Columns mirror the paper template: Réf. | Désignation article | PV public | Commission | Net déposant */
 const COLS = [
-  { title: "Réf.", w: 20, align: "center" as const },
-  { title: "Désignation article", w: 72, align: "left" as const },
-  { title: "PV public", w: 26, align: "right" as const },
+  { title: "Réf.", w: 19, align: "center" as const },
+  { title: "Désignation article", w: 55, align: "left" as const },
+  { title: "Déposé le", w: 21, align: "center" as const },
+  { title: "PV public", w: 24, align: "right" as const },
   { title: "Commission", w: 28, align: "right" as const },
-  { title: "Net déposant", w: CONTENT_W - 20 - 72 - 26 - 28, align: "right" as const },
+  { title: "Net déposant", w: CONTENT_W - 19 - 55 - 21 - 24 - 28, align: "right" as const },
 ];
 const ROW_H = 7;
 const MIN_ROWS = 10;
@@ -262,12 +265,13 @@ export async function buildContractPdf(data: ContractPdfData): Promise<Buffer> {
   const rows = data.items.map((it) => [
     it.ref,
     it.name,
+    it.depositedAt ? frDate(it.depositedAt) : frDate(data.createdAt),
     amount(it.priceMillimes),
     `${amount(it.shopMillimes)} (${it.commissionPercent}%)`,
     amount(it.depositorMillimes),
   ]);
   const blankRows = Math.max(0, MIN_ROWS - rows.length);
-  const allRows = [...rows, ...Array.from({ length: blankRows }, () => ["", "", "", "", ""])];
+  const allRows = [...rows, ...Array.from({ length: blankRows }, () => ["", "", "", "", "", ""])];
 
   for (const r of allRows) {
     if (y + ROW_H > 262) {
@@ -285,6 +289,7 @@ export async function buildContractPdf(data: ContractPdfData): Promise<Buffer> {
     [
       "",
       `Total — ${data.items.length} article${data.items.length > 1 ? "s" : ""}`,
+      "",
       amount(data.totals.priceMillimes),
       amount(data.totals.shopMillimes),
       amount(data.totals.depositorMillimes),

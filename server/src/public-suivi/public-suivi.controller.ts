@@ -4,6 +4,8 @@ import { DeposantPushDto, DeposantUnsubscribeDto } from "./dto/deposant-push.dto
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { PublicSuiviService } from "./public-suivi.service";
 import { SuiviRateLimitGuard } from "./suivi-rate-limit.guard";
+import { PaymentRequestService } from "./payment-request.service";
+import { CreatePaymentRequestDto } from "./dto/payment-request.dto";
 
 @ApiTags("public")
 @Controller("public/suivi")
@@ -12,7 +14,21 @@ export class PublicSuiviController {
   constructor(
     private readonly suivi: PublicSuiviService,
     private readonly push: DeposantPushService,
+    private readonly payments: PaymentRequestService,
   ) {}
+
+  @Get(":token/payment-requests")
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "Demandes de paiement de ce contrat" })
+  paymentRequests(@Param("token") token: string) {
+    return this.payments.listForToken(token);
+  }
+
+  @Post(":token/payment-request")
+  @ApiOperation({ summary: "Demande de paiement : articles vendus + jour de passage (48 h min, pas le dimanche)" })
+  requestPayment(@Param("token") token: string, @Body() dto: CreatePaymentRequestDto) {
+    return this.payments.create(token, dto);
+  }
 
   @Get("push/key")
   @ApiOperation({ summary: "VAPID public key for the déposant tracking app" })

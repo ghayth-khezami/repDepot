@@ -3,7 +3,7 @@ import { baseApi } from './baseApi';
 import { PaginatedResponse, QueryParams } from '../../types';
 
 /** NOT_DELIVERED = Reçue, ACCEPTED = Acceptée, DELIVERED = Livrée (GOT_PROFIT = legacy, shown as Livrée). */
-export type CommandStatus = 'NOT_DELIVERED' | 'ACCEPTED' | 'DELIVERED' | 'GOT_PROFIT';
+export type CommandStatus = 'NOT_DELIVERED' | 'ACCEPTED' | 'DELIVERED' | 'GOT_PROFIT' | 'CANCELLED';
 
 export interface Command {
   id: string;

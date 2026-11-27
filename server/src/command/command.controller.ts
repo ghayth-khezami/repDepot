@@ -251,6 +251,7 @@ export class CommandController {
         NOT_DELIVERED: "Reçue",
         ACCEPTED: "Acceptée",
         DELIVERED: "Livrée",
+        CANCELLED: "Annulée",
       };
       const rowData = [
         cmd.id.substring(0, 8),

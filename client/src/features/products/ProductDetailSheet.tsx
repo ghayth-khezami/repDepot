@@ -28,7 +28,7 @@ type FullProduct = Product & {
   likesCount?: number;
 };
 
-const ORDER_STATUS: Record<string, string> = { NOT_DELIVERED: 'Reçue', ACCEPTED: 'Acceptée', DELIVERED: 'Livrée', GOT_PROFIT: 'Livrée' };
+const ORDER_STATUS: Record<string, string> = { NOT_DELIVERED: 'Reçue', ACCEPTED: 'Acceptée', DELIVERED: 'Livrée', GOT_PROFIT: 'Livrée', CANCELLED: 'Annulée' };
 const d = (x?: string | null) => (x ? new Date(x).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -235,7 +235,8 @@ export default function ProductDetailSheet({
             </div>
 
             <StickyActionBar>
-              {onDelete ? (
+              {/* Not deletable once sold / paid / delivered or part of an order */}
+              {onDelete && p.status !== 'VENDU' && !(p.orders?.length) ? (
                 <button type="button" onClick={() => onDelete(p.id)} aria-label="Supprimer le produit" className="bd-focus flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl border border-bd-danger/30 text-bd-danger">
                   <Trash2 size={20} aria-hidden />
                 </button>

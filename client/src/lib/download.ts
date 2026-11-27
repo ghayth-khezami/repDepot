@@ -32,11 +32,34 @@ export async function fetchAuthedBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
-export function saveBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
+const MIME: Record<string, string> = { pdf: 'application/pdf', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv' };
+
+const isAppleMobile = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+/**
+ * Saves a file with its real name and type. On iPhone / iPad and in the installed app, `<a download>`
+ * only opens a preview — there the share sheet is used ("Enregistrer dans Fichiers", WhatsApp…).
+ */
+export async function saveBlob(blob: Blob, filename: string) {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  const typed = MIME[ext] && blob.type !== MIME[ext] ? new Blob([blob], { type: MIME[ext] }) : blob;
+  if (isAppleMobile() || isStandalone()) {
+    try {
+      const file = new File([typed], filename, { type: typed.type });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return;
+      }
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return; // closed the share sheet
+    }
+  }
+  const url = URL.createObjectURL(typed);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -44,7 +67,7 @@ export function saveBlob(blob: Blob, filename: string) {
 }
 
 export async function downloadAuthed(path: string, filename: string) {
-  saveBlob(await fetchAuthedBlob(path), filename);
+  await saveBlob(await fetchAuthedBlob(path), filename);
 }
 
 /** Opens a protected PDF in a hidden iframe and triggers the print dialog. */

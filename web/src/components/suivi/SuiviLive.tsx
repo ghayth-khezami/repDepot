@@ -8,6 +8,7 @@ import type { SuiviData, SuiviItem } from "@/lib/suivi";
 import { getClientApiUrl, getRemoteApiUrl } from "@/lib/api-url";
 import { formatTnd, frDate, frShortDate } from "./format";
 import { SuiviAppActions, SuiviWelcome } from "./SuiviApp";
+import { PaymentRequestCard } from "./PaymentRequest";
 
 const absPhoto = (p: string | null) => (!p ? null : p.startsWith("http") ? p : `${getRemoteApiUrl()}${p.startsWith("/") ? p : `/${p}`}`);
 const withPhotos = (d: SuiviData): SuiviData => ({ ...d, items: d.items.map((i) => ({ ...i, photo: absPhoto(i.photo) })) });
@@ -466,6 +467,7 @@ export default function SuiviLive({ token, initial, hero }: { token: string; ini
           </div>
         </section>
 
+        <PaymentRequestCard token={token} items={items} />
         <SuiviAppActions token={token} />
 
         {items.length ? (

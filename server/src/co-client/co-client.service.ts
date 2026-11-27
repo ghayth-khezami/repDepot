@@ -249,6 +249,16 @@ export class CoClientService {
 
   async remove(id: string) {
     await this.findOne(id);
+    const [contracts, products] = await Promise.all([
+      this.prisma.depositRequest.count({ where: { coClientId: id } }),
+      this.prisma.product.count({ where: { coclientId: id } }),
+    ]);
+    if (contracts > 0) {
+      throw new BadRequestException(`Impossible de supprimer : ce déposant a ${contracts} contrat(s). Supprimez d'abord ses contrats.`);
+    }
+    if (products > 0) {
+      throw new BadRequestException(`Impossible de supprimer : ce déposant a encore ${products} article(s).`);
+    }
 
     await this.prisma.coClient.delete({
       where: { id },

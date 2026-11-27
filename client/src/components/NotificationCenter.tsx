@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { io, type Socket } from 'socket.io-client';
-import { Bell, BellOff, BellRing, CheckCheck, ChevronRight, Inbox, MapPin, Package, PackagePlus, Phone, ShoppingCart, Smartphone, UserRound, X } from 'lucide-react';
+import { Bell, BellOff, BellRing, CheckCheck, ChevronRight, Inbox, MapPin, Package, PackagePlus, Phone, ShoppingCart, Smartphone, UserRound, Wallet, X } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { adminPushState, disableAdminPush, enableAdminPush, type PushState } from '../lib/adminPush';
 import { useDispatch } from 'react-redux';
@@ -28,7 +28,7 @@ const timeAgo = (iso: string) => {
 
 function KindIcon({ n, className }: { n: AdminNotification; className?: string }) {
   if (n.productImage) return <img src={uploadUrl(n.productImage)} alt="" className={cn('h-full w-full object-cover', className)} />;
-  const Icon = n.type === 'COMMAND_CREATED' ? ShoppingCart : PackagePlus;
+  const Icon = n.type === 'COMMAND_CREATED' ? ShoppingCart : n.type === 'PAYMENT_REQUEST' ? Wallet : PackagePlus;
   return <Icon size={20} aria-hidden className={className} />;
 }
 
@@ -56,7 +56,7 @@ function useLiveNotifications(onIncoming: (n: AdminNotification) => void) {
         }) as never,
       );
       // The lists behind the notification are stale now.
-      dispatch(baseApi.util.invalidateTags(n.type === 'COMMAND_CREATED' ? ['Command', 'Product'] : ['DepositRequest']));
+      dispatch(baseApi.util.invalidateTags(n.type === 'COMMAND_CREATED' ? ['Command', 'Product'] : n.type === 'PAYMENT_REQUEST' ? ['PaymentRequest'] : ['DepositRequest']));
       cb.current(n);
     });
     // After a reconnection, resync whatever was missed.

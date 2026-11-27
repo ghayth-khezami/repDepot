@@ -6,7 +6,7 @@ import { cn } from '../../lib/cn';
  * (Paying the déposant his share is the separate « Payé » stage of dépôt articles.)
  */
 export default function OrderBadge({ status, className }: { status?: string | null; className?: string }) {
-  if (!status) return null;
+  if (!status || status === 'CANCELLED') return null;
   const m =
     status === 'DELIVERED' || status === 'GOT_PROFIT'
       ? { label: 'Payé & livré', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300', Icon: Truck }

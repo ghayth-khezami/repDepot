@@ -132,6 +132,7 @@ export default function NouveauDepotPage() {
             name: it.name.trim(),
             price: fromMillimes(parseTndInput(it.price) ?? 0),
             commissionPercent: it.commission,
+            depositDate: it.depositDate || undefined,
             categoryId: it.categoryId,
             subCategoryId: it.subCategoryId || undefined,
             subSubCategory1Id: it.subSubCategory1Id || undefined,

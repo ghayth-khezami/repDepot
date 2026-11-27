@@ -6,7 +6,8 @@ import PersonIllustration from '../../components/PersonIllustration';
 import { downloadAuthed } from '../../lib/download';
 import ProductDetailSheet from '../products/ProductDetailSheet';
 import DeposantEditSheet from './DeposantEditSheet';
-import { useGetDeposantByTokenQuery, useGetDeposantOverviewQuery, type DeposantOverview } from '../../store/api/depotApi';
+import DepotChoiceSheet from './DepotChoiceSheet';
+import { useDeleteDepotMutation, useGetDeposantByTokenQuery, useGetDeposantOverviewQuery, type DeposantOverview } from '../../store/api/depotApi';
 import { useChangeLifecycleMutation } from '../../store/api/productApi';
 import { useDeleteCoClientMutation } from '../../store/api/coClientApi';
 import { useToast } from '../../context/ToastContext';
@@ -48,6 +49,7 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
   const [editing, setEditing] = useState(false);
   const [productId, setProductId] = useState<string | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
+  const [depotChoice, setDepotChoice] = useState(false);
   const downloadReport = async () => {
     setReportBusy(true);
     try {
@@ -60,9 +62,34 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
     }
   };
 
+  const [deleteDepot] = useDeleteDepotMutation();
+  const askDeleteContract = (c: DeposantOverview['contracts'][number]) => {
+    const n = d.products.filter((p) => p.contractId === c.id).length;
+    setMenu(false);
+    confirm({
+      title: `Supprimer le contrat ${c.contractNumber ?? ''}`,
+      message: n
+        ? `Le contrat et ses ${n} article(s) seront supprimés. Impossible si un article est vendu ou en commande.`
+        : 'Ce contrat ne contient aucun article. Le supprimer ?',
+      confirmLabel: 'Supprimer le contrat',
+      onConfirm: async () => {
+        try {
+          await deleteDepot(c.id).unwrap();
+          showToast(`Contrat ${c.contractNumber ?? ''} supprimé`, 'success');
+        } catch (e) {
+          showToast(apiErrorMessage(e, 'Suppression impossible'), 'error', 7000);
+        }
+      },
+    });
+  };
+
   const askDelete = () => {
+    if (d.contracts.length) {
+      showToast(`Ce déposant a ${d.contracts.length} contrat(s) : supprimez d'abord ses contrats.`, 'warning', 6000);
+      return;
+    }
     if (d.totals.total) {
-      showToast('Ce déposant a des articles : retirez-les d’abord.', 'warning');
+      showToast('Ce déposant a encore des articles.', 'warning');
       return;
     }
     setMenu(false);
@@ -310,12 +337,9 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
             size="lg"
             icon={Plus}
             className="flex-1"
-            onClick={() => {
-              onClose();
-              navigate(`/depots/nouveau?deposant=${d.id}`);
-            }}
+            onClick={() => setDepotChoice(true)}
           >
-            Nouveau dépôt pour {d.firstName}
+            Dépôt pour {d.firstName}
           </Button>
         </StickyActionBar>
       )}
@@ -334,15 +358,28 @@ function Body({ d, onClose }: { d: DeposantOverview; onClose: () => void }) {
             }}
           />
         ))}
+        {d.contracts.map((c) => (
+          <SheetAction key={`del-${c.id}`} icon={Trash2} tone="danger" label={`Supprimer le contrat ${c.contractNumber ?? ''}`} hint="Avec ses articles (sauf vendus / en commande)" onClick={() => askDeleteContract(c)} />
+        ))}
         <SheetAction icon={Pencil} tone="violet" label="Modifier le déposant" onClick={() => { setMenu(false); setEditing(true); }} />
         <SheetAction
           icon={Trash2}
           tone="danger"
           label="Supprimer le déposant"
-          hint={d.totals.total ? 'Impossible tant qu’il a des articles' : 'Action définitive'}
+          hint={d.contracts.length ? 'Supprimez d’abord ses contrats' : 'Action définitive'}
           onClick={askDelete}
         />
       </BottomSheet>
+      <DepotChoiceSheet
+        deposantId={d.id}
+        name={d.firstName}
+        open={depotChoice}
+        onClose={() => setDepotChoice(false)}
+        onNewContract={() => {
+          onClose();
+          navigate(`/depots/nouveau?deposant=${d.id}`);
+        }}
+      />
       {editing ? <DeposantEditSheet d={d} open={editing} onClose={() => setEditing(false)} /> : null}
       {productId ? (
         <ProductDetailSheet

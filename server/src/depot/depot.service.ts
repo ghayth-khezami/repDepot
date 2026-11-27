@@ -450,9 +450,46 @@ export class DepotService {
           ProductSubCategory: item.subCategoryId ? { create: { subCategoryId: item.subCategoryId } } : undefined,
           ProductSubSubCategory1: item.subSubCategory1Id ? { create: { subSubCategoryId: item.subSubCategory1Id } } : undefined,
           photos: item.photos?.length ? { create: item.photos.map((photoDoc) => ({ photoDoc })) } : undefined,
+          // Each article keeps its own deposit date (shown in the contract and the déposant report).
+          ...(item.depositDate ? { createdAt: depositDateAt(item.depositDate) } : {}),
         },
       });
     }
+  }
+
+  /**
+   * Deletes a contract with its articles. Refused when an article is sold, paid, delivered or in an
+   * order (the money / order history must stay); withdrawn or on-sale articles are deleted with it.
+   */
+  async removeContract(id: string) {
+    const c = await this.prisma.depositRequest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        contractNumber: true,
+        products: { select: { id: true, ref: true, status: true, _count: { select: { commandDetails: true } } } },
+      },
+    });
+    if (!c) throw new NotFoundException("Contrat introuvable.");
+    const blocked = c.products.filter((p) => p.status === ProductStatus.VENDU || p._count.commandDetails > 0);
+    if (blocked.length) {
+      throw new BadRequestException(
+        `Impossible de supprimer le contrat ${c.contractNumber ?? ""} : ${blocked.length} article(s) vendu(s) ou en commande (${blocked
+          .slice(0, 5)
+          .map((p) => p.ref)
+          .join(", ")}).`,
+      );
+    }
+    await this.prisma.$transaction(async (tx) => {
+      const ids = c.products.map((p) => p.id);
+      if (ids.length) {
+        await tx.productPhoto.deleteMany({ where: { idProduct: { in: ids } } });
+        await tx.featuredProduct.deleteMany({ where: { productId: { in: ids } } });
+        await tx.product.deleteMany({ where: { id: { in: ids } } });
+      }
+      await tx.depositRequest.delete({ where: { id } });
+    });
+    return { message: `Contrat ${c.contractNumber ?? ""} supprimé`, deletedProducts: c.products.length };
   }
 
   private async refreshContractTotals(tx: Tx, contractId: string) {
@@ -610,6 +647,7 @@ export class DepotService {
         status: p.status,
         soldAt: p.soldAt,
         payoutStatus: p.payoutStatus,
+        depositedAt: p.createdAt,
       };
     });
     const totals = items.reduce(
@@ -643,6 +681,7 @@ export class DepotService {
         number: co.number,
         firstName: co.firstName,
         lastName: co.lastName,
+        gender: co.gender,
         phone: co.phoneNumber,
         email: co.email,
         address: co.address,
@@ -678,6 +717,7 @@ export class DepotService {
         commissionPercent: it.commissionPercent,
         shopMillimes: it.shopMillimes,
         depositorMillimes: it.depositorMillimes,
+        depositedAt: it.depositedAt,
       })),
       totals: c.totals,
       terms: c.terms,

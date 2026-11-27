@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, ClipboardCheck, MapPin, PackageCheck, Plus, ShoppingCart, Truck } from 'lucide-react';
+import { Ban, Check, ChevronDown, ClipboardCheck, MapPin, PackageCheck, Plus, ShoppingCart, Truck } from 'lucide-react';
 import { useGetCommandsFeedInfiniteQuery, useUpdateCommandMutation, type Command, type CommandStatus } from '../../store/api/commandApi';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useToast } from '../../context/ToastContext';
@@ -27,8 +27,9 @@ export const ORDER_STATUS: Record<CommandStatus, { label: string; chip: string; 
   ACCEPTED: { label: 'Acceptée', chip: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300', dot: 'bg-sky-500', icon: PackageCheck, hint: 'En préparation / en route' },
   DELIVERED: { label: 'Livrée', chip: 'bg-bd-success-bg text-bd-success', dot: 'bg-bd-success', icon: Truck, hint: 'Remise au client' },
   GOT_PROFIT: { label: 'Livrée', chip: 'bg-bd-success-bg text-bd-success', dot: 'bg-bd-success', icon: Truck, hint: 'Remise au client' },
+  CANCELLED: { label: 'Annulée', chip: 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300', dot: 'bg-gray-400', icon: Ban, hint: 'Articles remis en vente · la commande peut être supprimée' },
 };
-const STATUS_ORDER: CommandStatus[] = ['NOT_DELIVERED', 'ACCEPTED', 'DELIVERED'];
+const STATUS_ORDER: CommandStatus[] = ['NOT_DELIVERED', 'ACCEPTED', 'DELIVERED', 'CANCELLED'];
 
 export function orderClient(c: Command) {
   const d = c.commandDetails?.find((x) => x.client) ?? c.commandDetails?.[0];
@@ -45,6 +46,7 @@ export function OrderStatusControl({ command, size = 'md' }: { command: Command;
   const set = async (status: CommandStatus) => {
     setOpen(false);
     if (status === command.status) return;
+    if (status === 'CANCELLED' && !window.confirm('Annuler cette commande ? Ses articles seront remis en vente.')) return;
     try {
       await update({ id: command.id, data: { status } }).unwrap();
       showToast(`Commande ${ORDER_STATUS[status].label.toLowerCase()} — le client voit la mise à jour`, 'success');
@@ -56,7 +58,7 @@ export function OrderStatusControl({ command, size = 'md' }: { command: Command;
     <>
       <button
         type="button"
-        disabled={isLoading}
+        disabled={isLoading || command.status === 'CANCELLED'}
         onClick={(e) => {
           e.stopPropagation();
           setOpen(true);
@@ -98,7 +100,7 @@ export function OrderStatusControl({ command, size = 'md' }: { command: Command;
   );
 }
 
-type Seg = 'all' | 'NOT_DELIVERED' | 'ACCEPTED' | 'DELIVERED';
+type Seg = 'all' | 'NOT_DELIVERED' | 'ACCEPTED' | 'DELIVERED' | 'CANCELLED';
 
 function OrderCard({ c, onOpen }: { c: Command; onOpen: (c: Command) => void }) {
   const photo = c.commandDetails?.find((d) => d.product?.photos?.[0])?.product?.photos?.[0]?.photoDoc as string | undefined;
@@ -162,6 +164,7 @@ export default function CommandsList({ onOpen, onAdd, headerExtra }: { onOpen: (
             { value: 'NOT_DELIVERED', label: 'Reçues', count: meta?.counts?.NOT_DELIVERED },
             { value: 'ACCEPTED', label: 'Acceptées', count: meta?.counts?.ACCEPTED },
             { value: 'DELIVERED', label: 'Livrées', count: meta?.counts?.DELIVERED },
+            { value: 'CANCELLED', label: 'Annulées', count: meta?.counts?.CANCELLED },
           ]}
         />
       </div>

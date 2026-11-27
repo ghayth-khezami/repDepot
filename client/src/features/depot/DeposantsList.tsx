@@ -11,6 +11,7 @@ import { EmptyState, Fab, InfiniteSentinel, ListRow, PageHeader, Pager, SearchBa
 import type { DeposantSummary } from '../../store/api/depotApi';
 import type { CoClient } from '../../types';
 import DeposantSuivi from './DeposantSuivi';
+import DepotChoiceSheet from './DepotChoiceSheet';
 
 type Row = CoClient & { _count?: { products: number; depositRequests: number } };
 type Seg = 'all' | 'with' | 'without';
@@ -26,6 +27,8 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
   const search = useDebouncedValue(q.trim());
   const [seg, setSeg] = useState<Seg>('all');
   const [suiviId, setSuiviId] = useState<string | null>(null);
+  /** "+" → new contract or add to an existing one. */
+  const [choice, setChoice] = useState<Row | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const { showToast } = useToast();
   const feed = useGetCoClientsFeedInfiniteQuery({ search: search || undefined, articles: seg });
@@ -127,7 +130,7 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
                     </span>
                     <button
                       type="button"
-                      onClick={() => pick(r)}
+                      onClick={() => setChoice(r)}
                       aria-label={`Nouveau dépôt pour ${r.firstName}`}
                       title="Nouveau dépôt"
                       className="bd-focus flex h-11 w-11 items-center justify-center rounded-xl bg-grad-pink-strong text-white shadow-glow-pink active:scale-90"
@@ -154,6 +157,15 @@ export default function DeposantsList({ onPick, onNew, onDictate }: { onPick: (d
       )}
 
       <Fab icon={UserPlus} label="Nouveau déposant" onClick={onNew} />
+      {choice ? (
+        <DepotChoiceSheet
+          deposantId={choice.id}
+          name={`${choice.firstName} ${choice.lastName}`}
+          open
+          onClose={() => setChoice(null)}
+          onNewContract={() => pick(choice)}
+        />
+      ) : null}
     </div>
   );
 }

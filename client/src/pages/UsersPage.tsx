@@ -93,12 +93,17 @@ const UsersPage = () => {
             >
               <Edit className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => handleDelete(row.id)}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {/* The owner account (eya@bebedepot.tn) can never be deleted */}
+            {row.email?.toLowerCase() === 'eya@bebedepot.tn' ? (
+              <span className="self-center rounded-full bg-violet-100 px-2 py-1 text-[11px] font-bold text-violet-700" title="Compte propriétaire : non supprimable">Propriétaire</span>
+            ) : (
+              <button
+                onClick={() => handleDelete(row.id)}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </>
         )}
       />

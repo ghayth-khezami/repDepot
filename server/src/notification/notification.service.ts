@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsGateway } from "./notifications.gateway";
 import { PushService } from "./push.service";
 import { EmailService } from "./email.service";
+import { WhatsappService } from "./whatsapp.service";
 
 @Injectable()
 export class NotificationService {
@@ -14,6 +15,7 @@ export class NotificationService {
     private readonly gateway: NotificationsGateway,
     private readonly pushService: PushService,
     private readonly emailService: EmailService,
+    private readonly whatsapp: WhatsappService,
   ) {}
 
   onModuleInit() {
@@ -48,6 +50,52 @@ export class NotificationService {
       createdAt: command.createdAt,
     });
     await this.emailService.sendOrderNotification({ clientName, productName, price: command.PrixVente, address: command.adresseLivraison, orderId: command.id, productImage, createdAt: command.createdAt });
+  }
+
+  /**
+   * A déposant asked (suivi page) to collect his money: bell + phone push now, email to
+   * ADMIN_NOTIFICATION_EMAIL and WhatsApp to the owner's number.
+   */
+  async notifyPaymentRequest(input: { id: string; deposant: string; phone: string; amountMillimes: number; pickupDate: Date; articles: string[] }) {
+    const amount = `${(input.amountMillimes / 1000).toFixed(3)} TND`;
+    const day = input.pickupDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Tunis" });
+    const title = "💰 Demande de paiement";
+    const body = `${input.deposant} (${input.phone}) viendra récupérer ${amount} le ${day} — ${input.articles.length} article(s) : ${input.articles.join(", ")}`;
+    await this.dispatch({
+      type: NotificationType.PAYMENT_REQUEST,
+      title,
+      body,
+      linkPath: `/?paiement=${input.id}`,
+      entityId: input.id,
+      clientName: input.deposant,
+      clientPhone: input.phone,
+      productName: input.articles.join(", "),
+      orderPrice: input.amountMillimes / 1000,
+    });
+    const to = process.env.ADMIN_NOTIFICATION_EMAIL?.trim() || "bebedepot.admin@gmail.com";
+    if (this.emailService.isConfigured()) {
+      await this.emailService
+        .sendText({
+          to,
+          subject: `💰 Demande de paiement — ${input.deposant} · ${amount} · ${day}`,
+          text: `Bonjour,
+
+${input.deposant} (tél. ${input.phone}) demande à récupérer son paiement.
+
+Montant : ${amount}
+Date choisie : ${day}
+Articles : ${input.articles.join(", ")}
+
+Ouvrez le backoffice pour préparer le paiement.
+
+BebeDepot`,
+        })
+        .catch((e) => this.logger.warn(`Payment request email failed: ${(e as Error).message}`));
+    } else this.logger.warn("SMTP non configuré — email de demande de paiement ignoré.");
+    await this.whatsapp.sendToAdmin(`💰 Demande de paiement BebeDepot
+${input.deposant} (${input.phone})
+${amount} — le ${day}
+${input.articles.length} article(s) : ${input.articles.join(", ")}`);
   }
 
   async notifyDepositRequestCreated(request: DepositRequest) {

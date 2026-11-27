@@ -15,6 +15,8 @@ export interface DraftItem {
   subSubCategory1Id?: string;
   photos: string[];
   uploading: number;
+  /** YYYY-MM-DD; empty = contract date. */
+  depositDate?: string;
 }
 
 export interface DraftDeposant {

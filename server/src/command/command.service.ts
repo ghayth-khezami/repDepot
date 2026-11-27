@@ -374,6 +374,7 @@ export class CommandService {
       NOT_DELIVERED: n("NOT_DELIVERED"),
       ACCEPTED: n("ACCEPTED"),
       DELIVERED: n("DELIVERED") + n("GOT_PROFIT"),
+      CANCELLED: n("CANCELLED"),
     };
 
     return {
@@ -432,6 +433,10 @@ export class CommandService {
 
   async update(id: string, updateCommandDto: UpdateCommandDto) {
     const command = await this.findOne(id);
+    if (command.status === CommandStatus.CANCELLED) {
+      throw new BadRequestException("Commande annulée : elle ne peut plus être modifiée (vous pouvez la supprimer).");
+    }
+    if (updateCommandDto.status === CommandStatus.CANCELLED) return this.cancel(id);
     const isLikelyWebOrder = command.commandDetails.length > 0
       && command.commandDetails.some((d) => !!d.client)
       && command.commandDetails.every((d) => !d.coClient);
@@ -533,18 +538,39 @@ export class CommandService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-
-    await this.prisma.command.delete({
-      where: { id },
+  /** Annulée: the articles go back on sale (unless the déposant was already paid for them). */
+  async cancel(id: string) {
+    const command = await this.findOne(id);
+    if (command.status === CommandStatus.CANCELLED) return command;
+    const productIds = command.commandDetails.map((d) => d.productId);
+    const released = await this.prisma.$transaction(async (tx) => {
+      const products = await tx.product.findMany({ where: { id: { in: productIds } }, select: { id: true, payoutStatus: true } });
+      const ids = products.filter((p) => p.payoutStatus !== PayoutStatus.PAYE).map((p) => p.id);
+      if (ids.length) {
+        await tx.product.updateMany({
+          where: { id: { in: ids } },
+          data: { status: ProductStatus.EN_VENTE, isDispo: true, soldAt: null, payoutStatus: null, paidAt: null, soldNotifiedAt: null, paidNotifiedAt: null },
+        });
+      }
+      await tx.command.update({ where: { id }, data: { status: CommandStatus.CANCELLED, cancelledAt: new Date() } });
+      return ids;
     });
+    if (released.length) publishProductStatusChangedLater({ productIds: released, to: "EN_VENTE" }, 100);
+    return this.findOne(id);
+  }
 
-    return { message: "Command deleted successfully" };
+  /** Only a cancelled order can be deleted (its articles are already back on sale). */
+  async remove(id: string) {
+    const command = await this.findOne(id);
+    if (command.status !== CommandStatus.CANCELLED) {
+      throw new BadRequestException("Annulez d'abord la commande (statut « Annulée ») avant de la supprimer.");
+    }
+    await this.prisma.command.delete({ where: { id } });
+    return { message: "Commande supprimée" };
   }
 
   async removeAll() {
-    const result = await this.prisma.command.deleteMany();
+    const result = await this.prisma.command.deleteMany({ where: { status: CommandStatus.CANCELLED } });
     return { deleted: result.count };
   }
 

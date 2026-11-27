@@ -85,6 +85,8 @@ export interface Product {
   depotPercentage?: number;
   surcharge?: number;
   gain?: number;
+  /** Visible on the storefront. */
+  isPublished?: boolean;
   isDispo?: boolean;
   /** Unique human reference (D-143-01 for dépôt items, P-00042 otherwise). */
   ref?: string;

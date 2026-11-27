@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { UserRole } from "@prisma/client";
 import { Response } from "express";
@@ -72,6 +72,12 @@ export class DepotController {
   @ApiOperation({ summary: "Contract detail (preview data)" })
   findOne(@Param("id", ParseUUIDPipe) id: string) {
     return this.depotService.getContract(id);
+  }
+
+  @Delete("depots/:id")
+  @ApiOperation({ summary: "Supprimer un contrat et ses articles (refusé si un article est vendu / en commande)" })
+  removeContract(@Param("id", ParseUUIDPipe) id: string) {
+    return this.depotService.removeContract(id);
   }
 
   @Post("depots/:id/items")
