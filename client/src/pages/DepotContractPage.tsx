@@ -45,47 +45,88 @@ function itemsReducer(s: ItemsState, a: ItemsAction): ItemsState {
   }
 }
 
-/** Articles already in the contract, shown above the editor (read-only). */
+const PREVIEW = 4;
+
+/**
+ * Articles already in the contract (read-only), above the editor. Compact: totals per status, a
+ * search when the contract is big, the first few rows then "Voir les N autres" (scrolls inside).
+ */
 function ExistingArticles({ items, createdAt }: { items: DepotContract['items']; createdAt: string }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(items.length <= 6);
+  const [all, setAll] = useState(false);
+  const [q, setQ] = useState('');
   if (!items.length) {
-    return (
-      <p className="mb-5 rounded-2xl bg-bd-bg px-4 py-3 text-sm font-bold text-bd-muted">Ce contrat ne contient encore aucun article.</p>
-    );
+    return <p className="mb-5 rounded-2xl bg-bd-bg px-4 py-3 text-sm font-bold text-bd-muted">Ce contrat ne contient encore aucun article.</p>;
   }
   const total = items.reduce((t, it) => t + it.priceMillimes, 0);
+  const n = (f: (it: DepotContract['items'][number]) => boolean) => items.filter(f).length;
+  const onSale = n((it) => it.status === 'EN_VENTE');
+  const sold = n((it) => it.status === 'VENDU' && it.payoutStatus !== 'PAYE');
+  const paid = n((it) => it.status === 'VENDU' && it.payoutStatus === 'PAYE');
+  const term = q.trim().toLowerCase();
+  const filtered = term ? items.filter((it) => `${it.ref} ${it.name}`.toLowerCase().includes(term)) : items;
+  const visible = all || term ? filtered : filtered.slice(0, PREVIEW);
+
   return (
-    <section aria-label="Articles déjà dans le contrat" className="mb-6 overflow-hidden rounded-3xl border border-bd-line/10 bg-bd-bg">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="bd-focus flex w-full items-center gap-3 px-4 py-3 text-left">
+    <section aria-label="Articles déjà dans le contrat" className="mb-6 min-w-0 overflow-hidden rounded-3xl border border-bd-line/10 bg-bd-bg">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="bd-focus flex w-full min-w-0 items-center gap-3 px-3 py-3 text-left sm:px-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-grad-violet-strong text-white">
           <Package size={18} aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-extrabold text-bd-ink">Déjà dans ce contrat · {items.length} article{items.length > 1 ? 's' : ''}</span>
-          <span className="block text-xs font-bold text-bd-muted">Valeur {formatTnd(total)}</span>
+          <span className="block truncate font-extrabold text-bd-ink">
+            Déjà dans ce contrat · {items.length} article{items.length > 1 ? 's' : ''}
+          </span>
+          <span className="block truncate text-xs font-bold text-bd-muted">Valeur {formatTnd(total)}</span>
         </span>
+        <span className="shrink-0 text-xs font-extrabold text-bd-violet">{open ? 'Masquer' : 'Voir'}</span>
         <ChevronDown size={18} className={cn('shrink-0 text-bd-muted transition', open && 'rotate-180')} aria-hidden />
       </button>
+
+      <div className="flex flex-wrap gap-1.5 px-3 pb-3 text-[11px] font-extrabold sm:px-4">
+        {onSale ? <span className="rounded-full bg-bd-blush px-2 py-0.5 text-bd-pink-strong">{onSale} en vente</span> : null}
+        {sold ? <span className="rounded-full bg-bd-success-bg px-2 py-0.5 text-bd-success">{sold} vendu(s)</span> : null}
+        {paid ? <span className="rounded-full bg-violet-100 px-2 py-0.5 text-bd-violet-strong">{paid} payé(s)</span> : null}
+      </div>
+
       {open ? (
-        <ul className="grid gap-2 px-3 pb-3 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map((it) => (
-            <li key={it.id} className="flex items-center gap-3 rounded-2xl bg-bd-surface p-2.5 shadow-card">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-bd-lilac/60 text-bd-violet">
-                {it.photo ? <img src={uploadUrl(it.photo)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Package size={18} aria-hidden />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-extrabold text-bd-muted">
-                  {it.ref} · déposé le {new Date(it.depositedAt ?? createdAt).toLocaleDateString('fr-FR')}
+        <div className="border-t border-bd-line/10 px-2 pb-2 pt-2 sm:px-3">
+          {items.length > 6 ? (
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Chercher dans ce contrat (nom, réf.)"
+              className="bd-input mb-2"
+              data-dictation="off"
+            />
+          ) : null}
+          <ul className={cn('grid grid-cols-1 gap-1.5 lg:grid-cols-2', (all || term) && 'max-h-[55vh] overflow-y-auto overscroll-contain pr-1')}>
+            {visible.map((it) => (
+              <li key={it.id} className="flex min-w-0 items-center gap-3 rounded-2xl bg-bd-surface p-2 shadow-card">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-bd-lilac/60 text-bd-violet">
+                  {it.photo ? <img src={uploadUrl(it.photo)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Package size={18} aria-hidden />}
                 </span>
-                <span className="block truncate text-sm font-extrabold text-bd-ink">{it.name}</span>
-                <span className="block text-xs font-bold tabular-nums text-bd-muted">
-                  {formatTnd(it.priceMillimes)} · {it.commissionPercent}% · part <span className="text-bd-success">{formatTnd(it.depositorMillimes, false)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-extrabold text-bd-ink">{it.name}</span>
+                  <span className="block truncate text-[11px] font-bold text-bd-muted">
+                    {it.ref} · {new Date(it.depositedAt ?? createdAt).toLocaleDateString('fr-FR')}
+                  </span>
+                  <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-xs font-black tabular-nums text-bd-ink">{formatTnd(it.priceMillimes)}</span>
+                    <span className="text-[11px] font-bold tabular-nums text-bd-success">part {formatTnd(it.depositorMillimes, false)}</span>
+                    <StatusChip status={it.status} payout={it.payoutStatus} className="!px-2 !py-0.5 !text-[10px]" />
+                  </span>
                 </span>
-              </span>
-              <StatusChip status={it.status} payout={it.payoutStatus} />
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+            {!visible.length ? <li className="py-3 text-center text-sm font-bold text-bd-muted">Aucun article ne correspond.</li> : null}
+          </ul>
+          {!term && filtered.length > PREVIEW ? (
+            <button type="button" onClick={() => setAll((v) => !v)} className="bd-focus mt-2 min-h-[40px] w-full rounded-xl text-sm font-extrabold text-bd-violet-strong hover:bg-bd-lilac/50">
+              {all ? 'Réduire' : `Voir les ${filtered.length - PREVIEW} autres articles`}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );
@@ -128,10 +169,10 @@ function AddArticles({ id, contractNumber, deposantName, existing, createdAt }: 
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-      <Card className="p-4 sm:p-6">
-        <h2 className="text-xl font-black text-bd-ink">Ajouter des articles</h2>
-        <p className="mb-4 text-sm text-bd-muted">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+      <Card className="min-w-0 p-3 sm:p-6">
+        <h2 className="text-lg font-black text-bd-ink sm:text-xl">Ajouter des articles</h2>
+        <p className="mb-4 break-words text-sm text-bd-muted">
           Contrat {contractNumber} · {deposantName}. Le QR du contrat couvre automatiquement ces nouveaux articles.
         </p>
         <ExistingArticles items={existing} createdAt={createdAt} />
@@ -149,7 +190,7 @@ function AddArticles({ id, contractNumber, deposantName, existing, createdAt }: 
           onCommissionAll={(pct) => dispatch({ type: 'all', pct })}
         />
       </Card>
-      <div className="space-y-3 lg:sticky lg:top-6">
+      <div className="min-w-0 space-y-3 lg:sticky lg:top-20">
         {existing.length ? (
           <div className="rounded-3xl bg-bd-surface p-4 text-sm font-bold shadow-card">
             <p className="flex justify-between text-bd-muted">
@@ -178,12 +219,12 @@ export default function DepotContractPage({ mode = 'view' }: { mode?: 'view' | '
 
   return (
     <div className="bd-ui w-full space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <header className={cn('flex flex-wrap items-center justify-between gap-3', mode === 'add' && '-mt-[66px] pl-[54px] pr-[54px] md:mt-0 md:px-0')}>
+        <div className="min-w-0">
           <Link to={mode === 'add' ? `/depots/${id}` : '/deposit-requests'} className={buttonClass('ghost', 'sm', '-ml-3 mb-1')}>
             <ArrowLeft size={16} aria-hidden /> {mode === 'add' ? 'Retour au contrat' : 'Demandes de dépôt'}
           </Link>
-          <h1 className="text-3xl font-black text-bd-ink">{data ? `Contrat ${data.contractNumber}` : 'Contrat'}</h1>
+          <h1 className="truncate text-2xl font-black text-bd-ink sm:text-3xl">{data ? `Contrat ${data.contractNumber}` : 'Contrat'}</h1>
           {data ? (
             <p className="text-sm font-bold text-bd-muted">
               {data.deposant.firstName} {data.deposant.lastName} · déposant n° {data.deposant.number}
