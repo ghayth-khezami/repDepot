@@ -93,7 +93,7 @@ export const productApi = baseApi.injectEndpoints({
       providesTags: ['Product'],
     }),
     /** « Améliorer » : AI-corrected product description (nothing is saved). */
-    refineDescription: builder.mutation<{ text: string }, { text: string; productName?: string; category?: string }>({
+    refineDescription: builder.mutation<{ text: string; engine: 'free' | 'claude'; changes?: number }, { text: string; productName?: string; category?: string }>({
       query: (body) => ({ url: '/ai/refine-description', method: 'POST', body }),
     }),
     /** Publish / unpublish on the storefront (bulk). */

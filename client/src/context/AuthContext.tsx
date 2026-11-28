@@ -125,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const unlock = (code: string) => {
     if (code !== QUICK_PIN) return false;
     markUnlocked();
-    window.setTimeout(() => setLocked(false), 450);
+    window.setTimeout(() => setLocked(false), 220); // just long enough to see the green check
     return true;
   };
 

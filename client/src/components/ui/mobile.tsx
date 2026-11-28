@@ -377,7 +377,7 @@ export function OtpInput({
               key={i}
               className={cn(
                 size === 'lg'
-                  ? 'flex h-[76px] w-[62px] items-center justify-center rounded-[22px] border-[3px] bg-bd-surface text-5xl font-black text-bd-ink shadow-card transition duration-150 sm:h-20 sm:w-16'
+                  ? 'flex h-[76px] w-[62px] items-center justify-center rounded-[22px] border-[3px] bg-bd-surface text-5xl font-black text-bd-ink shadow-card transition-colors duration-150 sm:h-20 sm:w-16'
                   : 'flex h-14 w-11 items-center justify-center rounded-2xl border-2 bg-bd-surface text-2xl font-black text-bd-ink shadow-card transition duration-150 sm:h-16 sm:w-12',
                 status === 'error' ? 'border-bd-danger text-bd-danger' : status === 'ok' ? 'border-bd-success' : isCaret ? 'border-bd-pink ring-4 ring-bd-pink/15' : ch ? 'border-bd-violet' : 'border-bd-line/15',
               )}

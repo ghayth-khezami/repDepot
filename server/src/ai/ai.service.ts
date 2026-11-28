@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import Anthropic from "@anthropic-ai/sdk";
+import { freeRefine } from "./free-refine";
 
 const MODEL = "claude-opus-5-5";
 
@@ -21,17 +22,31 @@ export class AiService {
   private client: Anthropic | null = null;
 
   private getClient() {
-    if (!process.env.ANTHROPIC_API_KEY?.trim()) {
-      throw new ServiceUnavailableException("Assistant IA non configuré : ajoutez ANTHROPIC_API_KEY dans le .env du serveur.");
-    }
     this.client ??= new Anthropic();
     return this.client;
   }
 
-  /** « Améliorer » : corrected, clearer product description. */
-  async refineDescription(input: { text: string; productName?: string; category?: string }) {
+  /**
+   * « Améliorer » : corrected description.
+   *  - free (default, no key): spelling / grammar / punctuation fixes (LanguageTool) + tidy-up;
+   *  - with ANTHROPIC_API_KEY in the .env: full rewrite by Claude (clearer, more appealing).
+   */
+  async refineDescription(input: { text: string; productName?: string; category?: string }): Promise<{ text: string; engine: "free" | "claude"; changes?: number }> {
     const text = input.text.trim();
     if (text.length < 3) throw new BadRequestException("Écrivez d'abord quelques mots de description.");
+    if (!process.env.ANTHROPIC_API_KEY?.trim()) {
+      try {
+        const r = await freeRefine(text);
+        return { text: r.text, engine: "free", changes: r.changes };
+      } catch (e) {
+        this.logger.warn(`LanguageTool unreachable: ${(e as Error).message}`);
+        throw new ServiceUnavailableException("Correction indisponible pour le moment (service gratuit saturé), réessayez dans une minute.");
+      }
+    }
+    return this.refineWithClaude(text, input);
+  }
+
+  private async refineWithClaude(text: string, input: { productName?: string; category?: string }): Promise<{ text: string; engine: "claude" }> {
     const context = [input.productName?.trim() && `Produit : ${input.productName.trim()}`, input.category?.trim() && `Catégorie : ${input.category.trim()}`]
       .filter(Boolean)
       .join("\n");
@@ -58,7 +73,7 @@ export class AiService {
         .trim()
         .replace(/^["«»\s]+|["«»\s]+$/g, "");
       if (!out) throw new BadRequestException("Aucune proposition, réessayez.");
-      return { text: out };
+      return { text: out, engine: "claude" };
     } catch (e) {
       if (e instanceof BadRequestException || e instanceof ServiceUnavailableException) throw e;
       if (e instanceof Anthropic.AuthenticationError) {

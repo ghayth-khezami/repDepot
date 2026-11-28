@@ -1,30 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/cn';
-import { Blobs, OtpInput } from './ui';
+import { OtpInput } from './ui';
 
 const LENGTH = 4;
+const COMPACT_BELOW = 560; // px of visible height: the keyboard is open
 
 /**
- * Visible area of the screen (what the phone keyboard leaves free). The lock screen is sized to it, so
- * the code boxes are always centred ABOVE the keyboard instead of hidden under it.
+ * Keeps the lock screen exactly over the visible area (what the phone keyboard leaves free), so the
+ * code boxes stay centred ABOVE the keyboard.
+ * Fast on phones: the size is written straight on the element once per frame (no React re-render, no
+ * animation); React only re-renders when switching between normal and compact layout.
  */
-function useVisibleArea() {
-  const [area, setArea] = useState<{ height: number; top: number } | null>(null);
+function useFitVisibleArea(ref: React.RefObject<HTMLDivElement | null>) {
+  const [compact, setCompact] = useState(false);
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => setArea({ height: vv.height, top: vv.offsetTop });
-    update();
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    return () => {
-      vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
+    const el = ref.current;
+    if (!vv || !el) return;
+    let frame = 0;
+    let lastH = -1;
+    let lastTop = -1;
+    const apply = () => {
+      frame = 0;
+      const h = Math.round(vv.height);
+      const top = Math.round(vv.offsetTop);
+      if (h === lastH && top === lastTop) return;
+      lastH = h;
+      lastTop = top;
+      el.style.height = `${h}px`;
+      el.style.transform = top ? `translate3d(0, ${top}px, 0)` : '';
+      setCompact(h < COMPACT_BELOW); // same value → React skips the render
     };
-  }, []);
-  return area;
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(apply);
+    };
+    apply();
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      vv.removeEventListener('resize', schedule);
+      vv.removeEventListener('scroll', schedule);
+    };
+  }, [ref]);
+  return compact;
 }
 
 /**
@@ -33,10 +54,12 @@ function useVisibleArea() {
  * the 4 boxes are only visual. Submits by itself on the 4th digit.
  */
 export default function PinLockScreen() {
-  const { unlock, logout, user } = useAuth();
+  const { unlock, logout } = useAuth();
   const [code, setCode] = useState('');
   const [status, setStatus] = useState<'idle' | 'error' | 'ok'>('idle');
   const [attempts, setAttempts] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const compact = useFitVisibleArea(rootRef);
 
   const submit = (value: string) => {
     if (unlock(value)) {
@@ -49,28 +72,23 @@ export default function PinLockScreen() {
     window.setTimeout(() => {
       setCode('');
       setStatus('idle');
-    }, 550);
+    }, 450);
   };
-
-  const name = user?.username || user?.email?.split('@')[0] || '';
-  const area = useVisibleArea();
-  // Keyboard open (little room left): smaller header, the boxes stay big and visible.
-  const compact = !!area && area.height < 560;
 
   return (
     <div
-      className="bd-ui fixed inset-x-0 top-0 isolate flex flex-col items-center justify-center overflow-hidden bg-bd-bg px-5 transition-[height] duration-200"
-      style={{ height: area ? area.height : '100dvh', transform: area?.top ? `translateY(${area.top}px)` : undefined }}
+      ref={rootRef}
+      // Soft colour spots as plain gradients: same look as the blurred blobs, nothing heavy to repaint.
+      className="bd-ui fixed inset-x-0 top-0 flex h-[100dvh] flex-col items-center justify-center overflow-hidden bg-bd-bg bg-[radial-gradient(circle_at_8%_6%,rgba(233,221,251,0.85),transparent_42%),radial-gradient(circle_at_96%_22%,rgba(252,231,243,0.9),transparent_45%),radial-gradient(circle_at_45%_105%,rgba(233,221,251,0.7),transparent_45%)] px-5 dark:bg-none"
     >
-      <Blobs />
       <div className="bd-anim-fade-up w-full max-w-sm text-center">
-        <div className={cn('relative mx-auto transition-all duration-300', compact ? 'mb-3 h-14 w-14' : 'mb-6 h-24 w-24')}>
-          <span aria-hidden className={cn('absolute inset-0 bg-grad-brand shadow-glow-violet transition duration-500', compact ? 'rounded-[18px]' : 'rounded-[28px]', status === 'ok' && 'scale-110 bg-grad-green')} />
+        <div className={cn('relative mx-auto', compact ? 'mb-3 h-14 w-14' : 'mb-6 h-24 w-24')}>
+          <span aria-hidden className={cn('absolute inset-0 bg-grad-brand shadow-glow-violet transition duration-300', compact ? 'rounded-[18px]' : 'rounded-[28px]', status === 'ok' && 'scale-110 bg-grad-green')} />
           <span className="absolute inset-0 flex items-center justify-center text-white">
             {status === 'ok' ? <Check size={compact ? 28 : 44} strokeWidth={3} className="bd-anim-check" aria-hidden /> : <ShieldCheck size={compact ? 26 : 42} aria-hidden />}
           </span>
         </div>
-        <h1 className={cn('font-black text-bd-ink', compact ? 'text-xl' : 'text-2xl sm:text-3xl')}>Bon retour{name ? `, ${name}` : ''} !</h1>
+        <h1 className={cn('font-black text-bd-ink', compact ? 'text-xl' : 'text-2xl sm:text-3xl')}>Bon retour, Mme Khezami !</h1>
         <p className={cn('text-sm font-semibold text-bd-muted', compact ? 'mt-1' : 'mt-2')}>Saisissez votre code rapide pour déverrouiller</p>
 
         <form
