@@ -92,6 +92,10 @@ export const productApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Product'],
     }),
+    /** « Améliorer » : AI-corrected product description (nothing is saved). */
+    refineDescription: builder.mutation<{ text: string }, { text: string; productName?: string; category?: string }>({
+      query: (body) => ({ url: '/ai/refine-description', method: 'POST', body }),
+    }),
     /** Publish / unpublish on the storefront (bulk). */
     publishProducts: builder.mutation<{ updated: number; published: boolean }, { ids: string[]; published: boolean }>({
       query: (body) => ({ url: '/products/admin/publish', method: 'PATCH', body }),
@@ -143,6 +147,7 @@ export interface NotifySummary {
 }
 
 export const {
+  useRefineDescriptionMutation,
   useChangeLifecycleMutation,
   usePublishProductsMutation,
   useGetProductsFeedInfiniteQuery,

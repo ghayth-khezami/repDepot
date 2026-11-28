@@ -27,6 +27,7 @@ import { SiteSettingsModule } from "./site-settings/site-settings.module";
 import { DepotModule } from "./depot/depot.module";
 import { PublicSuiviModule } from "./public-suivi/public-suivi.module";
 import { ExportModule } from "./export/export.module";
+import { AiModule } from "./ai/ai.module";
 import { ReadAwareThrottlerGuard } from "./common/guards/read-aware-throttler.guard";
 
 @Module({
@@ -67,6 +68,7 @@ import { ReadAwareThrottlerGuard } from "./common/guards/read-aware-throttler.gu
     ]),
     CloudinaryModule,
     MediaModule,
+    AiModule,
     PrismaModule,
     UserModule,
     AuthModule,

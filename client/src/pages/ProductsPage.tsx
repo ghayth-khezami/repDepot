@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   useUpdateProductMutation,
   useDeleteProductMutation,
@@ -29,6 +29,7 @@ import { useCreateSubSubCategory1Mutation } from '../store/api/subSubCategoryApi
 import ProductsList from '../features/products/ProductsList';
 import { COMMISSION_VALUES, DEFAULT_COMMISSION } from '../lib/commission';
 import { setNativeValue } from '../lib/speech';
+import RefineDescriptionButton from '../features/products/RefineDescriptionButton';
 
 const ProductsPage = () => {
   const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -50,6 +51,7 @@ const ProductsPage = () => {
   const [surcharge, setSurcharge] = useState<number>(0);
   const [isDepot, setIsDepot] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string>('');
   const [selectedSubSubCategory1Id, setSelectedSubSubCategory1Id] = useState<string>('');
   const [selectedSubSubCategory2Id, setSelectedSubSubCategory2Id] = useState<string>('');
@@ -716,8 +718,19 @@ const ProductsPage = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label htmlFor="product-description" className="block text-sm font-medium text-gray-700">
+                Description
+              </label>
+              <RefineDescriptionButton
+                target={descriptionRef}
+                productName={() => (document.querySelector<HTMLInputElement>('form input[name="productName"]')?.value)}
+                category={categoryHierarchy.find((c) => c.id === selectedCategoryId)?.categoryName}
+              />
+            </div>
             <textarea
+              id="product-description"
+              ref={descriptionRef}
               name="description"
               defaultValue={selectedProduct?.description}
               rows={3}

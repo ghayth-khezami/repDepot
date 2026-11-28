@@ -594,3 +594,8 @@ html.dark .bo-page :is(.border-gray-100, .border-gray-200, .border-gray-300, .bo
 html.dark .bo-page :is(.divide-y, .divide-gray-100, .divide-gray-200) > :not(:first-child):not(.bd-ui *, .bd-paper *) {
   border-color: rgb(var(--bd-line) / 0.18);
 }
+
+/* Description just rewritten by « Améliorer » */
+.bd-refined { animation: bd-refined 1.4s ease-out; }
+@keyframes bd-refined { 0% { box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.55); background-color: rgba(237, 233, 254, 0.9); } 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); } }
+@media (prefers-reduced-motion: reduce) { .bd-refined { animation: none; } }

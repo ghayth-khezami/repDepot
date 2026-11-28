@@ -330,6 +330,7 @@ export function OtpInput({
   status = 'idle',
   autoFocus = true,
   label = 'Code',
+  size = 'md',
 }: {
   length?: number;
   value: string;
@@ -338,6 +339,8 @@ export function OtpInput({
   status?: 'idle' | 'error' | 'ok';
   autoFocus?: boolean;
   label?: string;
+  /** lg = big boxes (quick-unlock code, easy to hit with a thumb). */
+  size?: 'md' | 'lg';
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
@@ -365,7 +368,7 @@ export function OtpInput({
         }}
         className="absolute inset-0 z-10 h-full w-full cursor-text opacity-0"
       />
-      <div aria-hidden className="flex gap-2 sm:gap-3">
+      <div aria-hidden className={cn('flex', size === 'lg' ? 'gap-3 sm:gap-4' : 'gap-2 sm:gap-3')}>
         {Array.from({ length }, (_, i) => {
           const ch = value[i];
           const isCaret = focused && i === Math.min(value.length, length - 1);
@@ -373,7 +376,9 @@ export function OtpInput({
             <span
               key={i}
               className={cn(
-                'flex h-14 w-11 items-center justify-center rounded-2xl border-2 bg-bd-surface text-2xl font-black text-bd-ink shadow-card transition duration-150 sm:h-16 sm:w-12',
+                size === 'lg'
+                  ? 'flex h-[76px] w-[62px] items-center justify-center rounded-[22px] border-[3px] bg-bd-surface text-5xl font-black text-bd-ink shadow-card transition duration-150 sm:h-20 sm:w-16'
+                  : 'flex h-14 w-11 items-center justify-center rounded-2xl border-2 bg-bd-surface text-2xl font-black text-bd-ink shadow-card transition duration-150 sm:h-16 sm:w-12',
                 status === 'error' ? 'border-bd-danger text-bd-danger' : status === 'ok' ? 'border-bd-success' : isCaret ? 'border-bd-pink ring-4 ring-bd-pink/15' : ch ? 'border-bd-violet' : 'border-bd-line/15',
               )}
             >

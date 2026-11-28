@@ -10,8 +10,11 @@ self.addEventListener("push", (event) => {
     data = { title: "Bébé Dépôt", body: event.data ? event.data.text() : "" };
   }
   const title = data.title || "Bébé Dépôt";
-  event.waitUntil(
-    self.registration.showNotification(title, {
+  // App already open (even in the background): tell it to refresh now, it shows the sale at once.
+  const tellPages = self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((list) => list.forEach((c) => c.postMessage({ type: "bd-suivi-update" })));
+  event.waitUntil(Promise.all([tellPages, self.registration.showNotification(title, {
       body: data.body || "Du nouveau sur vos articles.",
       icon: "/suivi-icon-192.png",
       badge: "/suivi-icon-192.png",
@@ -19,7 +22,7 @@ self.addEventListener("push", (event) => {
       renotify: true,
       vibrate: [80, 40, 80],
       data: { url: data.url || "/" },
-    }),
+    })]),
   );
 });
 
@@ -29,7 +32,10 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const c of list) {
-        if (c.url.includes(url) && "focus" in c) return c.focus();
+        if (c.url.includes(url) && "focus" in c) {
+          c.postMessage({ type: "bd-suivi-update" });
+          return c.focus();
+        }
       }
       return self.clients.openWindow(url);
     }),

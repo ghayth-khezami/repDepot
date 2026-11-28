@@ -54,8 +54,10 @@ describe("déposant notifications", () => {
     const sold = renderDeposantMessage("VENDU", vars, "55 000 111").body;
     expect(sold).toContain("Bonjour Karim");
     expect(sold).toContain("« Poussette » (réf. D-2-04)");
-    expect(sold).toContain("Votre part de 150.000 TND vous attend");
-    expect(sold).toContain("Madame Khezami au 55 000 111");
+    expect(sold).toContain("Votre part : 150.000 TND");
+    expect(sold).toContain("« Demande de paiement » pour choisir le jour");
+    expect(sold).not.toMatch(/vous attend|venez/);
+    expect(sold).toContain("Madame Khezami : 55 000 111");
     expect(renderDeposantMessage("PAYE", vars, "55 000 111").body).toContain("vous a bien été remis ✅");
   });
 

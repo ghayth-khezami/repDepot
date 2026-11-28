@@ -4,7 +4,7 @@ import * as webpush from "web-push";
 import { PrismaService } from "../prisma/prisma.service";
 import { emptySummary, NotifySummary, onProductStatusChanged, ProductStatusChanged } from "../common/domain-events";
 import { EmailService } from "../notification/email.service";
-import { productSplit } from "../depot/depot.service";
+import { productSplit, trackingUrl } from "../depot/depot.service";
 import { DeposantEvent, renderDeposantMessage } from "../notification/deposant-templates";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{22,64}$/;
@@ -99,6 +99,7 @@ export class DeposantPushService implements OnModuleInit, OnModuleDestroy {
         depositorAmountMillimes: true,
         coclientId: true,
         coClient: { select: { firstName: true, email: true } },
+        depositRequest: { select: { trackingToken: true } },
       },
     });
     if (!products.length) return summary;
@@ -153,7 +154,12 @@ export class DeposantPushService implements OnModuleInit, OnModuleDestroy {
       else if (!this.email.isConfigured()) await log("email", "skipped", "SMTP non configuré");
       else {
         try {
-          await this.email.sendText({ to, subject: msg.subject, text: msg.body });
+          // Email: the link opens the tracking page, where « Demande de paiement » picks the day.
+          const token = p.depositRequest?.trackingToken;
+          const text = token ? `${msg.body}
+
+👉 Mon espace de suivi : ${trackingUrl(token)}` : msg.body;
+          await this.email.sendText({ to, subject: msg.subject, text });
           await log("email", "sent");
         } catch (err) {
           await log("email", "failed", (err as Error).message);

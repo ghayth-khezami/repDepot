@@ -8,7 +8,7 @@ import type { SuiviData, SuiviItem } from "@/lib/suivi";
 import { getClientApiUrl, getRemoteApiUrl } from "@/lib/api-url";
 import { formatTnd, frDate, frShortDate } from "./format";
 import { SuiviAppActions, SuiviWelcome } from "./SuiviApp";
-import { PaymentRequestCard } from "./PaymentRequest";
+import { OPEN_PAYMENT_EVENT, PaymentRequestCard } from "./PaymentRequest";
 
 const absPhoto = (p: string | null) => (!p ? null : p.startsWith("http") ? p : `${getRemoteApiUrl()}${p.startsWith("/") ? p : `/${p}`}`);
 const withPhotos = (d: SuiviData): SuiviData => ({ ...d, items: d.items.map((i) => ({ ...i, photo: absPhoto(i.photo) })) });
@@ -18,29 +18,91 @@ const isSold = (i: SuiviItem) => i.status === "VENDU" && i.payoutStatus !== "PAY
 /* ───────────────────────── Live data ───────────────────────── */
 
 /**
- * Keeps the page in sync with the shop: socket `suivi:update` (instant); after the phone wakes up the
- * socket reconnects and one refetch catches up.
+ * Keeps the page in sync with the shop, without polling:
+ *  - socket `suivi:update` → instant refetch while the app is open;
+ *  - back to the app (phone woke up, app reopened from the background) → ONE catch-up refetch, and the
+ *    socket is restarted if it may have been frozen by the phone (a frozen socket still says "connected"
+ *    but no longer receives anything — that is why the sale only showed after closing the app);
+ *  - a push notification arrives while the app is open → the service worker tells the page → refetch.
+ * Every refetch goes through one gate: never two requests at once, never twice within 1.5 s.
  */
+const MIN_GAP_MS = 1500;
+const STALE_SOCKET_MS = 15_000; // hidden longer than this → restart the socket on return
+
 function useLiveSuivi(token: string, initial: SuiviData) {
   const [data, setData] = useState(() => withPhotos(initial));
   const [live, setLive] = useState(false);
-  const refetch = useCallback(async () => {
-    try {
-      const res = await fetch(`${getClientApiUrl()}/public/suivi/${encodeURIComponent(token)}`, { cache: "no-store" });
-      if (res.ok) setData(withPhotos((await res.json()) as SuiviData));
-    } catch {
-      /* offline: keep what we have */
+  const inflight = useRef<Promise<void> | null>(null);
+  const lastFetch = useRef(Date.now()); // the server-rendered data is fresh
+  const again = useRef(false);
+
+  /** force = a real change was announced: always fetch it (after the running request if any). */
+  const refetch = useCallback(async (force = false): Promise<void> => {
+    if (inflight.current) {
+      if (force) again.current = true;
+      return inflight.current;
     }
+    if (!force && Date.now() - lastFetch.current < MIN_GAP_MS) return;
+    inflight.current = (async () => {
+      // A change announced during a request → one more round, so nothing is missed.
+      do {
+        again.current = false;
+        lastFetch.current = Date.now();
+        try {
+          const res = await fetch(`${getClientApiUrl()}/public/suivi/${encodeURIComponent(token)}`, { cache: "no-store" });
+          if (res.ok) setData(withPhotos((await res.json()) as SuiviData));
+        } catch {
+          /* offline: keep what we have */
+        }
+      } while (again.current);
+      lastFetch.current = Date.now();
+      inflight.current = null;
+    })();
+    return inflight.current;
   }, [token]);
 
   useEffect(() => {
     const socket = io(`${getRemoteApiUrl()}/suivi`, { auth: { token }, transports: ["websocket"], reconnectionDelayMax: 30_000 });
-    socket.on("connect", () => setLive(true));
+    let first = true;
+    socket.on("connect", () => {
+      setLive(true);
+      // (Re)connected after a cut: catch up on what happened meanwhile (the gate skips it if just fetched).
+      if (!first) void refetch();
+      first = false;
+    });
     socket.on("disconnect", () => setLive(false));
-    socket.on("suivi:update", () => void refetch());
-    // Phone asleep → the socket reconnects on wake-up → one refetch catches up (no polling, no double call).
-    socket.io.on("reconnect", () => void refetch());
+    socket.on("suivi:update", () => void refetch(true));
+
+    let hiddenAt = 0;
+    const onVisible = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+      const away = hiddenAt ? Date.now() - hiddenAt : 0;
+      hiddenAt = 0;
+      if (away < 2000) return;
+      void refetch();
+      if (!socket.connected) socket.connect();
+      else if (away > STALE_SOCKET_MS) socket.disconnect().connect(); // possibly frozen by the phone
+    };
+    const onOnline = () => {
+      void refetch();
+      if (!socket.connected) socket.connect();
+    };
+    // Push received while the app is open (sent by suivi-sw.js)
+    const onSwMessage = (e: MessageEvent) => {
+      if (e.data?.type === "bd-suivi-update") void refetch(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onVisible);
+    window.addEventListener("online", onOnline);
+    navigator.serviceWorker?.addEventListener("message", onSwMessage);
     return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+      window.removeEventListener("online", onOnline);
+      navigator.serviceWorker?.removeEventListener("message", onSwMessage);
       socket.disconnect();
     };
   }, [token, refetch]);
@@ -133,7 +195,7 @@ function NotificationsBell({ token, items }: { token: string; items: SuiviItem[]
                       <span className="block text-[13px] font-bold text-bd-muted">
                         {e.kind === "PAYE"
                           ? `« ${e.item.name} » : ${formatTnd(e.item.depositorMillimes)} vous ont été remis.`
-                          : `« ${e.item.name} » est vendu. Votre part de ${formatTnd(e.item.depositorMillimes)} vous attend en boutique.`}
+                          : `« ${e.item.name} » est vendu ! Votre part : ${formatTnd(e.item.depositorMillimes)}. Choisissez le jour pour la récupérer (« Demande de paiement »).`}
                       </span>
                       <span className="mt-0.5 block text-[11px] font-extrabold text-bd-violet">{frShortDate(e.at)}</span>
                     </span>
@@ -185,7 +247,7 @@ function ArticleCard({ item, fresh }: { item: SuiviItem; fresh: boolean }) {
     : idx === 3
       ? `Payé${item.paidAt ? ` le ${frShortDate(item.paidAt)}` : ""} — merci 💜`
       : idx === 2
-        ? "Vendu 🎉 Passez récupérer votre paiement en boutique."
+        ? "Vendu 🎉 Choisissez votre jour de paiement (« Demande de paiement »)."
         : "En boutique, prêt à trouver preneur.";
   return (
     <li className={`rounded-[22px] bg-white p-3.5 shadow-card ${withdrawn ? "opacity-60" : ""} ${fresh ? "suivi-fresh" : ""}`}>
@@ -324,7 +386,7 @@ function Celebration({ firstName, sold, paid, onClose }: { firstName: string; so
           <p className="suivi-rise relative mt-2 text-sm font-bold text-white/90" style={{ animationDelay: "0.3s" }}>
             {paidOnly
               ? `Votre paiement a bien été remis (${paid.length} article${paid.length > 1 ? "s" : ""}).`
-              : `${sold.length} article${sold.length > 1 ? "s" : ""} vendu${sold.length > 1 ? "s" : ""} ! Votre paiement vous attend en boutique.`}
+              : `${sold.length} article${sold.length > 1 ? "s" : ""} vendu${sold.length > 1 ? "s" : ""} ! Choisissez maintenant le jour où vous viendrez récupérer votre paiement.`}
           </p>
           <p className="suivi-count relative mt-4 inline-block rounded-2xl bg-white/15 px-5 py-2 text-3xl font-black tabular-nums">
             {paidOnly ? "" : "+"}
@@ -340,7 +402,7 @@ function Celebration({ firstName, sold, paid, onClose }: { firstName: string; so
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-black text-bd-ink">{i.name}</span>
                 <span className={`block text-xs font-extrabold ${p ? "text-bd-violet-strong" : "text-bd-success"}`}>
-                  {p ? "Paiement reçu ✅" : "Vendu 🎉 · à récupérer"} · {formatTnd(i.depositorMillimes)}
+                  {p ? "Paiement reçu ✅" : "Vendu 🎉"} · {formatTnd(i.depositorMillimes)}
                 </span>
               </span>
             </li>
@@ -348,11 +410,27 @@ function Celebration({ firstName, sold, paid, onClose }: { firstName: string; so
         </ul>
         <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {!paidOnly ? (
-            <p className="mb-3 flex items-center justify-center gap-1.5 text-center text-xs font-bold text-bd-muted">
-              <Store aria-hidden className="h-4 w-4" /> Passez en boutique ou appelez Madame Khezami pour récupérer votre argent.
-            </p>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  window.dispatchEvent(new Event(OPEN_PAYMENT_EVENT));
+                }}
+                className="unstyled mb-2 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-grad-green-strong text-base font-black text-white shadow-[0_10px_24px_rgba(22,163,74,0.3)] active:scale-[0.98]"
+              >
+                <CalendarDays aria-hidden className="h-5 w-5" /> Choisir mon jour de paiement
+              </button>
+              <p className="mb-3 flex items-center justify-center gap-1.5 text-center text-xs font-bold text-bd-muted">
+                <Store aria-hidden className="h-4 w-4" /> Au moins 2 jours à l&apos;avance · boutique fermée le dimanche
+              </p>
+            </>
           ) : null}
-          <button type="button" onClick={onClose} className="unstyled flex min-h-[54px] w-full items-center justify-center rounded-2xl bg-grad-pink-strong text-base font-black text-white shadow-glow-pink active:scale-[0.98]">
+          <button
+            type="button"
+            onClick={onClose}
+            className={`unstyled flex min-h-[54px] w-full items-center justify-center rounded-2xl text-base font-black active:scale-[0.98] ${paidOnly ? "bg-grad-pink-strong text-white shadow-glow-pink" : "bg-bd-bg text-bd-ink"}`}
+          >
             Voir mes articles
           </button>
         </div>

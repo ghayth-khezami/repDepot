@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarCheck, Check, HandCoins, X } from "lucide-react";
 import type { SuiviItem } from "@/lib/suivi";
 import { getClientApiUrl } from "@/lib/api-url";
@@ -32,6 +32,9 @@ function selectableDays(now = new Date()) {
 }
 
 const longDay = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ });
+
+/** Fired by the « vendu » celebration: opens the payment request sheet. */
+export const OPEN_PAYMENT_EVENT = "bd-open-payment-request";
 
 /**
  * "Demande de paiement": the déposant picks sold articles (or all) and the day he comes to collect his
@@ -65,6 +68,27 @@ export function PaymentRequestCard({ token, items, onChanged }: { token: string;
   const days = useMemo(() => selectableDays(), []);
   const chosen = available.filter((i) => selected.has(i.ref));
   const total = chosen.reduce((t, i) => t + i.depositorMillimes, 0);
+
+  // « Choisir mon jour de paiement » from the celebration popup → open the sheet (or show the card).
+  const availableRef = useRef(available);
+  useEffect(() => {
+    availableRef.current = available;
+  });
+  const sectionRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const onOpen = () => {
+      const list = availableRef.current;
+      if (!list.length) {
+        sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      setOpen(true);
+      setDone(null);
+      setSelected(new Set(list.map((i) => i.ref)));
+    };
+    window.addEventListener(OPEN_PAYMENT_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_PAYMENT_EVENT, onOpen);
+  }, []);
 
   if (!sold.length && !pending.length) return null;
 
@@ -101,7 +125,7 @@ export function PaymentRequestCard({ token, items, onChanged }: { token: string;
   };
 
   return (
-    <section aria-label="Paiement" className="mt-4 overflow-hidden rounded-[28px] bg-white shadow-card">
+    <section ref={sectionRef} aria-label="Paiement" className="mt-4 overflow-hidden rounded-[28px] bg-white shadow-card">
       <div className="flex items-center gap-3 bg-gradient-to-r from-[#15803d] to-[#22c55e] px-5 py-4 text-white">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/20">
           <HandCoins aria-hidden className="h-6 w-6" />

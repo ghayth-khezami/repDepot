@@ -5,17 +5,19 @@
 export type DeposantEvent = "VENDU" | "PAYE";
 
 /**
- * VENDU = the article is sold → the déposant comes to collect the money.
+ * VENDU = the article is sold → the déposant CHOOSES the day he comes for the money (« Demande de
+ *         paiement » in his tracking app, at least 2 days ahead) — he must not come straight away.
  * PAYE  = the money has been handed over → confirmation only, nothing left to do.
  */
 export const DEPOSANT_TEMPLATES: Record<DeposantEvent, { title: string; subject: string; body: string }> = {
   VENDU: {
-    title: "🎉 Article vendu — votre paiement vous attend",
-    subject: "🎉 « {produit} » est vendu — venez récupérer votre paiement",
+    title: "🎉 Article vendu ! Choisissez votre jour de paiement",
+    subject: "🎉 « {produit} » est vendu — choisissez le jour pour récupérer votre paiement",
     body:
       "Bonjour {prenom} 👋 Bonne nouvelle 🎉 Votre article « {produit} » (réf. {ref}) vient d'être vendu ! " +
-      "💰 Votre part de {prix} TND vous attend en boutique. " +
-      "📞 Appelez Madame Khezami au {KHEZAMI_PHONE} pour venir la récupérer. Merci de votre confiance 💜",
+      "💰 Votre part : {prix} TND. " +
+      "📅 Ouvrez votre espace de suivi et touchez « Demande de paiement » pour choisir le jour où vous passerez la récupérer. " +
+      "Une question ? Madame Khezami : {KHEZAMI_PHONE}. Merci de votre confiance 💜",
   },
   PAYE: {
     title: "✅ Paiement reçu",
