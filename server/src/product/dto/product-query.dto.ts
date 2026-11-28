@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, IsBoolean, IsNumber, IsEnum, IsUUID , IsIn } from "class-validator";
+import { IsOptional, IsString, IsBoolean, IsNumber, IsEnum, IsUUID , IsIn, Matches } from "class-validator";
 import { ProductStatus } from "@prisma/client";
 import { Type } from "class-transformer";
 import { PaginationDto } from "../../common/dto/pagination.dto";
@@ -97,4 +97,12 @@ export class ProductQueryDto extends PaginationDto {
   @IsOptional()
   @IsIn(["yes", "no"])
   published?: "yes" | "no";
+}
+
+/** QR labels export: same filters + the print format ("a4" sheet, or a label roll like "50x30" in mm). */
+export class LabelExportQueryDto extends ProductQueryDto {
+  @ApiPropertyOptional({ description: "Format : a4 (12 cartes) ou LxH en mm pour un rouleau d'étiquettes, ex. 50x30" })
+  @IsOptional()
+  @Matches(/^(a4|\d{2,3}(\.\d)?x\d{2,3}(\.\d)?)$/i)
+  format?: string;
 }

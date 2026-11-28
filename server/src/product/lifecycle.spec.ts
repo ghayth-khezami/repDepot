@@ -99,3 +99,23 @@ describe("QR cards PDF", () => {
     expect(pages(two)).toBe(2);
   }, 30000);
 });
+
+describe("Label roll PDF (TSC TE200)", () => {
+  const { buildLabelRollPdf, parseLabelFormat } = require("../common/label-roll-pdf");
+  it("parses formats and clamps to the printer limits", () => {
+    expect(parseLabelFormat("50x30")).toEqual({ kind: "roll", w: 50, h: 30 });
+    expect(parseLabelFormat("a4")).toEqual({ kind: "a4" });
+    expect(parseLabelFormat(undefined)).toEqual({ kind: "a4" });
+    expect(parseLabelFormat("200x10")).toEqual({ kind: "roll", w: 108, h: 15 });
+  });
+  it("one label per page, page = label size", () => {
+    const pdf: Buffer = buildLabelRollPdf(
+      [1, 2, 3].map((i) => ({ id: `id-${i}`, ref: `D-1-0${i}`, productName: `Article ${i}`, description: "Bon état", PrixVente: 20 })),
+      50,
+      30,
+    );
+    const text = pdf.toString("latin1");
+    expect((text.match(/\/Type \/Page[^s]/g) ?? []).length).toBe(3);
+    expect(text).toMatch(/\/MediaBox \[0 0 141\.7\d* 85\.0\d*\]/);
+  }, 30000);
+});

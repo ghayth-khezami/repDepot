@@ -130,7 +130,7 @@ const COLS = 2;
 const MARGIN_X = 8;
 const MARGIN_Y = 10;
 
-function formatTnd(value: number): string {
+export function formatTnd(value: number): string {
   return `${value.toFixed(2).replace(".", ",")} TND`;
 }
 
@@ -246,7 +246,7 @@ export interface QrCardProduct {
 }
 
 /** Fits text on ONE line (ellipsis) at the current font size. */
-function fitLine(doc: any, text: string, maxWidth: number) {
+export function fitLine(doc: any, text: string, maxWidth: number) {
   const clean = (text || "").replace(/\s+/g, " ").trim();
   if (doc.getTextWidth(clean) <= maxWidth) return clean;
   let lo = 0;
@@ -260,7 +260,7 @@ function fitLine(doc: any, text: string, maxWidth: number) {
 }
 
 /** At most `maxLines` lines; the last one gets an ellipsis if text remains. */
-function clampLines(doc: any, text: string, maxWidth: number, maxLines: number): string[] {
+export function clampLines(doc: any, text: string, maxWidth: number, maxLines: number): string[] {
   const clean = (text || "").replace(/\s+/g, " ").trim();
   if (!clean) return [];
   const lines: string[] = doc.splitTextToSize(clean, maxWidth);
@@ -272,11 +272,11 @@ function clampLines(doc: any, text: string, maxWidth: number, maxLines: number):
 }
 
 /** QR drawn as vector squares: no PNG encoding (≈100× faster than addImage) and razor-sharp in print. */
-function drawQrVector(doc: any, payload: string, x: number, y: number, size: number) {
+export function drawQrVector(doc: any, payload: string, x: number, y: number, size: number, rgb: [number, number, number] = [30, 22, 48]) {
   const qr = QRCode.create(payload, { errorCorrectionLevel: "M" });
   const n = qr.modules.size;
   const cell = size / n;
-  doc.setFillColor(30, 22, 48);
+  doc.setFillColor(rgb[0], rgb[1], rgb[2]);
   for (let r = 0; r < n; r++) {
     let c = 0;
     while (c < n) {
@@ -286,7 +286,8 @@ function drawQrVector(doc: any, payload: string, x: number, y: number, size: num
       }
       let run = 1;
       while (c + run < n && qr.modules.get(r, c + run)) run++;
-      doc.rect(x + c * cell, y + r * cell, run * cell + 0.01, cell + 0.01, "F");
+      // slight overlap: no hairline gaps between neighbouring modules once rasterised
+      doc.rect(x + c * cell, y + r * cell, run * cell + 0.04, cell + 0.04, "F");
       c += run;
     }
   }

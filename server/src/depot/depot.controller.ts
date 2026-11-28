@@ -6,7 +6,7 @@ import * as QRCode from "qrcode";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
-import { buildProductQrPdf } from "../common/barcode-label.util";
+import { buildProductLabels } from "../common/label-roll-pdf";
 import { DepotService } from "./depot.service";
 import { AddDepotItemsDto, CreateDepotDto, DeposantSearchDto } from "./dto/create-depot.dto";
 
@@ -114,10 +114,10 @@ export class DepotController {
   }
 
   @Get("depots/:id/labels.pdf")
-  @ApiOperation({ summary: "Per-article QR labels (product id QR + ref) for this contract" })
-  async labelsPdf(@Param("id", ParseUUIDPipe) id: string, @Res() res: Response) {
+  @ApiOperation({ summary: "Per-article QR labels for this contract: A4 sheet, or label roll with ?format=50x30" })
+  async labelsPdf(@Param("id", ParseUUIDPipe) id: string, @Query("format") format: string | undefined, @Res() res: Response) {
     const products = await this.depotService.labelProducts(id);
-    const buffer = await buildProductQrPdf(products);
+    const buffer = await buildProductLabels(products, format);
     sendPdf(res, buffer, `etiquettes-${id.slice(0, 8)}.pdf`, false);
   }
 }

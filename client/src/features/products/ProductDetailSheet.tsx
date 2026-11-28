@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import HeartButton from './HeartButton';
 import InstagramStorySheet from './InstagramStorySheet';
+import LabelPrintSheet from './LabelPrintSheet';
 import OrderBadge from './OrderBadge';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Camera, ChevronLeft, MoreHorizontal, Package, Pencil, Printer, QrCode, ShoppingCart, Trash2, Truck, Instagram } from 'lucide-react';
 import { useGetProductQuery } from '../../store/api/productApi';
 import { uploadUrl } from '../../lib/apiBase';
-import { downloadAuthed } from '../../lib/download';
 import { formatTnd, splitCommission, toMillimes } from '../../lib/money';
 import { cn } from '../../lib/cn';
-import { useToast } from '../../context/ToastContext';
 import { BottomSheet, SheetAction, Skeleton, StickyActionBar } from '../../components/ui';
 import StageControl, { stageFrom } from './StageControl';
 import DeposantSuivi from '../depot/DeposantSuivi';
@@ -56,27 +55,16 @@ export default function ProductDetailSheet({
   const { data, isLoading, isError } = useGetProductQuery(id);
   const p = data as FullProduct | undefined;
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const [photo, setPhoto] = useState(0);
   const [more, setMore] = useState(false);
   const [menu, setMenu] = useState(false);
   const [story, setStory] = useState(false);
+  const [labels, setLabels] = useState<'one' | 'lot' | null>(null);
   const [suivi, setSuivi] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
 
   const priceM = toMillimes(p?.PrixVente ?? 0);
   const split = p?.isDepot ? splitCommission(priceM, p.depotPercentage ?? 0) : null;
 
-  const download = async (key: string, path: string, name: string) => {
-    setBusy(key);
-    try {
-      await downloadAuthed(path, name);
-    } catch (e) {
-      showToast((e as Error).message, 'error');
-    } finally {
-      setBusy(null);
-    }
-  };
 
   const extraRows = p
     ? [
@@ -262,11 +250,21 @@ export default function ProductDetailSheet({
             </StickyActionBar>
 
             {story ? <InstagramStorySheet product={p} open={story} onClose={() => setStory(false)} /> : null}
+            {labels ? (
+              <LabelPrintSheet
+                open
+                onClose={() => setLabels(null)}
+                path={labels === 'lot' && p.depositRequest ? `/depots/${p.depositRequest.id}/labels.pdf` : `/products/${p.id}/qr-card/pdf`}
+                filename={labels === 'lot' ? `etiquettes-${p.depositRequest?.contractNumber ?? 'contrat'}` : `etiquette-${p.ref ?? p.id}`}
+                subtitle={labels === 'lot' ? `Tous les articles du contrat ${p.depositRequest?.contractNumber ?? ''}` : p.productName}
+                sample={{ name: p.productName, description: p.description, price: `${(priceM / 1000).toFixed(2).replace('.', ',')} TND`, ref: p.ref }}
+              />
+            ) : null}
             <BottomSheet open={menu} onClose={() => setMenu(false)} title="Actions">
               <SheetAction icon={Instagram} tone="pink" label="Story Instagram" hint="Visuel du produit + lien à coller" onClick={() => (setMenu(false), setStory(true))} />
-              <SheetAction icon={QrCode} tone="violet" label="Carte QR" hint="PDF prêt à imprimer" loading={busy === 'qr'} onClick={() => void download('qr', `/products/${p.id}/qr-card/pdf`, `qr-${p.ref ?? p.id}.pdf`)} />
+              <SheetAction icon={QrCode} tone="violet" label="Étiquette QR" hint="Imprimante d'étiquettes ou feuille A4" onClick={() => (setMenu(false), setLabels('one'))} />
               {p.depositRequest ? (
-                <SheetAction icon={Printer} label="Étiquettes du lot" hint={p.depositRequest.contractNumber ?? undefined} loading={busy === 'labels'} onClick={() => void download('labels', `/depots/${p.depositRequest!.id}/labels.pdf`, 'etiquettes.pdf')} />
+                <SheetAction icon={Printer} label="Étiquettes du contrat" hint={p.depositRequest.contractNumber ?? undefined} onClick={() => (setMenu(false), setLabels('lot'))} />
               ) : null}
               <SheetAction icon={ShoppingCart} tone="green" label="Créer une commande" onClick={() => navigate(`/commands?productId=${encodeURIComponent(p.id)}`)} />
             </BottomSheet>

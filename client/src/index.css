@@ -500,6 +500,48 @@ html, body { overflow-x: hidden; }
 @keyframes bd-scan-sweep { from { top: 10%; } to { top: 88%; } }
 @media (prefers-reduced-motion: reduce) { .bd-scan-laser { animation: none; top: 50%; } }
 
+/* ───────── Scanner: mode cards & illustrations ───────── */
+.bd-scan-art .bd-art-float { animation: bd-art-float 3.4s ease-in-out infinite; }
+.bd-scan-art .bd-art-wave { animation: bd-art-wave 1.6s ease-out infinite; }
+.bd-scan-art .bd-art-fan { animation: bd-art-flicker 1.4s ease-in-out infinite; }
+.bd-scan-art .bd-art-line { animation: bd-art-sweep 1.5s ease-in-out infinite alternate; }
+.bd-scan-art .bd-art-led { animation: bd-art-led 1.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+.bd-scan-art .bd-art-camline { animation: bd-art-camsweep 1.8s ease-in-out infinite alternate; }
+.bd-scan-art .bd-art-corners { animation: bd-art-breathe 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.bd-scan-art .bd-art-twinkle > * { animation: bd-art-twinkle 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.bd-scan-art.is-hit .bd-art-label { animation: bd-art-hit 0.6s ease-out; transform-box: fill-box; transform-origin: center; }
+.bd-scan-art.is-hit .bd-art-line { animation-duration: 0.35s; }
+@keyframes bd-art-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes bd-art-wave { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes bd-art-flicker { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes bd-art-sweep { from { transform: translateY(0); } to { transform: translateY(54px); } }
+@keyframes bd-art-camsweep { from { transform: translateY(0); } to { transform: translateY(66px); } }
+@keyframes bd-art-led { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes bd-art-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes bd-art-twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes bd-art-hit { 0% { transform: scale(1); } 35% { transform: scale(1.08); filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.9)); } 100% { transform: scale(1); } }
+
+.bd-mode-card { transition: transform 0.25s var(--bd-ease), box-shadow 0.25s var(--bd-ease); }
+.bd-mode-card:hover { transform: translateY(-4px); }
+.bd-mode-card:active { transform: scale(0.985); }
+.bd-mode-card .bd-mode-cta svg { transition: transform 0.25s var(--bd-ease); }
+.bd-mode-card:hover .bd-mode-cta svg { transform: translateX(4px); }
+.bd-scan-grid { background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px); background-size: 16px 16px; }
+
+/* Waiting dots */
+.bd-dots > span { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 9999px; background: currentColor; animation: bd-dot 1.2s ease-in-out infinite; }
+.bd-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.bd-dots > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bd-dot { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-5px); opacity: 1; } }
+
+/* Label coming out of the printer (print sheet preview) */
+.bd-label-feed { animation: bd-label-feed 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes bd-label-feed { from { transform: translateY(-105%); } to { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-scan-art *, .bd-mode-card, .bd-dots > span, .bd-label-feed { animation: none !important; transition: none !important; }
+}
+
 /* ───────── Dark mode for the legacy screens & forms ─────────
    Old pages / modals (.bo-page, outside the new .bd-ui kit) hard-code light-theme greys and pastel
    colours; in dark mode they follow the theme tokens so every text stays readable.

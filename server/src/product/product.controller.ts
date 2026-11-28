@@ -31,7 +31,7 @@ import { SkipThrottle } from "@nestjs/throttler";
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
-import { ProductQueryDto } from "./dto/product-query.dto";
+import { LabelExportQueryDto, ProductQueryDto } from "./dto/product-query.dto";
 import { ChangeLifecycleDto } from "./dto/change-lifecycle.dto";
 import { SetFeaturedProductsDto } from "./dto/set-featured-products.dto";
 import { PublishProductsDto } from "./dto/publish-products.dto";
@@ -55,7 +55,7 @@ import {
   buildProductQrPdf,
 } from "../common/barcode-label.util";
 import { memoryImageUpload } from "../common/utils/image-upload";
-import { buildQrCardsPdf } from "../common/barcode-label.util";
+import { buildProductLabels } from "../common/label-roll-pdf";
 import { CloudinaryService } from "../cloudinary/cloudinary.service";
 
 const productPhotoUpload = memoryImageUpload({ fileSize: 5 * 1024 * 1024 });
@@ -313,12 +313,13 @@ export class ProductController {
   @Get("export/qr-cards/pdf")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: "A4 sheet of QR cards (3×4) for the products matching the current filters" })
-  async exportQrCards(@Query() query: ProductQueryDto, @Res() res: Response) {
-    const products = await this.productService.findForQrCards(query);
-    const buffer = await buildQrCardsPdf(products);
+  @ApiOperation({ summary: "QR labels for the products matching the filters: A4 sheet (3×4) or label roll (?format=50x30)" })
+  async exportQrCards(@Query() query: LabelExportQueryDto, @Res() res: Response) {
+    const { format, ...filters } = query;
+    const products = await this.productService.findForQrCards(filters);
+    const buffer = await buildProductLabels(products, format);
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", 'attachment; filename="qr-produits.pdf"');
+    res.setHeader("Content-Disposition", `attachment; filename="${format && format !== "a4" ? `etiquettes-${format}` : "qr-produits"}.pdf"`);
     res.send(buffer);
   }
 
@@ -326,9 +327,9 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "QR card for one product (same card format as the sheet)" })
-  async exportOneQrCard(@Param("id") id: string, @Res() res: Response) {
+  async exportOneQrCard(@Param("id") id: string, @Query("format") format: string | undefined, @Res() res: Response) {
     const p = await this.productService.findOne(id);
-    const buffer = await buildQrCardsPdf([{ id: p.id, ref: p.ref, productName: p.productName, description: p.description, PrixVente: p.PrixVente }]);
+    const buffer = await buildProductLabels([{ id: p.id, ref: p.ref, productName: p.productName, description: p.description, PrixVente: p.PrixVente }], format);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="qr-${(p.ref || p.id).replace(/[^\w-]/g, "")}.pdf"`);
     res.send(buffer);

@@ -17,6 +17,7 @@ import { useToast } from '../../context/ToastContext';
 import { Button, Card, InfoNote, Money, StatusChip, buttonClass, GradientIconTile } from '../../components/ui';
 import { cn } from '../../lib/cn';
 import stampUrl from '../../assets/stamp.png';
+import LabelPrintSheet from '../products/LabelPrintSheet';
 
 const frDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const fmtPhone = (p: string) => p.replace(/^(\d{2})(\d{3})(\d{3})$/, '$1 $2 $3');
@@ -198,6 +199,7 @@ export default function ContractView({ contract: c, justCreated, onFinish }: { c
   const qrUrl = useAuthedObjectUrl(`/depots/${c.id}/qr.svg`);
   const { data: settings } = useGetSiteSettingsAdminQuery();
   const [busy, setBusy] = useState<'print' | 'pdf' | 'labels' | 'share' | null>(null);
+  const [labels, setLabels] = useState(false);
   const [refProblems, setRefProblems] = useState<Array<{ id: string; productName: string }> | null>(null);
   const terms = c.terms || settings?.contractTerms?.trim() || DEFAULT_CONTRACT_TERMS;
 
@@ -296,10 +298,17 @@ export default function ContractView({ contract: c, justCreated, onFinish }: { c
               loading={busy === 'labels'}
               disabled={!!busy || !c.items.length}
               title={c.items.length ? undefined : 'Aucun article sur ce contrat'}
-              onClick={() => run('labels', () => downloadAuthed(`/depots/${c.id}/labels.pdf`, `etiquettes-${c.contractNumber}.pdf`))}
+              onClick={() => setLabels(true)}
             >
               Étiquettes QR
             </Button>
+            <LabelPrintSheet
+              open={labels}
+              onClose={() => setLabels(false)}
+              path={`/depots/${c.id}/labels.pdf`}
+              filename={`etiquettes-${c.contractNumber}`}
+              subtitle={`${c.items.length} article${c.items.length > 1 ? 's' : ''} · contrat ${c.contractNumber}`}
+            />
           </Card>
 
           <Card className="space-y-2 p-4">

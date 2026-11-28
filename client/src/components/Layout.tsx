@@ -7,6 +7,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Package, ScanLine, ShoppingCart, Users } from 'lucide-react';
 import NotificationCenter from './NotificationCenter';
 import ThemeToggle from './ThemeToggle';
+import DouchetteListener from './DouchetteListener';
 import { cn } from '../lib/cn';
 import { Blobs } from './ui';
 
@@ -93,6 +94,7 @@ const Layout = ({ children }: LayoutProps) => {
           <div key={pathname} className="bd-anim-page p-4 pb-32 md:px-8 md:pb-8 md:pt-0">{children}</div>
         </div>
         <AutoFieldMic />
+        <DouchetteListener />
         <MobileTabBar />
       </main>
     </div>

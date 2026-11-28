@@ -737,7 +737,7 @@ export class DepotService {
     const products = await this.prisma.product.findMany({
       where: { depositRequestId: id },
       orderBy: { ref: "asc" },
-      select: { id: true, productName: true, PrixVente: true, ref: true },
+      select: { id: true, productName: true, PrixVente: true, ref: true, description: true },
     });
     if (!products.length) throw new BadRequestException("Ce contrat ne contient aucun article.");
     return products;

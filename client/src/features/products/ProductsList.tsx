@@ -61,6 +61,8 @@ import {
   useIsDesktop,
 } from '../../components/ui';
 import StageControl, { STAGE_META, stageFrom } from './StageControl';
+import LabelPrintSheet from './LabelPrintSheet';
+import { labelFormatName, withLabelFormat, getLabelFormat } from '../../lib/labelFormat';
 import type { Product } from '../../types';
 
 type Segment = 'all' | 'depot' | 'achat';
@@ -105,6 +107,7 @@ export default function ProductsList({
   const [picker, setPicker] = useState<Picker>(null);
   const [pickerSearch, setPickerSearch] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [labels, setLabels] = useState(false);
   const [site, setSite] = useState<'yes' | 'no' | null>(null);
   /** Selection mode: pick products, then "Publier" / "Retirer du site". */
   const [selecting, setSelecting] = useState(false);
@@ -267,8 +270,8 @@ export default function ProductsList({
                     <button
                       type="button"
                       aria-label={`QR de ${p.productName}`}
-                      title="Carte QR"
-                      onClick={() => void download(`qr-${p.id}`, `/products/${p.id}/qr-card/pdf`, `qr-${p.ref ?? p.id}.pdf`)}
+                      title={`Étiquette QR · ${labelFormatName(getLabelFormat())}`}
+                      onClick={() => void download(`qr-${p.id}`, withLabelFormat(`/products/${p.id}/qr-card/pdf`), `etiquette-${p.ref ?? p.id}.pdf`)}
                       className="bd-focus flex h-10 w-10 items-center justify-center rounded-xl text-bd-violet hover:bg-bd-lilac/60"
                     >
                       <QrCode size={18} aria-hidden />
@@ -322,8 +325,8 @@ export default function ProductsList({
                     <button
                       type="button"
                       aria-label={`QR de ${p.productName}`}
-                      title="Carte QR"
-                      onClick={() => void download(`qr-${p.id}`, `/products/${p.id}/qr-card/pdf`, `qr-${p.ref ?? p.id}.pdf`)}
+                      title={`Étiquette QR · ${labelFormatName(getLabelFormat())}`}
+                      onClick={() => void download(`qr-${p.id}`, withLabelFormat(`/products/${p.id}/qr-card/pdf`), `etiquette-${p.ref ?? p.id}.pdf`)}
                       className="bd-focus flex h-11 w-11 items-center justify-center rounded-xl text-bd-violet hover:bg-bd-lilac/60"
                     >
                       <QrCode size={18} aria-hidden />
@@ -428,6 +431,14 @@ export default function ProductsList({
         />
       </BottomSheet>
 
+      <LabelPrintSheet
+        open={labels}
+        onClose={() => setLabels(false)}
+        path={`/products/export/qr-cards/pdf${qs(filterParams)}`}
+        filename="etiquettes-produits"
+        subtitle="Tous les produits de la liste (filtres appliqués)"
+      />
+
       {/* Secondary actions */}
       <BottomSheet open={picker === 'actions'} onClose={() => setPicker(null)} title="Actions produits">
         <SheetSection title="Créer">
@@ -439,7 +450,7 @@ export default function ProductsList({
             <SheetTile icon={FileSpreadsheet} tone="green" label="Export Excel" loading={busy === 'xlsx'} onClick={() => void download('xlsx', exportPath('products', filterParams), 'produits.xlsx')} />
             <SheetTile icon={FileText} tone="pink" label="Liste en PDF" loading={busy === 'pdf'} onClick={() => void download('pdf', '/products/export/pdf', 'produits.pdf')} />
             <SheetTile icon={Download} label="Télécharger CSV" loading={busy === 'csv'} onClick={() => void download('csv', '/products/export/csv', 'produits.csv')} />
-            <SheetTile icon={QrCode} label="QR de tous les produits" loading={busy === 'qr'} onClick={() => void download('qr', `/products/export/qr-cards/pdf${qs(filterParams)}`, 'qr-produits.pdf')} />
+            <SheetTile icon={QrCode} label="Étiquettes QR à imprimer" onClick={() => (setPicker(null), setLabels(true))} />
           </div>
         </SheetSection>
       </BottomSheet>
